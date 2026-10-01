@@ -1,0 +1,103 @@
+{
+  "name": "@antone-br/render-picker",
+  "version": "0.1.0",
+  "description": "Dev-only Next.js toolkit: pick any element to copy its route, XPath, CSS selector, React component and source file:line (React 19 compatible, sourcemap-resolved), plus Ctrl+click to open the source in VS Code.",
+  "keywords": [
+    "react",
+    "nextjs",
+    "react-19",
+    "xpath",
+    "css-selector",
+    "devtools",
+    "inspector",
+    "picker",
+    "click-to-source",
+    "vscode",
+    "sourcemap",
+    "ai-coding-agent",
+    "claude-code"
+  ],
+  "homepage": "https://github.com/Antone-br/render-picker#readme",
+  "bugs": {
+    "url": "https://github.com/Antone-br/render-picker/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Antone-br/render-picker.git"
+  },
+  "license": "MIT",
+  "author": "Antone Barbaud <antone.barbaud@icloud.com>",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js",
+      "require": "./dist/next.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "directories": {
+    "test": "tests"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "react-path-picker": "^0.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^29.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  },
+  "peerDependencies": {
+    "next": ">=14",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "module": "./dist/index.js",
+  "sideEffects": false
+}
