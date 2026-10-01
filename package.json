@@ -1,6 +1,6 @@
 {
   "name": "@antone-br/render-picker",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Dev-only Next.js toolkit: pick any element to copy its route, XPath, CSS selector, React component and source file:line (React 19 compatible, sourcemap-resolved), plus Ctrl+click to open the source in VS Code.",
   "keywords": [
     "react",
@@ -67,10 +67,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
-  },
-  "dependencies": {
-    "react-path-picker": "^0.2.1"
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build",
+    "release:staging": "npm version prerelease --preid=staging -m \"chore(release): %s\" && npm publish --tag staging && git push --follow-tags",
+    "release:latest": "npm version patch -m \"chore(release): %s\" && npm publish && git push --follow-tags",
+    "release:promote": "npm dist-tag add @antone-br/render-picker@$npm_package_version latest"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

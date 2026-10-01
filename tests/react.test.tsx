@@ -1,54 +1,141 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { InspectorCallbacks } from "../src/core/types";
+
+// Capture les callbacks passés à l'inspecteur pour les déclencher à la main.
+let captured: InspectorCallbacks | null = null;
+vi.mock("../src/core/inspector/inspector", () => ({
+  createInspector: (cb: InspectorCallbacks) => {
+    captured = cb;
+    return { activate: () => {}, deactivate: () => {} };
+  },
+}));
 
 import { RenderPickerButton, formatResult, formatResults } from "../src/react";
+import type { PickResult } from "../src/core/types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
 
-const result = {
-  origin: "http://localhost:3000",
-  project: "my-app",
+const result: PickResult = {
   route: "/",
   xpath: "/html/body/main",
   cssSelector: "main",
   tagName: "main",
   id: null,
-  textContent: "",
   reactComponent: "Page",
   reactSource: "src/app/page.tsx:10",
 };
 
 afterEach(() => {
   document.body.innerHTML = "";
+  captured = null;
+  vi.restoreAllMocks();
 });
 
 describe("formatResult / formatResults", () => {
-  it("préfixe [renderPicker] pour un résultat", () => {
+  it("multi-ligne, sans Origin/Project, Source séparé, React en dernier", () => {
     expect(formatResult(result)).toBe(
-      "[renderPicker], Origin: http://localhost:3000, Project: my-app, Route: /, XPath: /html/body/main, CSS: main, React: Page (src/app/page.tsx:10)",
+      [
+        "[renderPicker]",
+        "Route: /",
+        "XPath: /html/body/main",
+        "CSS: main",
+        "Source: src/app/page.tsx:10",
+        "React: Page",
+      ].join("\n"),
     );
   });
 
-  it("préfixe [renderPicker] sur l'en-tête multi", () => {
+  it("omet Origin et Project", () => {
+    const text = formatResult(result);
+    expect(text).not.toContain("Origin");
+    expect(text).not.toContain("Project");
+  });
+
+  it("React (composant) est la dernière ligne", () => {
+    expect(formatResult(result).trim().endsWith("React: Page")).toBe(true);
+  });
+
+  it("sans source → pas de ligne Source, React quand même en dernier", () => {
+    const text = formatResult({ ...result, reactSource: null });
+    expect(text).not.toContain("Source:");
+    expect(text.trim().endsWith("React: Page")).toBe(true);
+  });
+
+  it("multi : en-tête + Route partagée + un bloc par élément", () => {
     const text = formatResults([result, { ...result, xpath: "/html/body/nav" }]);
-    expect(text.startsWith("[renderPicker] 2 elements")).toBe(true);
-    expect(text).not.toContain("xPathInfo");
+    expect(text.startsWith("[renderPicker] 2 elements\nRoute: /")).toBe(true);
+    expect(text).toContain("#1");
+    expect(text).toContain("#2");
+    expect(text).toContain("XPath: /html/body/nav");
+    expect(text).not.toContain("Origin");
   });
 });
 
 describe("RenderPickerButton", () => {
-  it("renomme le title du bouton", () => {
+  it("rend un bouton accessible, data-pathpicker-ignore, et s'arme au clic", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
     act(() => root.render(<RenderPickerButton pathname="/" />));
 
-    const title = container
-      .querySelector("[data-pathpicker-toggle]")
-      ?.getAttribute("title");
-    expect(title).toMatch(/^renderPicker: pick an element to copy/);
+    const btn = document.querySelector<HTMLButtonElement>(
+      "button[aria-label^='renderPicker']",
+    );
+    expect(btn).not.toBeNull();
+    expect(btn?.getAttribute("data-pathpicker-ignore")).not.toBeNull();
+
+    act(() => btn?.click());
+    // Armé → l'inspecteur est monté (callbacks capturés) + hint affiché.
+    expect(captured).not.toBeNull();
+    expect(document.body.textContent).toContain("Ctrl+clic → VS Code");
+
+    act(() => root.unmount());
+  });
+
+  it("copie + affiche un toast feedback sur pick (sans onPick custom)", () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const btn = document.querySelector<HTMLButtonElement>(
+      "button[aria-label^='renderPicker']",
+    );
+    act(() => btn?.click());
+    act(() => captured?.onPick(result));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText.mock.calls[0]![0]).toContain("[renderPicker]");
+    expect(document.body.textContent).toContain("Copié");
+
+    act(() => root.unmount());
+  });
+
+  it("copie multi sur onPickMany", () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const btn = document.querySelector<HTMLButtonElement>(
+      "button[aria-label^='renderPicker']",
+    );
+    act(() => btn?.click());
+    act(() => captured?.onPickMany?.([result, { ...result, xpath: "/html/body/nav" }]));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText.mock.calls[0]![0]).toContain("[renderPicker] 2 elements");
+
     act(() => root.unmount());
   });
 });

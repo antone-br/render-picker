@@ -5,14 +5,20 @@ snippet for your AI agent — route, XPath, CSS selector, React component **and 
 `file:line`** — plus **Ctrl+click to open the source in VS Code**.
 
 ```
-[renderPicker], Origin: http://localhost:3000, Project: my-app, Route: /dashboard, XPath: /html/body/main/section, CSS: main > section, React: DashboardCard (src/components/dashboard-card.tsx:42)
+[renderPicker]
+Route: /dashboard
+XPath: /html/body/main/section
+CSS: main > section
+Source: src/components/dashboard-card.tsx:42
+React: DashboardCard
 ```
 
-Built on [`react-path-picker`](https://github.com/kiboko-ai/react-path-picker) (MIT, by Kiboko AI)
-for the picking UI. React 19 removed `_debugSource`, so the picker alone can no longer tell you the source
-file. `render-picker` annotates the DOM with `data-component` / `data-source`, resolved at runtime
+The picking engine is fully self-contained (no runtime dependency): hit-test, overlay, hover
+tooltip, multi-selection, XPath/CSS generation and the arming hotkey all live in `src/core/`.
+React 19 removed `_debugSource`, so the source `file:line` can't be read from the picked element
+alone. `render-picker` annotates the DOM with `data-component` / `data-source`, resolved at runtime
 from React's `_debugStack` through the dev chunks' sourcemaps (plain and index maps, Turbopack
-included), and feeds that back into the picker output.
+included), and merges that into the pick output.
 
 ## Install
 
@@ -81,10 +87,11 @@ Returns a function that removes every listener, observer and console patch.
 
 ### `<RenderPickerButton>`
 
-Same props as `PathPickerButton` (`pathname`, `project`, `color`, `hotkey`, `multi`, `onPick`,
-`onPickMany`). Custom `onPick` / `onPickMany` receive the already-enriched results and formatted text.
-The copied text and the button tooltip use the `[renderPicker]` prefix; `formatResult` /
-`formatResults` are exported from `@antone-br/render-picker/react` to build the same text yourself.
+Props: `pathname`, `color`, `hotkey` (default `"shift shift"` — double-tap Shift), `multi`
+(default `true`), `onPick`, `onPickMany`. Custom `onPick` / `onPickMany` receive the
+already-enriched results and the formatted text. The copied text and the button tooltip use the
+`[renderPicker]` prefix; `formatResult` / `formatResults` (and the `useRenderPicker` hook) are
+exported from `@antone-br/render-picker/react` to build the same text or wire your own trigger.
 
 ### `withRenderPicker(nextConfig)`
 

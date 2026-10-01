@@ -3,3 +3,39 @@ export type ResolvedPosition = {
   line: number;
   column: number;
 };
+
+/**
+ * Résultat d'un pick. `route`/`xpath`/`cssSelector`/`tagName`/`id` sont produits
+ * par l'inspecteur ; `reactComponent`/`reactSource` sont complétés par
+ * `enrichResult` depuis les attributs `data-component`/`data-source`.
+ */
+export interface PickResult {
+  /** Route courante (`pathname`). */
+  route: string;
+  /** XPath de l'élément. */
+  xpath: string;
+  /** Sélecteur CSS de l'élément. */
+  cssSelector: string;
+  /** Nom du tag en minuscules. */
+  tagName: string;
+  /** `id` de l'élément, ou `null`. */
+  id: string | null;
+  /** Nom du composant React le plus proche, ou `null`. */
+  reactComponent: string | null;
+  /** `fichier:ligne` source résolu, ou `null`. */
+  reactSource: string | null;
+}
+
+/** Branche l'inspecteur impératif sur la couche React/UI. */
+export interface InspectorCallbacks {
+  /** Pick simple (clic) → résultat partiel (sans enrichissement React). */
+  onPick: (result: PickResult) => void;
+  /** Confirmation d'une sélection multiple (Entrée). */
+  onPickMany?: (results: PickResult[]) => void;
+  /** Désarmement (Échap). */
+  onCancel: () => void;
+  /** Fournit la route courante au moment du pick. */
+  getRoute: () => string;
+  /** Accumulation Maj+clic. Défaut : `true` (si `onPickMany` fourni). */
+  multi?: boolean;
+}

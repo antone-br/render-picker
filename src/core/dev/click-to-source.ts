@@ -58,6 +58,12 @@ export function initClickToSource(root: string | undefined | null): () => void {
     e.preventDefault();
     e.stopImmediatePropagation();
 
+    // Désarme le picker s'il est armé : notre inspecteur annule sur Escape.
+    // Inoffensif si le picker n'est pas actif.
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+
     // Avale les events suivants (click/pointerup) issus de ce même Ctrl+clic
     suppressNext = true;
     if (suppressTimer) clearTimeout(suppressTimer);

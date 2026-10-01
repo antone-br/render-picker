@@ -1,14 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { enrichResult, findPickedElement } from "../src/core/enrich";
+import { enrichResult, findPickedElement } from "../src/core/source/enrich";
 
 const base = {
-  origin: "http://localhost:3000",
-  project: "renderflow",
   route: "/",
   tagName: "span",
   id: null,
-  textContent: "",
 };
 
 beforeEach(() => {
@@ -56,7 +53,7 @@ describe("enrichResult", () => {
     expect(r.reactComponent).toBe("Page");
   });
 
-  it("conserve les valeurs déjà fournies par react-path-picker", () => {
+  it("conserve les valeurs déjà fournies par l'inspecteur", () => {
     const r = enrichResult({
       ...base,
       xpath: "/html/body/main/section/span",

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildVscodeUri } from "../src/core/click-to-source";
+import { buildVscodeUri, initClickToSource } from "../src/core/dev/click-to-source";
 
 describe("buildVscodeUri", () => {
   it("construit l'URI VS Code depuis une racine Windows (backslashes)", () => {
@@ -41,5 +41,61 @@ describe("buildVscodeUri", () => {
     expect(buildVscodeUri(undefined, "src/a.tsx:1")).toBeNull();
     expect(buildVscodeUri("", "src/a.tsx:1")).toBeNull();
     expect(buildVscodeUri("/", "src/a.tsx:1")).toBeNull();
+  });
+});
+
+describe("initClickToSource", () => {
+  let stop: () => void = () => {};
+
+  afterEach(() => {
+    stop();
+    stop = () => {};
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  it("Ctrl+clic sur [data-source] → ouvre VS Code + désarme (Escape)", () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    document.body.appendChild(el);
+
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    let escape = false;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") escape = true;
+    };
+    document.addEventListener("keydown", onKey);
+
+    stop = initClickToSource("C:/proj");
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        ctrlKey: true,
+        button: 0,
+        bubbles: true,
+      }),
+    );
+
+    document.removeEventListener("keydown", onKey);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(escape).toBe(true);
+  });
+
+  it("clic normal (sans Ctrl) → n'ouvre rien", () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    document.body.appendChild(el);
+
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    stop = initClickToSource("C:/proj");
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0, bubbles: true }),
+    );
+
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 });

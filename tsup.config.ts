@@ -5,7 +5,7 @@ const shared: Options = {
   dts: true,
   sourcemap: true,
   target: "es2020",
-  external: ["react", "react-path-picker", "next"],
+  external: ["react", "next"],
 };
 
 export default defineConfig([

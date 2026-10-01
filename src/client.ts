@@ -1,6 +1,6 @@
-import { initClickToSource } from "./core/click-to-source";
-import { initComponentAnnotator } from "./core/component-annotate";
-import { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/console-hush";
+import { initClickToSource } from "./core/dev/click-to-source";
+import { initComponentAnnotator } from "./core/source/component-annotate";
+import { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
 
 export interface RenderPickerOptions {
   /** Active l'outillage. Défaut : `process.env.NODE_ENV !== "production"`. */
@@ -86,15 +86,27 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
   };
 }
 
-export { buildVscodeUri, initClickToSource } from "./core/click-to-source";
+export { buildVscodeUri, initClickToSource } from "./core/dev/click-to-source";
 export {
   annotate,
   annotateTree,
   componentInfo,
   initComponentAnnotator,
   type AnnotateResult,
-} from "./core/component-annotate";
-export { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/console-hush";
-export { enrichResult, findPickedElement } from "./core/enrich";
-export { normalizeSourcePath, resolvePosition } from "./core/source-map-resolver";
-export type { ResolvedPosition } from "./core/types";
+} from "./core/source/component-annotate";
+export { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
+export { enrichResult, findPickedElement } from "./core/source/enrich";
+export { createInspector } from "./core/inspector/inspector";
+export {
+  ACCENT,
+  PANEL_BORDER,
+  SOLID_BG,
+  TOOLTIP_SHADOW,
+} from "./core/inspector/pick-style";
+export { getCssSelector } from "./core/inspector/css-selector";
+export { getXPath } from "./core/inspector/xpath";
+export {
+  normalizeSourcePath,
+  resolvePosition,
+} from "./core/source/source-map-resolver";
+export type { InspectorCallbacks, PickResult, ResolvedPosition } from "./core/types";

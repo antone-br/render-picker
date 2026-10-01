@@ -1,14 +1,14 @@
-import type { PathPickerResult } from "react-path-picker/core";
+import type { PickResult } from "../types";
 
 /**
- * Sous React 19, `react-path-picker` ne trouve plus `_debugSource` → `reactSource`
- * vaut null. On complète depuis les attributs `data-source` / `data-component`
+ * Sous React 19, `_debugSource` n'existe plus → l'inspecteur ne résout pas
+ * `reactSource`. On complète depuis les attributs `data-source` / `data-component`
  * posés par l'annotator (résolution sourcemap).
  */
 
 /** Retrouve l'élément pické à partir de son XPath, sinon de son sélecteur CSS. */
 export function findPickedElement(
-  result: Pick<PathPickerResult, "xpath" | "cssSelector">,
+  result: Pick<PickResult, "xpath" | "cssSelector">,
   doc: Document = document,
 ): Element | null {
   if (result.xpath) {
@@ -35,7 +35,7 @@ export function findPickedElement(
   return null;
 }
 
-export function enrichResult<T extends PathPickerResult>(
+export function enrichResult<T extends PickResult>(
   result: T,
   doc: Document = document,
 ): T {

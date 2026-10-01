@@ -1,4 +1,4 @@
-import type { ResolvedPosition } from "./types";
+import type { ResolvedPosition } from "../types";
 
 /**
  * Décodeur sourcemap minimal (VLQ) — supporte les maps standard et les
