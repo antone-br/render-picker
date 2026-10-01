@@ -31,6 +31,7 @@ class Inspector {
   private lastTarget: Element | null = null;
   private selection: Element[] = [];
   private observer: ResizeObserver | null = null;
+  private hovering = false;
 
   constructor(private readonly callbacks: InspectorCallbacks) {}
 
@@ -99,13 +100,15 @@ class Inspector {
   // --- Rendu (délègue à surfaces) ------------------------------------------
 
   private hideHover(): void {
+    this.hovering = false;
     if (this.surfaces) hideHover(this.surfaces.overlay, this.surfaces.tooltip);
   }
 
-  private showHover(el: Element, rect: DOMRect): void {
+  private showHover(el: Element, rect: DOMRect, animate = true): void {
     if (!this.surfaces) return;
-    positionOverlay(this.surfaces.overlay, rect);
+    positionOverlay(this.surfaces.overlay, rect, animate);
     updateTooltip(this.surfaces.tooltip, el, this.selection, rect);
+    this.hovering = true;
   }
 
   private renderHud(): void {
@@ -148,7 +151,11 @@ class Inspector {
     this.renderSelection();
     this.renderHud();
     if (this.lastTarget && this.lastTarget.isConnected) {
-      this.showHover(this.lastTarget, this.lastTarget.getBoundingClientRect());
+      this.showHover(
+        this.lastTarget,
+        this.lastTarget.getBoundingClientRect(),
+        false,
+      );
     }
   }
 
@@ -223,7 +230,8 @@ class Inspector {
       this.hideHover();
       return;
     }
-    this.showHover(target, rect);
+    // Instantané à la (ré)apparition, glisse tant que le survol continue.
+    this.showHover(target, rect, this.hovering);
   };
 
   private onPress = (e: Event): void => {
@@ -269,13 +277,11 @@ class Inspector {
     }
   };
 
+  // Ne touche QUE les markers de sélection : l'overlay de survol est piloté par
+  // `mousemove` seul. Sinon les `transitionend`/`animationend` d'une page animée
+  // réinitialiseraient en boucle la transition de l'overlay → pas de glisse.
   private refreshAll = (): void => {
     if (!this.active) return;
-    if (this.lastTarget && this.lastTarget.isConnected) {
-      const rect = this.lastTarget.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) this.hideHover();
-      else this.showHover(this.lastTarget, rect);
-    }
     this.renderSelection();
   };
 }

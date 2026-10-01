@@ -29,6 +29,13 @@ export const SELECTED_BG = "rgba(59,130,246,0.24)";
 export const HIGHLIGHT_BORDER = `2px solid ${ACCENT}`;
 
 /**
+ * Transition de l'overlay de survol : la géométrie glisse d'un élément à l'autre
+ * (ease-out doux), l'opacité fond plus vite. Repris du rectangle de renderflow.
+ */
+export const OVERLAY_GLIDE =
+  "top .2s cubic-bezier(.25,.1,.25,1), left .2s cubic-bezier(.25,.1,.25,1), width .2s cubic-bezier(.25,.1,.25,1), height .2s cubic-bezier(.25,.1,.25,1), opacity .12s ease-out";
+
+/**
  * Neutralise les `pointer-events` des éléments désactivés pour que le hit-test
  * (`elementFromPoint`) les atteigne quand même.
  */
