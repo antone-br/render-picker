@@ -8,11 +8,13 @@
 | ------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `client.test.ts`                | `src/client.ts`                           | `initRenderPicker` : montage, no-op en production, cleanup des listeners/patchs.            |
 | `click-to-source.test.ts`       | `src/core/dev/click-to-source.ts`         | `buildVscodeUri` (pure) + `initClickToSource` (Ctrl+clic → URI VS Code, cleanup listener).  |
+| `component-annotate.test.ts`    | `src/core/source/component-annotate.ts`   | `annotate` : `data-source` (élément) + `data-owner-source` (usage via `_debugOwner`).        |
 | `css-selector.test.ts`          | `src/core/inspector/css-selector.ts`      | `getElementSelector` + `getCssSelector` : id, classes hash filtrées, `:nth-child`, unicité. |
 | `enrich.test.ts`                | `src/core/source/enrich.ts`               | `findPickedElement` + `enrichResult` : complétion depuis `data-source` / `data-component`.  |
 | `hit-test.test.ts`              | `src/core/inspector/hit-test.ts`          | `shouldIgnore` / `containsPoint` / `resolveTarget` (stub `elementFromPoint`).               |
 | `hotkey.test.ts`                | `src/core/inspector/hotkey.ts`            | `matchesHotkey` (combos) + `createHotkeyMatcher` (double-tap, fenêtre, reset).              |
 | `inspector.test.ts`             | `src/core/inspector/inspector.ts`         | `createInspector` : montage/cleanup, Échap → onCancel, pick simple, Maj+clic → onPickMany.  |
+| `settings.test.ts`              | `src/core/settings.ts`                    | `loadSettings` / `saveSettings` : défauts, localStorage, priorité fichier racine (env).     |
 | `source-map-resolver.test.ts`   | `src/core/source/source-map-resolver.ts`  | `normalizeSourcePath` + `resolvePosition` : décodage sourcemap VLQ (`fetch` mocké).         |
 | `surfaces.test.ts`              | `src/core/inspector/surfaces.ts`          | `tooltipText` (composant d'abord, `· disabled`, `· selected #n`) + `hudText` (3 états).     |
 | `xpath.test.ts`                 | `src/core/inspector/xpath.ts`             | `getXPath` : id, index des frères, SVG, préfixe `/html/`.                                   |

@@ -5,3 +5,6 @@ dist/
 
 # Claude Code (local uniquement)
 .claude/
+
+# local test artifact
+render-picker.config.json

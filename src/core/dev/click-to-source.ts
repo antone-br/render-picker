@@ -1,6 +1,8 @@
 /**
- * Ctrl+clic sur un élément annoté (`data-source`) → ouvre le fichier source
- * à la ligne dans VS Code via `vscode://file/<abs>:<line>`. Dev only.
+ * Ctrl+clic sur un élément annoté → ouvre sa source exacte (`data-source`) dans
+ * VS Code. Alt+clic → ouvre le fichier d'**usage** (`data-owner-source`, là où le
+ * composant est écrit, pas sa définition partagée). `vscode://file/<abs>:<line>`.
+ * Dev only.
  */
 
 /**
@@ -46,13 +48,17 @@ export function initClickToSource(root: string | undefined | null): () => void {
   }
 
   const handler = (e: PointerEvent) => {
-    if (!e.ctrlKey || e.button !== 0) return;
+    if (e.button !== 0 || (!e.ctrlKey && !e.altKey)) return;
     const target = e.target as HTMLElement | null;
 
     const el = target?.closest<HTMLElement>("[data-source]");
     if (!el) return;
 
-    const uri = buildVscodeUri(root, el.getAttribute("data-source"));
+    // Alt → fichier d'usage (fallback source élément) ; Ctrl → source élément.
+    const rel = e.altKey
+      ? el.getAttribute("data-owner-source") ?? el.getAttribute("data-source")
+      : el.getAttribute("data-source");
+    const uri = buildVscodeUri(root, rel);
     if (!uri) return;
 
     e.preventDefault();

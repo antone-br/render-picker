@@ -38,4 +38,18 @@ export interface InspectorCallbacks {
   getRoute: () => string;
   /** Accumulation Maj+clic. Défaut : `true` (si `onPickMany` fourni). */
   multi?: boolean;
+  /** Visualisations layout à dessiner au survol. Lu à chaque survol. */
+  getOverlays?: () => LayoutOverlays;
+  /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
+  onSelectionChange?: (count: number) => void;
+}
+
+/** Visualisations layout optionnelles dessinées au survol. */
+export interface LayoutOverlays {
+  /** Afficher le padding de l'élément (vert). */
+  padding: boolean;
+  /** Afficher les gaps flex/grid (violet). */
+  gap: boolean;
+  /** Afficher la marge de l'élément (#B08355). */
+  margin: boolean;
 }

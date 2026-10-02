@@ -4,10 +4,11 @@ import { getCssSelector } from "./css-selector";
 import { containsPoint, resolveTarget, shouldIgnore } from "./hit-test";
 import { PICKING_CSS } from "./pick-style";
 import {
+  clearDecorations,
   createSurfaces,
   hideHover,
   positionOverlay,
-  renderHud,
+  renderDecorations,
   renderMarkers,
   updateTooltip,
   type Surfaces,
@@ -68,8 +69,6 @@ class Inspector {
     if (typeof ResizeObserver !== "undefined") {
       this.observer = new ResizeObserver(() => this.refreshAll());
     }
-
-    this.renderHud();
   }
 
   deactivate(): void {
@@ -101,18 +100,47 @@ class Inspector {
 
   private hideHover(): void {
     this.hovering = false;
-    if (this.surfaces) hideHover(this.surfaces.overlay, this.surfaces.tooltip);
+    if (!this.surfaces) return;
+    hideHover(this.surfaces.overlay, this.surfaces.tooltip);
+    clearDecorations(this.surfaces.decorLayer);
   }
 
   private showHover(el: Element, rect: DOMRect, animate = true): void {
     if (!this.surfaces) return;
     positionOverlay(this.surfaces.overlay, rect, animate);
-    updateTooltip(this.surfaces.tooltip, el, this.selection, rect);
+    updateTooltip(
+      this.surfaces.tooltip,
+      this.surfaces.tooltipLabel,
+      this.surfaces.tooltipDivider,
+      this.surfaces.tooltipMetrics,
+      this.surfaces.dims,
+      el,
+      this.selection,
+      rect,
+    );
+    this.renderDecor(el, rect);
     this.hovering = true;
   }
 
-  private renderHud(): void {
-    if (this.surfaces) renderHud(this.surfaces.hud);
+  /** Dessine (ou efface) les décorations layout selon `getOverlays`. */
+  private renderDecor(el: Element, rect: DOMRect): void {
+    if (!this.surfaces) return;
+    const overlays = this.callbacks.getOverlays?.();
+    if (overlays && (overlays.padding || overlays.gap || overlays.margin)) {
+      renderDecorations(this.surfaces.decorLayer, el, rect, overlays);
+    } else {
+      clearDecorations(this.surfaces.decorLayer);
+    }
+  }
+
+  /** Re-render des décorations sur l'élément survolé (toggle sans mousemove). */
+  refreshDecorations(): void {
+    if (!this.active || !this.surfaces) return;
+    if (this.lastTarget && this.lastTarget.isConnected) {
+      this.renderDecor(this.lastTarget, this.lastTarget.getBoundingClientRect());
+    } else {
+      clearDecorations(this.surfaces.decorLayer);
+    }
   }
 
   private renderSelection(): void {
@@ -149,7 +177,7 @@ class Inspector {
   private afterSelectionChange(): void {
     this.syncObserver();
     this.renderSelection();
-    this.renderHud();
+    this.callbacks.onSelectionChange?.(this.selection.length);
     if (this.lastTarget && this.lastTarget.isConnected) {
       this.showHover(
         this.lastTarget,
@@ -163,11 +191,6 @@ class Inspector {
     const idx = this.selection.indexOf(el);
     if (idx >= 0) this.selection.splice(idx, 1);
     else this.selection.push(el);
-    this.afterSelectionChange();
-  }
-
-  private setSelection(els: Element[]): void {
-    this.selection = els;
     this.afterSelectionChange();
   }
 
@@ -247,12 +270,10 @@ class Inspector {
 
     if (e.type !== DOWN_TYPE || me.button !== 0) return;
 
-    if (this.multi && me.shiftKey) {
+    // Maj+clic démarre la sélection ; ensuite tout clic simple continue d'ajouter
+    // / retirer (plus besoin de re-maintenir Maj). Entrée confirme.
+    if (this.multi && (me.shiftKey || this.selection.length > 0)) {
       this.toggleSelection(target);
-      return;
-    }
-    if (this.multi && this.selection.length > 0) {
-      this.setSelection([target]);
       return;
     }
 
@@ -289,10 +310,12 @@ class Inspector {
 export function createInspector(callbacks: InspectorCallbacks): {
   activate: () => void;
   deactivate: () => void;
+  refreshDecorations: () => void;
 } {
   const inspector = new Inspector(callbacks);
   return {
     activate: () => inspector.activate(),
     deactivate: () => inspector.deactivate(),
+    refreshDecorations: () => inspector.refreshDecorations(),
   };
 }

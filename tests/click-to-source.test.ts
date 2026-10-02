@@ -82,6 +82,48 @@ describe("initClickToSource", () => {
     expect(escape).toBe(true);
   });
 
+  it("Alt+clic → ouvre data-owner-source (fichier d'usage), pas data-source", () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/components/button.tsx:178");
+    el.setAttribute("data-owner-source", "src/features/kanban.tsx:12");
+    document.body.appendChild(el);
+
+    let href = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        href = this.href;
+      },
+    );
+
+    stop = initClickToSource("C:/proj");
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { altKey: true, button: 0, bubbles: true }),
+    );
+
+    expect(href).toContain("src/features/kanban.tsx:12");
+    expect(href).not.toContain("button.tsx");
+  });
+
+  it("Alt+clic sans data-owner-source → fallback data-source", () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    document.body.appendChild(el);
+
+    let href = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        href = this.href;
+      },
+    );
+
+    stop = initClickToSource("C:/proj");
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { altKey: true, button: 0, bubbles: true }),
+    );
+
+    expect(href).toContain("src/a.tsx:3");
+  });
+
   it("clic normal (sans Ctrl) → n'ouvre rien", () => {
     const el = document.createElement("div");
     el.setAttribute("data-source", "src/a.tsx:3");

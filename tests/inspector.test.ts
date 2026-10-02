@@ -108,4 +108,97 @@ describe("createInspector — interactions", () => {
     expect(onPickMany.mock.calls[0]![0]).toHaveLength(1);
     expect(onPickMany.mock.calls[0]![0][0]!.xpath).toBe('//*[@id="a"]');
   });
+
+  it("Maj+clic puis clic simple accumulent (sans re-Maj) → onPickMany 2 + onSelectionChange", () => {
+    document.body.innerHTML = `<ul><li id="a">a</li><li id="b">b</li></ul>`;
+    const a = document.getElementById("a")!;
+    const b = document.getElementById("b")!;
+
+    const onPickMany = vi.fn<(r: PickResult[]) => void>();
+    const onSelectionChange = vi.fn<(n: number) => void>();
+    const insp = createInspector({
+      onPick: () => {},
+      onPickMany,
+      onCancel: () => {},
+      getRoute: () => "/",
+      multi: true,
+      onSelectionChange,
+    });
+    insp.activate();
+
+    stubElementFromPoint(a);
+    pressDown({ clientX: 1, clientY: 1, button: 0, shiftKey: true }); // démarre
+    stubElementFromPoint(b);
+    pressDown({ clientX: 2, clientY: 2, button: 0 }); // clic simple → accumule
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(onSelectionChange).toHaveBeenCalledWith(2);
+    expect(onPickMany).toHaveBeenCalledTimes(1);
+    expect(onPickMany.mock.calls[0]![0]).toHaveLength(2);
+  });
+
+  it("refreshDecorations met à jour les décorations sans mousemove", () => {
+    document.body.innerHTML = `<main><section id="s">x</section></main>`;
+    const el = document.getElementById("s")!;
+    el.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+    stubElementFromPoint(el);
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      display: "block",
+      borderTopWidth: "0px",
+      borderRightWidth: "0px",
+      borderBottomWidth: "0px",
+      borderLeftWidth: "0px",
+      paddingTop: "10px",
+      paddingRight: "10px",
+      paddingBottom: "10px",
+      paddingLeft: "10px",
+    } as CSSStyleDeclaration);
+
+    const overlays = { padding: true, gap: false, margin: false };
+    const insp = createInspector({
+      onPick: () => {},
+      onCancel: () => {},
+      getRoute: () => "/",
+      getOverlays: () => overlays,
+    });
+    insp.activate();
+
+    // Survol → décorations padding dessinées.
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 5, clientY: 5 }));
+    const decor = document.body.querySelector("[data-pathpicker-ignore]")!
+      .firstElementChild!; // decorLayer (1er enfant du container)
+    expect(decor.children.length).toBe(1); // 1 div padding (bordure = padding)
+
+    // Décocher sans bouger la souris → refreshDecorations vide le layer.
+    overlays.padding = false;
+    insp.refreshDecorations();
+    expect(decor.children.length).toBe(0);
+
+    insp.deactivate();
+  });
+
+  it("Échap pendant une sélection multiple → onCancel + démontage", () => {
+    document.body.innerHTML = `<ul><li id="a">a</li></ul>`;
+    const li = document.getElementById("a")!;
+    stubElementFromPoint(li);
+
+    const onCancel = vi.fn();
+    const onPickMany = vi.fn();
+    const insp = createInspector({
+      onPick: () => {},
+      onPickMany,
+      onCancel,
+      getRoute: () => "/",
+      multi: true,
+    });
+    insp.activate();
+
+    pressDown({ clientX: 1, clientY: 1, button: 0, shiftKey: true });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onPickMany).not.toHaveBeenCalled();
+    expect(document.body.querySelector("[data-pathpicker-ignore]")).toBeNull();
+  });
 });

@@ -7,155 +7,30 @@ import {
   type FC,
 } from "react";
 
+import { formatResult, formatResults } from "./core/format";
+import { loadSettings, saveSettings } from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
-import { createHotkeyMatcher } from "./core/inspector/hotkey";
-import { createInspector } from "./core/inspector/inspector";
 import {
   ACCENT,
   PANEL_BORDER,
   SOLID_BG,
   TOOLTIP_SHADOW,
+  UI_Z,
 } from "./core/inspector/pick-style";
 import type { PickResult } from "./core/types";
+import { CrosshairIcon } from "./ui/icons";
+import { SettingsBar } from "./ui/settings-bar";
+import { useRenderPicker } from "./ui/use-render-picker";
 
 export type { PickResult } from "./core/types";
-
-/** Préfixe du texte copié. */
-export const OUTPUT_PREFIX = "[renderPicker]";
-
-/**
- * Lignes `Source:` (fichier:ligne) puis `React:` (composant) — React en dernier.
- * Chacune omise si absente.
- */
-function reactLines(r: PickResult): string[] {
-  const out: string[] = [];
-  if (r.reactSource) out.push(`Source: ${r.reactSource}`);
-  if (r.reactComponent) out.push(`React: ${r.reactComponent}`);
-  return out;
-}
-
-/**
- * Formate un résultat — une ligne par champ (vrais retours à la ligne),
- * sans Origin/Project, `Source:` séparé et `React:` (composant) en dernier.
- */
-export function formatResult(r: PickResult): string {
-  return [
-    OUTPUT_PREFIX,
-    `Route: ${r.route}`,
-    `XPath: ${r.xpath}`,
-    `CSS: ${r.cssSelector}`,
-    ...reactLines(r),
-  ].join("\n");
-}
-
-/** Formate plusieurs résultats — Route partagée en tête, un bloc par élément. */
-export function formatResults(results: PickResult[]): string {
-  if (results.length <= 1) {
-    return results[0] ? formatResult(results[0]) : OUTPUT_PREFIX;
-  }
-  const head = [
-    `${OUTPUT_PREFIX} ${results.length} elements`,
-    `Route: ${results[0]!.route}`,
-  ];
-  const blocks = results.map((r, i) =>
-    [`#${i + 1}`, `XPath: ${r.xpath}`, `CSS: ${r.cssSelector}`, ...reactLines(r)].join(
-      "\n",
-    ),
-  );
-  return [...head, "", blocks.join("\n\n")].join("\n");
-}
+export { OUTPUT_PREFIX, formatResult, formatResults } from "./core/format";
+export {
+  useRenderPicker,
+  type UseRenderPickerOptions,
+} from "./ui/use-render-picker";
 
 function copy(text: string): void {
   navigator.clipboard?.writeText(text).catch(() => {});
-}
-
-const Z = 2147483000;
-
-/** Options du hook `useRenderPicker`. */
-export interface UseRenderPickerOptions {
-  /** Route copiée. Défaut : `window.location.pathname`. */
-  pathname?: string;
-  /** Raccourci d'armement. Défaut : `"shift shift"` (double-tap Maj). */
-  hotkey?: string | string[] | false;
-  /** Accumulation Maj+clic. Défaut : `true`. */
-  multi?: boolean;
-  /** Pick simple (clic). */
-  onPick?: (result: PickResult) => void;
-  /** Confirmation d'une sélection multiple (Entrée). */
-  onPickMany?: (results: PickResult[]) => void;
-}
-
-/**
- * Pilote l'inspecteur maison : arme/désarme au raccourci ou via `toggle`, monte
- * l'inspecteur quand actif et le démonte sinon. No-op en SSR.
- */
-export function useRenderPicker(options: UseRenderPickerOptions): {
-  isActive: boolean;
-  toggle: () => void;
-} {
-  const { pathname, hotkey = "shift shift", multi = true, onPick, onPickMany } =
-    options;
-
-  const [isActive, setActive] = useState(false);
-
-  // Identité fraîche des callbacks/options sans recréer l'inspecteur à chaque
-  // render (sinon il se désarme).
-  const optsRef = useRef({ pathname, multi, onPick, onPickMany });
-  optsRef.current = { pathname, multi, onPick, onPickMany };
-
-  const toggle = useCallback(() => setActive((a) => !a), []);
-
-  // Raccourci clavier d'armement.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const matcher = createHotkeyMatcher(hotkey);
-    const onKeyDown = (e: KeyboardEvent) => {
-      const action = matcher.onKeyDown(e);
-      if (!action) return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (action === "toggle") setActive((a) => !a);
-      else setActive(true);
-    };
-    const onKeyUp = (e: KeyboardEvent) => matcher.onKeyUp(e);
-    const reset = () => matcher.reset();
-    window.addEventListener("keydown", onKeyDown, true);
-    window.addEventListener("keyup", onKeyUp, true);
-    window.addEventListener("pointerdown", reset, true);
-    window.addEventListener("mousedown", reset, true);
-    window.addEventListener("blur", reset);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, true);
-      window.removeEventListener("keyup", onKeyUp, true);
-      window.removeEventListener("pointerdown", reset, true);
-      window.removeEventListener("mousedown", reset, true);
-      window.removeEventListener("blur", reset);
-    };
-  }, [hotkey]);
-
-  // Montage/démontage de l'inspecteur selon l'état armé.
-  useEffect(() => {
-    if (!isActive || typeof window === "undefined") return;
-    const inspector = createInspector({
-      // L'inspecteur se démonte lui-même après un pick ; on synchronise l'état
-      // React pour désarmer le bouton (sinon il reste « armé » visuellement).
-      onPick: (r) => {
-        setActive(false);
-        optsRef.current.onPick?.(r);
-      },
-      onPickMany: (rs) => {
-        setActive(false);
-        optsRef.current.onPickMany?.(rs);
-      },
-      onCancel: () => setActive(false),
-      getRoute: () => optsRef.current.pathname ?? window.location.pathname ?? "/",
-      multi: optsRef.current.multi,
-    });
-    inspector.activate();
-    return () => inspector.deactivate();
-  }, [isActive]);
-
-  return { isActive, toggle };
 }
 
 /** Props de `RenderPickerButton`. */
@@ -174,34 +49,10 @@ export interface RenderPickerButtonProps {
   onPickMany?: (results: PickResult[], formatted: string) => void;
 }
 
-function CrosshairIcon({ color }: { color: string }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="7" />
-      <line x1="12" y1="2" x2="12" y2="5" />
-      <line x1="12" y1="19" x2="12" y2="22" />
-      <line x1="2" y1="12" x2="5" y2="12" />
-      <line x1="19" y1="12" x2="22" y2="12" />
-      <circle cx="12" cy="12" r="1.5" fill={color} stroke="none" />
-    </svg>
-  );
-}
-
 /**
- * Trigger render-picker : bouton custom (style/position maîtrisés) branché sur
- * l'inspecteur maison via `useRenderPicker`. Enrichit la sortie avec le
- * `fichier:ligne` résolu (`data-source`), feedback de copie, et rappels
- * (« Ctrl+clic → VS Code », « Maj + clic : sélection multiple ») quand armé.
+ * Trigger render-picker : bouton custom branché sur l'inspecteur maison via
+ * `useRenderPicker`. Enrichit la sortie (`fichier:ligne`), feedback de copie, et
+ * barre du bas (statut + paramètres padding/gap/margin) quand armé.
  */
 export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   onPick,
@@ -214,7 +65,12 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   const [toast, setToast] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showPadding, setShowPadding] = useState(() => loadSettings().overlays.padding);
+  const [showGap, setShowGap] = useState(() => loadSettings().overlays.gap);
+  const [showMargin, setShowMargin] = useState(() => loadSettings().overlays.margin);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -262,36 +118,40 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     multi,
     onPick: handlePick,
     onPickMany: handlePickMany,
+    overlays: { padding: showPadding, gap: showGap, margin: showMargin },
+    // L'inspecteur pilote directement l'état « sélection en cours » (fiable quel
+    // que soit le mode de clic — Maj ou clic simple accumulé).
+    onSelectionChange: (n) => setHasSelection(n > 0),
   });
 
-  // Suivi local de la sélection multiple : l'inspecteur garde le compte en
-  // interne. On marque « sélection en cours » dès un Maj+clic, on remet à zéro à
-  // la confirmation (Entrée → handlePickMany), sur Échap, ou au désarmement.
+  // Reset au désarmement.
   useEffect(() => {
-    if (!isActive || multi === false) {
+    if (!isActive) {
       setHasSelection(false);
+      setSettingsOpen(false);
+    }
+  }, [isActive]);
+
+  // Persistance des toggles (localStorage + POST route). Ignore la valeur initiale
+  // (anti-boucle) via comparaison. Lecture initiale = loadSettings (env/localStorage).
+  useEffect(() => {
+    const overlays = { padding: showPadding, gap: showGap, margin: showMargin };
+    const json = JSON.stringify(overlays);
+    if (lastSavedRef.current === null) {
+      lastSavedRef.current = json; // baseline initiale — pas de sauvegarde
       return;
     }
-    const onClick = (e: MouseEvent) => {
-      if (e.shiftKey) setHasSelection(true);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setHasSelection(false);
-    };
-    document.addEventListener("click", onClick, true);
-    document.addEventListener("keydown", onKey, true);
-    return () => {
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("keydown", onKey, true);
-    };
-  }, [isActive, multi]);
+    if (json === lastSavedRef.current) return;
+    lastSavedRef.current = json;
+    saveSettings({ overlays });
+  }, [showPadding, showGap, showMargin]);
 
   const borderColor = isActive ? color : "rgba(255,255,255,0.18)";
   const buttonStyle: CSSProperties = {
     position: "fixed",
     top: 6,
     right: 6,
-    zIndex: Z,
+    zIndex: UI_Z,
     width: 18,
     height: 18,
     display: "inline-flex",
@@ -299,11 +159,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     justifyContent: "center",
     borderRadius: 4,
     cursor: "pointer",
-    background: isActive
-      ? color
-      : hovered
-        ? borderColor
-        : "rgba(24,24,27,0.82)",
+    background: isActive ? color : hovered ? borderColor : "rgba(24,24,27,0.82)",
     border: `1px solid ${borderColor}`,
     boxShadow: isActive
       ? `0 0 0 3px ${color}40, 0 2px 8px rgba(0,0,0,0.4)`
@@ -311,18 +167,6 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     transition: "background 120ms, box-shadow 120ms, border-color 120ms",
     padding: 0,
     backdropFilter: "blur(4px)",
-  };
-
-  const hintStyle: CSSProperties = {
-    padding: "4px 8px",
-    borderRadius: 6,
-    fontSize: 11,
-    fontFamily: "system-ui, sans-serif",
-    color: "#fff",
-    background: SOLID_BG,
-    border: PANEL_BORDER,
-    boxShadow: TOOLTIP_SHADOW,
-    whiteSpace: "nowrap",
   };
 
   return (
@@ -341,41 +185,18 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       </button>
 
       {isActive && (
-        <div
-          data-pathpicker-ignore=""
-          style={{
-            position: "fixed",
-            top: 34,
-            right: 6,
-            zIndex: Z,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            alignItems: "flex-end",
-            pointerEvents: "none",
-          }}
-        >
-          <div style={hintStyle}>Ctrl+clic → VS Code</div>
-          <div style={hintStyle}>Maj + clic : sélection multiple</div>
-        </div>
-      )}
-
-      {isActive && hasSelection && (
-        <div
-          data-pathpicker-ignore=""
-          role="status"
-          style={{
-            ...hintStyle,
-            position: "fixed",
-            bottom: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: Z,
-            pointerEvents: "none",
-          }}
-        >
-          Entrée pour valider
-        </div>
+        <SettingsBar
+          hasSelection={hasSelection}
+          settingsOpen={settingsOpen}
+          onToggleSettings={() => setSettingsOpen((o) => !o)}
+          onCloseSettings={() => setSettingsOpen(false)}
+          showPadding={showPadding}
+          showGap={showGap}
+          showMargin={showMargin}
+          onTogglePadding={() => setShowPadding((v) => !v)}
+          onToggleGap={() => setShowGap((v) => !v)}
+          onToggleMargin={() => setShowMargin((v) => !v)}
+        />
       )}
 
       {toast && (
@@ -386,7 +207,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
             position: "fixed",
             bottom: 16,
             right: 16,
-            zIndex: Z,
+            zIndex: UI_Z,
             padding: "6px 12px",
             borderRadius: 8,
             fontSize: 12,

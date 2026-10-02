@@ -109,4 +109,16 @@ export {
   normalizeSourcePath,
   resolvePosition,
 } from "./core/source/source-map-resolver";
-export type { InspectorCallbacks, PickResult, ResolvedPosition } from "./core/types";
+export {
+  DEFAULT_SETTINGS,
+  fetchSettings,
+  loadSettings,
+  saveSettings,
+  type RenderPickerSettings,
+} from "./core/settings";
+export type {
+  InspectorCallbacks,
+  LayoutOverlays,
+  PickResult,
+  ResolvedPosition,
+} from "./core/types";

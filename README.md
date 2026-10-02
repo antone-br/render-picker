@@ -2,7 +2,8 @@
 
 Dev-only toolkit for **Next.js + React 19**: click any element and get a clipboard-ready
 snippet for your AI agent — route, XPath, CSS selector, React component **and its source
-`file:line`** — plus **Ctrl+click to open the source in VS Code**.
+`file:line`** — plus **Ctrl+click to open the source in VS Code** (and **Alt+click to jump to
+the usage site** — where a shared component is written, not its definition).
 
 ```
 [renderPicker]
@@ -96,13 +97,33 @@ exported from `@antone-br/render-picker/react` to build the same text or wire yo
 ### `withRenderPicker(nextConfig)`
 
 Adds `env.NEXT_PUBLIC_PROJECT_ROOT = process.cwd()` outside production. Accepts a config object or
-function.
+function. If a `render-picker.config.json` exists at the project root, it is also injected as
+`NEXT_PUBLIC_RENDER_PICKER_CONFIG` (dev only).
+
+### Settings persistence
+
+The overlay toggles (padding / gap / margin) are saved to `localStorage` by default.
+
+To persist them to a committable **`render-picker.config.json`** at the project root, add a dev API
+route (one line) — toggling then writes the file (GET reads it back):
+
+```ts
+// app/api/render-picker/route.ts
+export { GET, POST } from "@antone-br/render-picker/next";
+```
+
+```json
+// render-picker.config.json (written/read by the route)
+{ "overlays": { "padding": true, "gap": false, "margin": true } }
+```
+
+Without the route, changes stay in `localStorage` (no crash). The handlers are no-ops in production.
 
 ### Lower-level exports (`@antone-br/render-picker/client`)
 
 `enrichResult`, `findPickedElement`, `annotate`, `annotateTree`, `componentInfo`,
 `initComponentAnnotator`, `initClickToSource`, `buildVscodeUri`, `hushConsoleNoise`,
-`resolvePosition`, `normalizeSourcePath`.
+`resolvePosition`, `normalizeSourcePath`, `loadSettings`, `saveSettings`.
 
 ## Limitations
 

@@ -117,12 +117,22 @@ export function annotate(el: HTMLElement): boolean {
   const fiber = getFiber(el);
   if (!fiber || !fiber._debugStack) return true;
 
-  resolveFirstSource(fiber._debugStack).then((source) => {
+  resolveFirstSource(fiber._debugStack).then(async (source) => {
     if (source) el.setAttribute("data-source", source);
+    // Fichier d'usage : où le composant est écrit (≠ son module). React ne met pas
+    // le frame parent dans le `_debugStack` de l'élément → on remonte `_debugOwner`.
+    const owner = await resolveOwnerSource(fiber, fileOf(source));
+    if (owner) el.setAttribute("data-owner-source", owner);
   });
   return true;
 }
 
+/** Enlève `:ligne(:col)` d'un `source` pour comparer les fichiers. */
+function fileOf(source: string | null): string | null {
+  return source ? source.replace(/:\d+(?::\d+)?$/, "") : null;
+}
+
+/** 1re frame `src/app` résolue du stack → `"fichier:ligne"`. */
 async function resolveFirstSource(stack: {
   stack?: string;
 }): Promise<string | null> {
@@ -131,6 +141,27 @@ async function resolveFirstSource(stack: {
     if (resolved && SOURCE_RE.test(resolved.source)) {
       return `${resolved.source}:${resolved.line}`;
     }
+  }
+  return null;
+}
+
+/**
+ * Remonte la chaîne `_debugOwner` et retourne le 1er site d'usage dont le fichier
+ * diffère de `sourceFile` (= là où le composant est instancié, hors de son module).
+ */
+async function resolveOwnerSource(
+  fiber: Fiber,
+  sourceFile: string | null,
+): Promise<string | null> {
+  let owner: Fiber | null | undefined = fiber._debugOwner;
+  let depth = 0;
+  while (owner && depth < 12) {
+    if (owner._debugStack) {
+      const s = await resolveFirstSource(owner._debugStack);
+      if (s && fileOf(s) !== sourceFile) return s;
+    }
+    owner = owner._debugOwner;
+    depth++;
   }
   return null;
 }

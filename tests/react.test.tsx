@@ -9,7 +9,7 @@ let captured: InspectorCallbacks | null = null;
 vi.mock("../src/core/inspector/inspector", () => ({
   createInspector: (cb: InspectorCallbacks) => {
     captured = cb;
-    return { activate: () => {}, deactivate: () => {} };
+    return { activate: () => {}, deactivate: () => {}, refreshDecorations: () => {} };
   },
 }));
 
@@ -89,9 +89,53 @@ describe("RenderPickerButton", () => {
     expect(btn?.getAttribute("data-pathpicker-ignore")).not.toBeNull();
 
     act(() => btn?.click());
-    // Armé → l'inspecteur est monté (callbacks capturés) + hint affiché.
+    // Armé → l'inspecteur est monté (callbacks capturés) + barre du bas affichée.
     expect(captured).not.toBeNull();
-    expect(document.body.textContent).toContain("Ctrl+clic → VS Code");
+    expect(document.body.textContent).toContain("Échap pour annuler");
+
+    act(() => root.unmount());
+  });
+
+  it("l'icône paramètre ouvre le dropdown avec les 2 toggles", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const btn = document.querySelector<HTMLButtonElement>(
+      "button[aria-label^='renderPicker']",
+    );
+    act(() => btn?.click());
+
+    const gear = document.querySelector<HTMLButtonElement>("button[data-rp-gear]");
+    expect(gear).not.toBeNull();
+    act(() => gear?.click());
+
+    expect(document.body.textContent).toContain("Afficher le padding");
+    expect(document.body.textContent).toContain("Afficher le gap");
+    expect(document.body.textContent).toContain("Afficher le margin");
+
+    act(() => root.unmount());
+  });
+
+  it("l'icône ? ouvre le modal des raccourcis, × le ferme", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-help]")?.click());
+
+    expect(document.body.textContent).toContain("Raccourcis");
+    expect(document.body.textContent).toContain("Alt + clic");
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label='Fermer']")?.click(),
+    );
+    expect(document.querySelector("[role='dialog']")).toBeNull();
 
     act(() => root.unmount());
   });
@@ -137,5 +181,36 @@ describe("RenderPickerButton", () => {
     expect(writeText.mock.calls[0]![0]).toContain("[renderPicker] 2 elements");
 
     act(() => root.unmount());
+  });
+
+  it("cocher un paramètre POST les settings vers la route", () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-gear]")?.click());
+
+    const item = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button[role='menuitemcheckbox']"),
+    ).find((b) => b.textContent?.includes("padding"));
+    act(() => item?.click());
+
+    const posted = fetchMock.mock.calls.some(
+      (c) => c[0] === "/api/render-picker" && c[1]?.method === "POST",
+    );
+    expect(posted).toBe(true);
+
+    act(() => root.unmount());
+    vi.unstubAllGlobals();
   });
 });
