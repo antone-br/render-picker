@@ -10,13 +10,12 @@ import {
 import { formatResult, formatResults } from "./core/format";
 import { loadSettings, saveSettings } from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
+import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
-  ACCENT,
   PANEL_BORDER,
   SOLID_BG,
   TOOLTIP_SHADOW,
-  UI_Z,
-} from "./core/inspector/pick-style";
+} from "./core/inspector/constants/theme";
 import type { PickResult } from "./core/types";
 import { CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";

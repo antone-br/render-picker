@@ -1,4 +1,4 @@
-import { IGNORE_ATTR, MAX_DESCEND } from "./constants";
+import { IGNORE_ATTR, MAX_DESCEND } from "./constants/behavior";
 
 /**
  * Hit-test de l'inspecteur. Fonctions pures (pas d'état) : trouvent l'élément
@@ -42,6 +42,14 @@ export function skippedChildAt(el: Element, x: number, y: number): Element | nul
   return null;
 }
 
+function isDisabled(el: Element): boolean {
+  try {
+    return el.matches(':disabled,[disabled],[aria-disabled="true"]');
+  } catch {
+    return false;
+  }
+}
+
 /** Élément pickable sous (x, y), en descendant les couches `pointer-events:none`. */
 export function resolveTarget(x: number, y: number): Element | null {
   const hit = document.elementFromPoint(x, y);
@@ -49,6 +57,9 @@ export function resolveTarget(x: number, y: number): Element | null {
 
   let current: Element = hit;
   for (let i = 0; i < MAX_DESCEND; i++) {
+    // Un élément désactivé est la cible finale : `pointer-events:none` s'hérite à
+    // tout son sous-arbre, ne pas descendre dedans (sinon on vise un enfant profond).
+    if (isDisabled(current)) break;
     const child = skippedChildAt(current, x, y);
     if (!child) break;
     current = child;

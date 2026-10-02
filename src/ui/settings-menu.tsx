@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { CARD_SHADOW, ELEVATED_BG, HOVER_BG } from "../core/inspector/pick-style";
+import { CARD_SHADOW, ELEVATED_BG, HOVER_BG } from "../core/inspector/constants/theme";
 import { Pickbox } from "./pickbox";
 
 export interface SettingsMenuProps {

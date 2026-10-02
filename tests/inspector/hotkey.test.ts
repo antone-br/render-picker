@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createHotkeyMatcher, matchesHotkey } from "../src/core/inspector/hotkey";
+import { createHotkeyMatcher, matchesHotkey } from "../../src/core/inspector/hotkey";
 
 /** Fabrique un KeyboardEvent minimal (on ne lit que ces champs). */
 function ev(opts: Partial<KeyboardEvent> & { key: string }): KeyboardEvent {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   normalizeSourcePath,
   resolvePosition,
-} from "../src/core/source/source-map-resolver";
+} from "../../src/core/source/source-map-resolver";
 
 describe("normalizeSourcePath", () => {
   it("extrait le chemin relatif src/ d'une URL Turbopack", () => {

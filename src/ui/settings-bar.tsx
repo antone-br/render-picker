@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { UI_Z } from "../core/inspector/constants/picker";
 import {
   BTN_SHADOW,
   HOVER_BG,
@@ -7,8 +8,7 @@ import {
   SECONDARY_BG_HOVER,
   SECONDARY_BORDER,
   SECONDARY_SURFACE,
-  UI_Z,
-} from "../core/inspector/pick-style";
+} from "../core/inspector/constants/theme";
 import { HelpModal } from "./help-modal";
 import { GearIcon, HelpIcon } from "./icons";
 import { SettingsMenu } from "./settings-menu";

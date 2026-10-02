@@ -20,8 +20,12 @@ type Fiber = {
 };
 
 const FIBER_KEY_PREFIX = "__reactFiber$";
+// URL de chunk Turbopack `:ligne:col`, AVEC ou SANS nom de fonction/parenthèses :
+// V8 formate les callbacks arrow anonymes sans `nom (…)` (`at <url>:l:c`) — ces
+// frames (ex. `<Tag/>` créé dans `.map(u => …)`) doivent matcher, sinon on retombe
+// sur la fonction englobante (mauvaise ligne).
 const STACK_FRAME_RE =
-  /at [^(]+\((https?:\/\/[^)]+?\/_next\/static\/chunks\/[^)]+?\._\.js):(\d+):(\d+)\)/;
+  /(https?:\/\/[^\s()]+?\/_next\/static\/chunks\/[^\s()]+?\._\.js):(\d+):(\d+)/;
 
 export interface AnnotateResult {
   component: string;

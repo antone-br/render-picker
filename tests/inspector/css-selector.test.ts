@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getCssSelector, getElementSelector } from "../src/core/inspector/css-selector";
+import { getCssSelector, getElementSelector } from "../../src/core/inspector/css-selector";
 
 afterEach(() => {
   document.body.innerHTML = "";

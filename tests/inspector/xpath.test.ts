@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getXPath } from "../src/core/inspector/xpath";
+import { getXPath } from "../../src/core/inspector/xpath";
 
 afterEach(() => {
   document.body.innerHTML = "";

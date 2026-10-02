@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildVscodeUri, initClickToSource } from "../src/core/dev/click-to-source";
+import { buildVscodeUri, initClickToSource } from "../../src/core/dev/click-to-source";
 
 describe("buildVscodeUri", () => {
   it("construit l'URI VS Code depuis une racine Windows (backslashes)", () => {

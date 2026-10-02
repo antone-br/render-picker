@@ -1,18 +1,13 @@
 import type { InspectorCallbacks, PickResult } from "../types";
-import { DOWN_TYPE, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants";
+import { DOWN_TYPE, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
+import { PICKING_CSS } from "./constants/picker";
 import { getCssSelector } from "./css-selector";
 import { containsPoint, resolveTarget, shouldIgnore } from "./hit-test";
-import { PICKING_CSS } from "./pick-style";
-import {
-  clearDecorations,
-  createSurfaces,
-  hideHover,
-  positionOverlay,
-  renderDecorations,
-  renderMarkers,
-  updateTooltip,
-  type Surfaces,
-} from "./surfaces";
+import { createSurfaces, type Surfaces } from "./surfaces/create";
+import { clearDecorations, renderDecorations } from "./surfaces/decorations";
+import { renderMarkers } from "./surfaces/markers";
+import { hideHover, positionOverlay } from "./surfaces/overlay";
+import { updateTooltip } from "./surfaces/tooltip";
 import { getXPath } from "./xpath";
 
 /**
@@ -23,7 +18,7 @@ import { getXPath } from "./xpath";
  *
  * `activate()` installe tout, `deactivate()` démonte tout (règle : tout init a
  * son cleanup). No-op en SSR. Orchestration uniquement : le hit-test vit dans
- * `hit-test.ts`, les surfaces DOM dans `surfaces.ts`.
+ * `hit-test.ts`, les surfaces DOM dans `surfaces/`.
  */
 class Inspector {
   private active = false;

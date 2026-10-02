@@ -1,21 +1,23 @@
 # Index des tests
 
-> Vitest + jsdom. Un fichier de test par module de `src/` (voir `.claude/rules/tests.md`).
-> Tests à plat dans `tests/` (noms de modules uniques), même si les modules sont dans des sous-dossiers de `src/core/`.
-> Mettre cet index à jour à **chaque** ajout, suppression ou changement de portée d'un fichier de test.
+> Vitest + jsdom. Un fichier de test par module de `src/` (voir `.claude/rules/tests.md` et `.claude/rules/test-structure.md`).
+> **Arborescence miroir de `src/`**. Un `index.md` **par dossier** décrit ses tests ; celui-ci couvre la racine + renvoie aux sous-dossiers.
+> Mettre l'`index.md` du dossier concerné à jour à **chaque** ajout, suppression ou changement de portée d'un fichier de test.
 
-| Fichier                         | Module testé                              | Couvre                                                                                      |
-| ------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `client.test.ts`                | `src/client.ts`                           | `initRenderPicker` : montage, no-op en production, cleanup des listeners/patchs.            |
-| `click-to-source.test.ts`       | `src/core/dev/click-to-source.ts`         | `buildVscodeUri` (pure) + `initClickToSource` (Ctrl+clic → URI VS Code, cleanup listener).  |
-| `component-annotate.test.ts`    | `src/core/source/component-annotate.ts`   | `annotate` : `data-source` (élément) + `data-owner-source` (usage via `_debugOwner`).        |
-| `css-selector.test.ts`          | `src/core/inspector/css-selector.ts`      | `getElementSelector` + `getCssSelector` : id, classes hash filtrées, `:nth-child`, unicité. |
-| `enrich.test.ts`                | `src/core/source/enrich.ts`               | `findPickedElement` + `enrichResult` : complétion depuis `data-source` / `data-component`.  |
-| `hit-test.test.ts`              | `src/core/inspector/hit-test.ts`          | `shouldIgnore` / `containsPoint` / `resolveTarget` (stub `elementFromPoint`).               |
-| `hotkey.test.ts`                | `src/core/inspector/hotkey.ts`            | `matchesHotkey` (combos) + `createHotkeyMatcher` (double-tap, fenêtre, reset).              |
-| `inspector.test.ts`             | `src/core/inspector/inspector.ts`         | `createInspector` : montage/cleanup, Échap → onCancel, pick simple, Maj+clic → onPickMany.  |
-| `settings.test.ts`              | `src/core/settings.ts`                    | `loadSettings` / `saveSettings` : défauts, localStorage, priorité fichier racine (env).     |
-| `source-map-resolver.test.ts`   | `src/core/source/source-map-resolver.ts`  | `normalizeSourcePath` + `resolvePosition` : décodage sourcemap VLQ (`fetch` mocké).         |
-| `surfaces.test.ts`              | `src/core/inspector/surfaces.ts`          | `tooltipText` (composant d'abord, `· disabled`, `· selected #n`) + `hudText` (3 états).     |
-| `xpath.test.ts`                 | `src/core/inspector/xpath.ts`             | `getXPath` : id, index des frères, SVG, préfixe `/html/`.                                   |
-| `react.test.tsx`                | `src/react.tsx`                           | `formatResult` / `formatResults` (pures) + `RenderPickerButton` (rendu, hints, sélection).  |
+## Racine — entrées + modules racine du core
+
+| Fichier            | Module testé                                        | Couvre                                                                                      |
+| ------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `client.test.ts`   | `src/client.ts`                                     | `initRenderPicker` : montage, no-op en production, cleanup des listeners/patchs.            |
+| `next.test.ts`     | `src/next.ts`                                        | `withRenderPicker` + handlers `GET`/`POST` (écriture `render-picker.config.json`, dev only). |
+| `settings.test.ts` | `src/core/settings.ts`                              | `loadSettings` / `saveSettings` : défauts, localStorage, priorité fichier racine (env).     |
+| `react.test.tsx`   | `src/react.tsx` · `src/ui/*` · `src/core/format.ts` | `formatResult` / `formatResults` (pures) + `RenderPickerButton` (rendu, hints, sélection).  |
+
+## Sous-dossiers (miroir de `src/core/`)
+
+| Dossier                 | Correspond à                         | Index                             |
+| ----------------------- | ------------------------------------ | --------------------------------- |
+| `inspector/`            | `src/core/inspector/`                | [`inspector/index.md`](inspector/index.md) |
+| `inspector/surfaces/`   | `src/core/inspector/surfaces/`       | [`inspector/surfaces/index.md`](inspector/surfaces/index.md) |
+| `source/`               | `src/core/source/`                   | [`source/index.md`](source/index.md) |
+| `dev/`                  | `src/core/dev/`                      | [`dev/index.md`](dev/index.md)    |

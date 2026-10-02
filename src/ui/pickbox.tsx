@@ -3,7 +3,7 @@ import {
   BTN_SHADOW,
   CHECKBOX_BORDER,
   CHECKBOX_CHECKED_BG,
-} from "../core/inspector/pick-style";
+} from "../core/inspector/constants/theme";
 import { CheckIcon } from "./icons";
 
 /** Checkbox présentational, UI reprise de renderflow (form/checkbox.tsx). */

@@ -7,7 +7,7 @@ import {
   SECONDARY_BG_HOVER,
   SECONDARY_BORDER,
   SECONDARY_SURFACE,
-} from "../core/inspector/pick-style";
+} from "../core/inspector/constants/theme";
 import { CloseIcon } from "./icons";
 
 const SHORTCUTS: { keys: string; desc: string }[] = [

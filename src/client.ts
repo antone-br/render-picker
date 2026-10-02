@@ -97,12 +97,12 @@ export {
 export { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
 export { enrichResult, findPickedElement } from "./core/source/enrich";
 export { createInspector } from "./core/inspector/inspector";
+export { ACCENT } from "./core/inspector/constants/picker";
 export {
-  ACCENT,
   PANEL_BORDER,
   SOLID_BG,
   TOOLTIP_SHADOW,
-} from "./core/inspector/pick-style";
+} from "./core/inspector/constants/theme";
 export { getCssSelector } from "./core/inspector/css-selector";
 export { getXPath } from "./core/inspector/xpath";
 export {

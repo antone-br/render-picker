@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { enrichResult, findPickedElement } from "../src/core/source/enrich";
+import { enrichResult, findPickedElement } from "../../src/core/source/enrich";
 
 const base = {
   route: "/",

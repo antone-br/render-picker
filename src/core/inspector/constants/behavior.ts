@@ -1,4 +1,4 @@
-/** Constantes partagées par l'inspecteur (hit-test, surfaces, lifecycle). */
+/** Constantes de comportement de l'inspecteur (hit-test, press, lifecycle). */
 
 /** Attribut marquant une surface non-pickable (overlay, tooltip, HUD, bouton). */
 export const IGNORE_ATTR = "data-pathpicker-ignore";

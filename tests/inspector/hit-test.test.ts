@@ -1,13 +1,14 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   containsPoint,
   resolveTarget,
   shouldIgnore,
-} from "../src/core/inspector/hit-test";
+} from "../../src/core/inspector/hit-test";
 
 afterEach(() => {
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
 });
 
 describe("shouldIgnore", () => {
@@ -42,5 +43,29 @@ describe("resolveTarget", () => {
     document.body.appendChild(ignored);
     document.elementFromPoint = () => ignored;
     expect(resolveTarget(5, 5)).toBeNull();
+  });
+
+  it("s'arrête sur un élément désactivé (ne descend pas dans son contenu)", () => {
+    document.body.innerHTML = `<main><button id="b" disabled><svg id="i"></svg></button></main>`;
+    const main = document.querySelector("main")!;
+    const btn = document.getElementById("b")!;
+    const svg = document.getElementById("i")!;
+    // disabled → PICKING_CSS met pointer-events:none → elementFromPoint renvoie le parent.
+    document.elementFromPoint = () => main;
+    // button + svg sont pointer-events:none (hérité) et sous le point.
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((el) =>
+      el === btn || el === svg
+        ? ({ pointerEvents: "none", visibility: "visible", opacity: "1" } as CSSStyleDeclaration)
+        : real(el as Element),
+    );
+    const rectOf = (l: number, t: number, r: number, b: number) =>
+      () => ({ left: l, top: t, right: r, bottom: b, width: r - l, height: b - t }) as DOMRect;
+    main.getBoundingClientRect = rectOf(0, 0, 100, 100);
+    btn.getBoundingClientRect = rectOf(10, 10, 90, 40);
+    svg.getBoundingClientRect = rectOf(12, 12, 28, 38);
+
+    // (20,25) est dans le svg, mais la cible doit rester le bouton désactivé.
+    expect(resolveTarget(20, 25)).toBe(btn);
   });
 });

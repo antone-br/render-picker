@@ -1,4 +1,4 @@
-import { CHECKBOX_CHECK } from "../core/inspector/pick-style";
+import { CHECKBOX_CHECK } from "../core/inspector/constants/theme";
 
 /**
  * Icônes SVG internes de l'UI render-picker (regroupées — triviales, non

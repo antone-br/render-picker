@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createInspector } from "../src/core/inspector/inspector";
-import type { PickResult } from "../src/core/types";
+import { createInspector } from "../../src/core/inspector/inspector";
+import type { PickResult } from "../../src/core/types";
 
 beforeEach(() => {
   // Fake timers : le `swallowTrailingPress` d'un pick (setTimeout 700ms) doit
