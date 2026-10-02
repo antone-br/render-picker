@@ -100,12 +100,20 @@ Adds `env.NEXT_PUBLIC_PROJECT_ROOT = process.cwd()` outside production. Accepts 
 function. If a `render-picker.config.json` exists at the project root, it is also injected as
 `NEXT_PUBLIC_RENDER_PICKER_CONFIG` (dev only).
 
-### Settings persistence
+### Settings — remappable commands
 
-The overlay toggles (padding / gap / margin) are saved to `localStorage` by default.
+Layout overlays (padding / gap / margin) are **always on** when hovering while armed — no toggle.
 
-To persist them to a committable **`render-picker.config.json`** at the project root, add a dev API
-route (one line) — toggling then writes the file (GET reads it back):
+The settings dropdown (gear) holds a **Commands** accordion to remap every shortcut: the arm hotkey
+(default double `Shift`), the mouse gestures — **Copy** (default click), **Copy raw HTML**
+(default right-click, copies `outerHTML`), **Multi-select** (default `Shift`+click), **Open source**
+(default `Ctrl`+click), **Open usage** (default `Alt`+click), each a *modifier* + *click type*
+(click / right-click / double-click) — and the keyboard keys **Confirm** (default `Enter`) and
+**Cancel** (default `Esc`). `Esc` always disarms as a safety net.
+
+Choices are saved to `localStorage` by default. To persist them to a committable
+**`render-picker.config.json`** at the project root, add a dev API route (one line) — changes then
+write the file (GET reads it back):
 
 ```ts
 // app/api/render-picker/route.ts
@@ -114,7 +122,18 @@ export { GET, POST } from "@antone-br/render-picker/next";
 
 ```json
 // render-picker.config.json (written/read by the route)
-{ "overlays": { "padding": true, "gap": false, "margin": true } }
+{
+  "commands": {
+    "arm": "shift shift",
+    "copy": { "modifier": "none", "trigger": "click" },
+    "copyHtml": { "modifier": "none", "trigger": "rightclick" },
+    "multi": { "modifier": "shift", "trigger": "click" },
+    "confirm": "enter",
+    "cancel": "escape",
+    "source": { "modifier": "ctrl", "trigger": "click" },
+    "usage": { "modifier": "alt", "trigger": "click" }
+  }
+}
 ```
 
 Without the route, changes stay in `localStorage` (no crash). The handlers are no-ops in production.

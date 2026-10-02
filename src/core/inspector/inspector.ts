@@ -1,3 +1,9 @@
+import {
+  DEFAULT_SETTINGS,
+  gestureMatches,
+  keyMatches,
+  type ClickTrigger,
+} from "../settings";
 import type { InspectorCallbacks, PickResult } from "../types";
 import { DOWN_TYPE, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
 import { PICKING_CSS } from "./constants/picker";
@@ -252,6 +258,18 @@ class Inspector {
     this.showHover(target, rect, this.hovering);
   };
 
+  private commands(): typeof DEFAULT_SETTINGS.commands {
+    return this.callbacks.getCommands?.() ?? DEFAULT_SETTINGS.commands;
+  }
+
+  /** Type de clic de cet event (ou `null` : avalé mais sans action). */
+  private kindOf(e: Event, me: MouseEvent): ClickTrigger | null {
+    if (e.type === DOWN_TYPE && me.button === 0) return "click";
+    if (e.type === "contextmenu") return "rightclick";
+    if (e.type === "dblclick") return "dblclick";
+    return null;
+  }
+
   private onPress = (e: Event): void => {
     const me = e as MouseEvent;
     if (shouldIgnore(e.target as Element | null)) return;
@@ -263,29 +281,47 @@ class Inspector {
     e.stopPropagation();
     e.stopImmediatePropagation();
 
-    if (e.type !== DOWN_TYPE || me.button !== 0) return;
+    const kind = this.kindOf(e, me);
+    if (!kind) return;
 
-    // Maj+clic démarre la sélection ; ensuite tout clic simple continue d'ajouter
-    // / retirer (plus besoin de re-maintenir Maj). Entrée confirme.
-    if (this.multi && (me.shiftKey || this.selection.length > 0)) {
+    const cmds = this.commands();
+    const isMulti = this.multi && gestureMatches(cmds.multi, me, kind);
+    const isCopy = gestureMatches(cmds.copy, me, kind);
+    const isCopyHtml = gestureMatches(cmds.copyHtml, me, kind);
+
+    // Geste « multi » démarre la sélection ; ensuite le geste « copier » continue
+    // d'ajouter / retirer (accumulation). Le geste « valider » (clavier) confirme.
+    if (this.multi && (isMulti || (this.selection.length > 0 && isCopy))) {
       this.toggleSelection(target);
       return;
     }
 
-    const result = this.buildResult(target);
-    this.deactivate();
-    this.swallowTrailingPress();
-    this.callbacks.onPick(result);
+    if (isCopy) {
+      const result = this.buildResult(target);
+      this.deactivate();
+      this.swallowTrailingPress();
+      this.callbacks.onPick(result);
+      return;
+    }
+
+    // Copier l'HTML brut (clic droit par défaut). Après `copy` (prioritaire si même geste).
+    if (isCopyHtml && this.callbacks.onCopyHtml) {
+      const html = target.outerHTML;
+      this.callbacks.onCopyHtml(html, target);
+      this.deactivate();
+      this.swallowTrailingPress();
+    }
   };
 
   private onKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === "Enter" && this.multi && this.selection.length > 0) {
+    const cmds = this.commands();
+    if (keyMatches(cmds.confirm, e.key) && this.multi && this.selection.length > 0) {
       e.preventDefault();
       e.stopPropagation();
       this.finishMulti();
       return;
     }
-    if (e.key === "Escape") {
+    if (keyMatches(cmds.cancel, e.key)) {
       e.preventDefault();
       e.stopPropagation();
       this.deactivate();

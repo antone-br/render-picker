@@ -65,9 +65,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   const [hovered, setHovered] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showPadding, setShowPadding] = useState(() => loadSettings().overlays.padding);
-  const [showGap, setShowGap] = useState(() => loadSettings().overlays.gap);
-  const [showMargin, setShowMargin] = useState(() => loadSettings().overlays.margin);
+  const [commands, setCommands] = useState(() => loadSettings().commands);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
 
@@ -111,13 +109,28 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     [onPickMany, showToast],
   );
 
+  // Raccourci d'armement : prop explicite prioritaire, sinon réglage `commands.arm`.
+  const effectiveHotkey =
+    hotkey !== undefined ? hotkey : commands.arm === "off" ? false : commands.arm;
+
+  const handleCopyHtml = useCallback(
+    (html: string) => {
+      copy(html);
+      showToast("HTML copié ✓");
+    },
+    [showToast],
+  );
+
   const { isActive, toggle } = useRenderPicker({
     pathname,
-    hotkey,
+    hotkey: effectiveHotkey,
     multi,
     onPick: handlePick,
     onPickMany: handlePickMany,
-    overlays: { padding: showPadding, gap: showGap, margin: showMargin },
+    onCopyHtml: handleCopyHtml,
+    // Overlays layout toujours actifs (plus de toggle).
+    overlays: { padding: true, gap: true, margin: true },
+    commands,
     // L'inspecteur pilote directement l'état « sélection en cours » (fiable quel
     // que soit le mode de clic — Maj ou clic simple accumulé).
     onSelectionChange: (n) => setHasSelection(n > 0),
@@ -131,19 +144,18 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     }
   }, [isActive]);
 
-  // Persistance des toggles (localStorage + POST route). Ignore la valeur initiale
+  // Persistance des commandes (localStorage + POST route). Ignore la valeur initiale
   // (anti-boucle) via comparaison. Lecture initiale = loadSettings (env/localStorage).
   useEffect(() => {
-    const overlays = { padding: showPadding, gap: showGap, margin: showMargin };
-    const json = JSON.stringify(overlays);
+    const json = JSON.stringify(commands);
     if (lastSavedRef.current === null) {
       lastSavedRef.current = json; // baseline initiale — pas de sauvegarde
       return;
     }
     if (json === lastSavedRef.current) return;
     lastSavedRef.current = json;
-    saveSettings({ overlays });
-  }, [showPadding, showGap, showMargin]);
+    saveSettings({ commands });
+  }, [commands]);
 
   const borderColor = isActive ? color : "rgba(255,255,255,0.18)";
   const buttonStyle: CSSProperties = {
@@ -177,7 +189,6 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         aria-label="renderPicker — pick an element (Ctrl+click opens VS Code)"
-        title="renderPicker: pick an element to copy its path — Ctrl+click opens the source in VS Code"
         style={buttonStyle}
       >
         <CrosshairIcon color={isActive ? "#fff" : "rgba(255,255,255,0.85)"} />
@@ -189,12 +200,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           settingsOpen={settingsOpen}
           onToggleSettings={() => setSettingsOpen((o) => !o)}
           onCloseSettings={() => setSettingsOpen(false)}
-          showPadding={showPadding}
-          showGap={showGap}
-          showMargin={showMargin}
-          onTogglePadding={() => setShowPadding((v) => !v)}
-          onToggleGap={() => setShowGap((v) => !v)}
-          onToggleMargin={() => setShowMargin((v) => !v)}
+          commands={commands}
+          onChangeCommands={setCommands}
         />
       )}
 

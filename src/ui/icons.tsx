@@ -47,7 +47,7 @@ export function GearIcon({ color }: { color: string }) {
   );
 }
 
-export function HelpIcon({ color }: { color: string }) {
+export function CopyIcon({ color = "#d4d4d8" }: { color?: string }) {
   return (
     <svg
       width="13"
@@ -59,19 +59,42 @@ export function HelpIcon({ color }: { color: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      style={{ flexShrink: 0, display: "block" }}
     >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
   );
 }
 
-export function CloseIcon({ color }: { color: string }) {
+export function Html5Icon({ size = 13 }: { size?: number }) {
   return (
     <svg
-      width="12"
-      height="12"
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: "block" }}
+    >
+      <path fill="#E44D26" d="M71 460L30 0h451l-41 460-185 52z" />
+      <path fill="#F16529" d="M256 472l149-41 35-394H256z" />
+      <path
+        fill="#EBEBEB"
+        d="M256 208h-75l-5-58h80V94H114l15 171h127zm0 147l-63-17-4-45h-56l7 89 116 32z"
+      />
+      <path
+        fill="#fff"
+        d="M255 208v57h70l-7 74-63 17v59l116-32 16-175zm0-114v56h137l5-56z"
+      />
+    </svg>
+  );
+}
+
+export function MultiIcon({ color = "#d4d4d8" }: { color?: string }) {
+  return (
+    <svg
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
@@ -79,10 +102,27 @@ export function CloseIcon({ color }: { color: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ display: "block" }}
+      style={{ flexShrink: 0, display: "block" }}
     >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
+      <path d="M8 21h11a2 2 0 0 0 2-2V8" />
+    </svg>
+  );
+}
+
+export function VsCodeIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="#0098FF"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: "block" }}
+    >
+      <path d="M70.912 99.317a6.223 6.223 0 0 0 4.96-.19l20.589-9.907A6.25 6.25 0 0 0 100 83.587V16.413a6.25 6.25 0 0 0-3.539-5.633L75.872.873a6.223 6.223 0 0 0-7.104 1.21L29.355 38.04 12.187 25.01a4.162 4.162 0 0 0-5.318.236l-5.506 5.009a4.168 4.168 0 0 0-.004 6.162L16.247 50 1.359 63.583a4.168 4.168 0 0 0 .004 6.162l5.506 5.009a4.162 4.162 0 0 0 5.318.236l17.168-13.03 39.413 35.958a6.218 6.218 0 0 0 2.144 1.4zM75.015 27.3 45.11 50l29.905 22.7V27.3z" />
     </svg>
   );
 }

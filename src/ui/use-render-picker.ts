@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createHotkeyMatcher } from "../core/inspector/hotkey";
 import { createInspector } from "../core/inspector/inspector";
+import { DEFAULT_SETTINGS, type RenderPickerSettings } from "../core/settings";
 import type { LayoutOverlays, PickResult } from "../core/types";
 
 /** Options du hook `useRenderPicker`. */
@@ -16,8 +17,12 @@ export interface UseRenderPickerOptions {
   onPick?: (result: PickResult) => void;
   /** Confirmation d'une sélection multiple (Entrée). */
   onPickMany?: (results: PickResult[]) => void;
+  /** Copier l'HTML brut (clic droit par défaut). */
+  onCopyHtml?: (html: string, el: Element) => void;
   /** Visualisations layout au survol (padding/gap/margin). Lu en direct. */
   overlays?: LayoutOverlays;
+  /** Liaisons des commandes (copy/multi/confirm/cancel). Lu en direct. */
+  commands?: RenderPickerSettings["commands"];
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }
@@ -36,7 +41,9 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     multi = true,
     onPick,
     onPickMany,
+    onCopyHtml,
     overlays,
+    commands,
     onSelectionChange,
   } = options;
 
@@ -50,7 +57,9 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     multi,
     onPick,
     onPickMany,
+    onCopyHtml,
     overlays,
+    commands,
     onSelectionChange,
   });
   optsRef.current = {
@@ -58,7 +67,9 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     multi,
     onPick,
     onPickMany,
+    onCopyHtml,
     overlays,
+    commands,
     onSelectionChange,
   };
 
@@ -111,11 +122,16 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
         setActive(false);
         optsRef.current.onPickMany?.(rs);
       },
+      onCopyHtml: (html, el) => {
+        setActive(false);
+        optsRef.current.onCopyHtml?.(html, el);
+      },
       onCancel: () => setActive(false),
       getRoute: () => optsRef.current.pathname ?? window.location.pathname ?? "/",
       multi: optsRef.current.multi,
       getOverlays: () =>
         optsRef.current.overlays ?? { padding: false, gap: false, margin: false },
+      getCommands: () => optsRef.current.commands ?? DEFAULT_SETTINGS.commands,
       onSelectionChange: (n) => optsRef.current.onSelectionChange?.(n),
     });
     inspector.activate();

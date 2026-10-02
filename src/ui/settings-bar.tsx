@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { UI_Z } from "../core/inspector/constants/picker";
 import {
   BTN_SHADOW,
@@ -9,9 +7,11 @@ import {
   SECONDARY_BORDER,
   SECONDARY_SURFACE,
 } from "../core/inspector/constants/theme";
-import { HelpModal } from "./help-modal";
-import { GearIcon, HelpIcon } from "./icons";
+import type { RenderPickerSettings } from "../core/settings";
+import { GearIcon } from "./icons";
 import { SettingsMenu } from "./settings-menu";
+
+type Commands = RenderPickerSettings["commands"];
 
 const ghostButton = (active: boolean) =>
   ({
@@ -33,12 +33,8 @@ export interface SettingsBarProps {
   settingsOpen: boolean;
   onToggleSettings: () => void;
   onCloseSettings: () => void;
-  showPadding: boolean;
-  showGap: boolean;
-  showMargin: boolean;
-  onTogglePadding: () => void;
-  onToggleGap: () => void;
-  onToggleMargin: () => void;
+  commands: Commands;
+  onChangeCommands: (next: Commands) => void;
 }
 
 /**
@@ -51,15 +47,9 @@ export function SettingsBar({
   settingsOpen,
   onToggleSettings,
   onCloseSettings,
-  showPadding,
-  showGap,
-  showMargin,
-  onTogglePadding,
-  onToggleGap,
-  onToggleMargin,
+  commands,
+  onChangeCommands,
 }: SettingsBarProps) {
-  const [helpOpen, setHelpOpen] = useState(false);
-
   return (
     <div
       data-pathpicker-ignore=""
@@ -79,17 +69,11 @@ export function SettingsBar({
     >
       {settingsOpen && (
         <SettingsMenu
-          showPadding={showPadding}
-          showGap={showGap}
-          showMargin={showMargin}
-          onTogglePadding={onTogglePadding}
-          onToggleGap={onToggleGap}
-          onToggleMargin={onToggleMargin}
+          commands={commands}
+          onChangeCommands={onChangeCommands}
           onClose={onCloseSettings}
         />
       )}
-
-      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
 
       <div
         style={{
@@ -109,22 +93,6 @@ export function SettingsBar({
         }}
       >
         <span>{hasSelection ? "Entrée pour valider" : "Échap pour annuler"}</span>
-        <button
-          type="button"
-          data-rp-help=""
-          aria-label="Raccourcis"
-          aria-expanded={helpOpen}
-          onClick={() => setHelpOpen((o) => !o)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = SECONDARY_BG_HOVER;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = helpOpen ? HOVER_BG : "transparent";
-          }}
-          style={ghostButton(helpOpen)}
-        >
-          <HelpIcon color={MUTED} />
-        </button>
         <button
           type="button"
           data-rp-gear=""

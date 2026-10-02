@@ -1,19 +1,106 @@
-import type { LayoutOverlays } from "./types";
-
 /**
  * Paramètres utilisateur persistés. Priorité : `render-picker.config.json` à la
  * racine (injecté au build par `withRenderPicker` → `NEXT_PUBLIC_RENDER_PICKER_CONFIG`,
  * lecture seule) > `localStorage` > défauts. Sans React.
  */
 
+/** Modificateur d'un geste souris remappable. */
+export type ClickModifier = "none" | "ctrl" | "alt" | "meta" | "shift";
+
+/** Type de clic d'un geste souris remappable. */
+export type ClickTrigger = "click" | "rightclick" | "dblclick";
+
+/** Liaison d'un geste souris : modificateur + type de clic. */
+export interface GestureBinding {
+  modifier: ClickModifier;
+  trigger: ClickTrigger;
+}
+
+/** Raccourci d'armement (double-tap d'une touche, ou désactivé). */
+export type ArmHotkey = "shift shift" | "ctrl ctrl" | "alt alt" | "off";
+
+/** Touche d'une commande clavier (valider / annuler). */
+export type KeyChoice = "enter" | "escape" | "space";
+
 export interface RenderPickerSettings {
-  /** Visualisations layout du dropdown paramètres. */
-  overlays: LayoutOverlays;
+  /** Commandes remappables (raccourcis). */
+  commands: {
+    /** Armement du picker. Défaut : double Maj. */
+    arm: ArmHotkey;
+    /** Copier l'élément. Défaut : clic simple. */
+    copy: GestureBinding;
+    /** Copier l'HTML brut (`outerHTML`). Défaut : clic droit. */
+    copyHtml: GestureBinding;
+    /** Sélection multiple (accumulation). Défaut : Maj+clic. */
+    multi: GestureBinding;
+    /** Valider la sélection multiple. Défaut : Entrée. */
+    confirm: KeyChoice;
+    /** Annuler / désarmer. Défaut : Échap. */
+    cancel: KeyChoice;
+    /** Ouvrir la source exacte dans VS Code. Défaut : Ctrl+clic. */
+    source: GestureBinding;
+    /** Ouvrir le fichier d'usage dans VS Code. Défaut : Alt+clic. */
+    usage: GestureBinding;
+  };
 }
 
 export const DEFAULT_SETTINGS: RenderPickerSettings = {
-  overlays: { padding: false, gap: false, margin: false },
+  commands: {
+    arm: "shift shift",
+    copy: { modifier: "none", trigger: "click" },
+    copyHtml: { modifier: "none", trigger: "rightclick" },
+    multi: { modifier: "shift", trigger: "click" },
+    confirm: "enter",
+    cancel: "escape",
+    source: { modifier: "ctrl", trigger: "click" },
+    usage: { modifier: "alt", trigger: "click" },
+  },
 };
+
+/** État des modificateurs d'un event souris/clavier (sous-ensemble de MouseEvent). */
+type ModifierState = {
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+};
+
+/** Vrai si le modificateur demandé correspond à l'état de l'event. Pur. */
+export function modifierMatches(mod: ClickModifier, e: ModifierState): boolean {
+  switch (mod) {
+    case "ctrl":
+      return e.ctrlKey;
+    case "alt":
+      return e.altKey;
+    case "meta":
+      return e.metaKey;
+    case "shift":
+      return e.shiftKey;
+    case "none":
+      return !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+  }
+}
+
+/** Vrai si un geste (modificateur + type de clic) correspond à l'event. Pur. */
+export function gestureMatches(
+  b: GestureBinding,
+  e: ModifierState,
+  kind: ClickTrigger,
+): boolean {
+  return b.trigger === kind && modifierMatches(b.modifier, e);
+}
+
+/** Touche DOM (`KeyboardEvent.key`) d'un `KeyChoice`. */
+export const KEY_OF: Record<KeyChoice, string> = {
+  enter: "Enter",
+  escape: "Escape",
+  space: " ",
+};
+
+/** Vrai si la touche pressée correspond au `KeyChoice`. Pur. */
+export function keyMatches(choice: KeyChoice, key: string): boolean {
+  return KEY_OF[choice] === key;
+}
 
 const STORAGE_KEY = "render-picker:settings";
 
@@ -42,10 +129,21 @@ function merge(
   patch: Partial<RenderPickerSettings> | null,
 ): RenderPickerSettings {
   if (!patch) return base;
+  const patchCommands: Partial<RenderPickerSettings["commands"]> =
+    patch.commands ?? {};
   return {
     ...base,
     ...patch,
-    overlays: { ...base.overlays, ...(patch.overlays ?? {}) },
+    commands: {
+      arm: patchCommands.arm ?? base.commands.arm,
+      copy: { ...base.commands.copy, ...(patchCommands.copy ?? {}) },
+      copyHtml: { ...base.commands.copyHtml, ...(patchCommands.copyHtml ?? {}) },
+      multi: { ...base.commands.multi, ...(patchCommands.multi ?? {}) },
+      confirm: patchCommands.confirm ?? base.commands.confirm,
+      cancel: patchCommands.cancel ?? base.commands.cancel,
+      source: { ...base.commands.source, ...(patchCommands.source ?? {}) },
+      usage: { ...base.commands.usage, ...(patchCommands.usage ?? {}) },
+    },
   };
 }
 
@@ -110,7 +208,7 @@ export async function fetchSettings(): Promise<RenderPickerSettings | null> {
     const res = await fetch(ENDPOINT);
     if (!res.ok) return null;
     const data = (await res.json()) as Partial<RenderPickerSettings>;
-    if (!data || !data.overlays) return null;
+    if (!data || !data.commands) return null;
     return merge(DEFAULT_SETTINGS, data);
   } catch {
     return null;

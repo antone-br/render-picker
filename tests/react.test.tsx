@@ -96,7 +96,8 @@ describe("RenderPickerButton", () => {
     act(() => root.unmount());
   });
 
-  it("l'icône paramètre ouvre le dropdown avec les 2 toggles", () => {
+  it("l'icône paramètre ouvre le dropdown des commandes (plus de toggles overlay)", () => {
+    window.localStorage.clear();
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -111,31 +112,12 @@ describe("RenderPickerButton", () => {
     expect(gear).not.toBeNull();
     act(() => gear?.click());
 
-    expect(document.body.textContent).toContain("Afficher le padding");
-    expect(document.body.textContent).toContain("Afficher le gap");
-    expect(document.body.textContent).toContain("Afficher le margin");
-
-    act(() => root.unmount());
-  });
-
-  it("l'icône ? ouvre le modal des raccourcis, × le ferme", () => {
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    act(() => root.render(<RenderPickerButton pathname="/" />));
-
-    act(() =>
-      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
-    );
-    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-help]")?.click());
-
-    expect(document.body.textContent).toContain("Raccourcis");
-    expect(document.body.textContent).toContain("Alt + clic");
-
-    act(() =>
-      document.querySelector<HTMLButtonElement>("button[aria-label='Fermer']")?.click(),
-    );
-    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(document.body.textContent).toContain("Commandes");
+    expect(document.body.textContent).toContain("Armer le picker");
+    expect(document.body.textContent).toContain("Copier le HTML");
+    expect(document.body.textContent).toContain("Ouvrir le composant");
+    // Les anciens toggles overlay ont disparu.
+    expect(document.body.textContent).not.toContain("Afficher le padding");
 
     act(() => root.unmount());
   });
@@ -183,7 +165,8 @@ describe("RenderPickerButton", () => {
     act(() => root.unmount());
   });
 
-  it("cocher un paramètre POST les settings vers la route", () => {
+  it("changer une commande POST les settings vers la route", () => {
+    window.localStorage.clear();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -200,10 +183,18 @@ describe("RenderPickerButton", () => {
     );
     act(() => document.querySelector<HTMLButtonElement>("button[data-rp-gear]")?.click());
 
-    const item = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button[role='menuitemcheckbox']"),
-    ).find((b) => b.textContent?.includes("padding"));
-    act(() => item?.click());
+    // Ouvre le Select « modificateur » de la commande « Ouvrir la source ».
+    const sel = document.querySelector<HTMLButtonElement>(
+      "button[aria-label='Ouvrir le composant (global) — modificateur']",
+    );
+    expect(sel).not.toBeNull();
+    act(() => sel?.click());
+
+    // Choisit « Alt » (≠ défaut Ctrl) → change les commandes → POST.
+    const opt = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button[role='option']"),
+    ).find((b) => b.textContent === "Alt");
+    act(() => opt?.click());
 
     const posted = fetchMock.mock.calls.some(
       (c) => c[0] === "/api/render-picker" && c[1]?.method === "POST",
@@ -212,5 +203,41 @@ describe("RenderPickerButton", () => {
 
     act(() => root.unmount());
     vi.unstubAllGlobals();
+  });
+
+  it("« Réinitialiser » remet les commandes aux défauts", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-gear]")?.click());
+
+    const sel = () =>
+      document.querySelector<HTMLButtonElement>(
+        "button[aria-label='Ouvrir le composant (global) — modificateur']",
+      );
+    expect(sel()?.textContent).toContain("Ctrl");
+
+    // Change source → Alt.
+    act(() => sel()?.click());
+    const alt = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button[role='option']"),
+    ).find((b) => b.textContent === "Alt");
+    act(() => alt?.click());
+    expect(sel()?.textContent).toContain("Alt");
+
+    // Réinitialiser → retour au défaut Ctrl.
+    const reset = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent === "Réinitialiser");
+    act(() => reset?.click());
+    expect(sel()?.textContent).toContain("Ctrl");
+
+    act(() => root.unmount());
   });
 });

@@ -51,6 +51,7 @@ describe("initClickToSource", () => {
     stop();
     stop = () => {};
     document.body.innerHTML = "";
+    window.localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -139,5 +140,58 @@ describe("initClickToSource", () => {
     );
 
     expect(clickSpy).not.toHaveBeenCalled();
+  });
+
+  it("binding remappé : source = Cmd+clic → Cmd ouvre, Ctrl n'ouvre plus", () => {
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ commands: { source: { modifier: "meta", trigger: "click" } } }),
+    );
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    document.body.appendChild(el);
+
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    stop = initClickToSource("C:/proj");
+
+    // Ctrl ne matche plus le binding source (meta).
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
+    );
+    expect(clickSpy).not.toHaveBeenCalled();
+
+    // Cmd (meta) matche.
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { metaKey: true, button: 0, bubbles: true }),
+    );
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("trigger rightclick : usage = Alt+clic droit → contextmenu ouvre l'usage", () => {
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ commands: { usage: { modifier: "alt", trigger: "rightclick" } } }),
+    );
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    el.setAttribute("data-owner-source", "src/usage.tsx:9");
+    document.body.appendChild(el);
+
+    let href = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        href = this.href;
+      },
+    );
+
+    stop = initClickToSource("C:/proj");
+    el.dispatchEvent(
+      new MouseEvent("contextmenu", { altKey: true, button: 2, bubbles: true }),
+    );
+
+    expect(href).toContain("src/usage.tsx:9");
   });
 });

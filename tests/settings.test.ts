@@ -18,31 +18,29 @@ describe("loadSettings", () => {
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
 
-  it("lit localStorage (mergé sur les défauts)", () => {
+  it("lit localStorage (merge profond sur les défauts)", () => {
     window.localStorage.setItem(
       "render-picker:settings",
-      JSON.stringify({ overlays: { padding: true } }),
+      JSON.stringify({ commands: { source: { modifier: "meta" } } }),
     );
-    expect(loadSettings().overlays).toEqual({
-      padding: true,
-      gap: false,
-      margin: false,
+    expect(loadSettings().commands).toEqual({
+      ...DEFAULT_SETTINGS.commands,
+      source: { modifier: "meta", trigger: "click" },
     });
   });
 
   it("le fichier racine (env) a priorité sur localStorage", () => {
     window.localStorage.setItem(
       "render-picker:settings",
-      JSON.stringify({ overlays: { padding: true } }),
+      JSON.stringify({ commands: { arm: "off" } }),
     );
     vi.stubEnv(
       "NEXT_PUBLIC_RENDER_PICKER_CONFIG",
-      JSON.stringify({ overlays: { gap: true } }),
+      JSON.stringify({ commands: { usage: { trigger: "dblclick" } } }),
     );
-    expect(loadSettings().overlays).toEqual({
-      padding: false,
-      gap: true,
-      margin: false,
+    expect(loadSettings().commands).toEqual({
+      ...DEFAULT_SETTINGS.commands,
+      usage: { modifier: "alt", trigger: "dblclick" },
     });
   });
 });
@@ -53,15 +51,13 @@ describe("saveSettings", () => {
     vi.stubGlobal("fetch", fetchMock);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    saveSettings({ overlays: { padding: true, gap: false, margin: true } });
+    saveSettings({
+      commands: { ...DEFAULT_SETTINGS.commands, arm: "ctrl ctrl" },
+    });
     await Promise.resolve();
 
     const raw = window.localStorage.getItem("render-picker:settings");
-    expect(raw && JSON.parse(raw).overlays).toEqual({
-      padding: true,
-      gap: false,
-      margin: true,
-    });
+    expect(raw && JSON.parse(raw).commands.arm).toBe("ctrl ctrl");
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/render-picker",
       expect.objectContaining({ method: "POST" }),
@@ -73,7 +69,7 @@ describe("saveSettings", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    saveSettings({ overlays: { padding: false, gap: false, margin: false } });
+    saveSettings(DEFAULT_SETTINGS);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -88,14 +84,21 @@ describe("fetchSettings", () => {
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ overlays: { gap: true } }),
+        json: async () => ({ commands: { arm: "alt alt" } }),
       }),
     );
-    expect((await fetchSettings())?.overlays).toEqual({
-      padding: false,
-      gap: true,
-      margin: false,
+    expect((await fetchSettings())?.commands).toEqual({
+      ...DEFAULT_SETTINGS.commands,
+      arm: "alt alt",
     });
+  });
+
+  it("null si pas de `commands` dans la réponse", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }),
+    );
+    expect(await fetchSettings()).toBeNull();
   });
 
   it("null si la route est absente / échoue", async () => {

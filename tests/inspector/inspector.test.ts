@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInspector } from "../../src/core/inspector/inspector";
+import { DEFAULT_SETTINGS } from "../../src/core/settings";
 import type { PickResult } from "../../src/core/types";
 
 beforeEach(() => {
@@ -135,6 +136,77 @@ describe("createInspector — interactions", () => {
     expect(onSelectionChange).toHaveBeenCalledWith(2);
     expect(onPickMany).toHaveBeenCalledTimes(1);
     expect(onPickMany.mock.calls[0]![0]).toHaveLength(2);
+  });
+
+  it("commandes remappées : copier = clic droit → clic gauche n'ouvre rien, contextmenu pick", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onPick = vi.fn<(r: PickResult) => void>();
+    const insp = createInspector({
+      onPick,
+      onCancel: () => {},
+      getRoute: () => "/",
+      getCommands: () => ({
+        ...DEFAULT_SETTINGS.commands,
+        copy: { modifier: "none", trigger: "rightclick" },
+      }),
+    });
+    insp.activate();
+
+    // Clic gauche ne matche plus « copier » (rightclick).
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+    expect(onPick).not.toHaveBeenCalled();
+
+    // Clic droit (contextmenu) matche.
+    window.dispatchEvent(
+      new MouseEvent("contextmenu", { clientX: 5, clientY: 5, button: 2, bubbles: true }),
+    );
+    expect(onPick).toHaveBeenCalledTimes(1);
+  });
+
+  it("clic droit (défaut) → onCopyHtml avec l'outerHTML", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onCopyHtml = vi.fn<(h: string, el: Element) => void>();
+    const insp = createInspector({
+      onPick: () => {},
+      onCopyHtml,
+      onCancel: () => {},
+      getRoute: () => "/",
+    });
+    insp.activate();
+
+    window.dispatchEvent(
+      new MouseEvent("contextmenu", { clientX: 5, clientY: 5, button: 2, bubbles: true }),
+    );
+
+    expect(onCopyHtml).toHaveBeenCalledTimes(1);
+    expect(onCopyHtml.mock.calls[0]![0]).toContain('id="b"');
+  });
+
+  it("clic gauche → onPick, jamais onCopyHtml", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onPick = vi.fn();
+    const onCopyHtml = vi.fn();
+    const insp = createInspector({
+      onPick,
+      onCopyHtml,
+      onCancel: () => {},
+      getRoute: () => "/",
+    });
+    insp.activate();
+
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onCopyHtml).not.toHaveBeenCalled();
   });
 
   it("refreshDecorations met à jour les décorations sans mousemove", () => {

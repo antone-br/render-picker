@@ -1,3 +1,5 @@
+import type { RenderPickerSettings } from "./settings";
+
 export type ResolvedPosition = {
   source: string;
   line: number;
@@ -30,6 +32,8 @@ export interface PickResult {
 export interface InspectorCallbacks {
   /** Pick simple (clic) → résultat partiel (sans enrichissement React). */
   onPick: (result: PickResult) => void;
+  /** Copier l'HTML brut de l'élément (`outerHTML`). */
+  onCopyHtml?: (html: string, el: Element) => void;
   /** Confirmation d'une sélection multiple (Entrée). */
   onPickMany?: (results: PickResult[]) => void;
   /** Désarmement (Échap). */
@@ -40,6 +44,8 @@ export interface InspectorCallbacks {
   multi?: boolean;
   /** Visualisations layout à dessiner au survol. Lu à chaque survol. */
   getOverlays?: () => LayoutOverlays;
+  /** Liaisons des commandes (copy/multi/confirm/cancel). Lu à chaque event. */
+  getCommands?: () => RenderPickerSettings["commands"];
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }
