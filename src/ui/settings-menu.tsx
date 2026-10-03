@@ -24,6 +24,8 @@ export interface SettingsMenuProps {
   onChangeCommands: (next: Commands) => void;
   /** Fermeture au clic hors de `[data-rp-settings]`. */
   onClose: () => void;
+  /** Afficher les commandes VS Code (source/usage). Défaut : `true`. */
+  showVsCode?: boolean;
 }
 
 const rowStyle = {
@@ -44,7 +46,12 @@ type GestureKey = "copy" | "copyHtml" | "multi" | "source" | "usage";
  * (armement, gestes souris via deux dropdowns imbriqués, touches de validation/
  * annulation) + bouton Réinitialiser. UI reprise de `DropdownButton` renderflow.
  */
-export function SettingsMenu({ commands, onChangeCommands, onClose }: SettingsMenuProps) {
+export function SettingsMenu({
+  commands,
+  onChangeCommands,
+  onClose,
+  showVsCode = true,
+}: SettingsMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -64,8 +71,13 @@ export function SettingsMenu({ commands, onChangeCommands, onClose }: SettingsMe
   // Fermeture au clic hors du menu — attaché une seule fois (lit onClose via ref).
   useEffect(() => {
     const onDown = (e: Event) => {
-      const t = e.target as Element | null;
-      if (!t?.closest?.("[data-rp-settings]")) onCloseRef.current();
+      // composedPath() traverse le shadow DOM (e.target est retargeté sur le host
+      // en content script) ; fonctionne aussi en light DOM.
+      const path = e.composedPath?.() ?? [];
+      const inside = path.some(
+        (n) => n instanceof Element && n.hasAttribute?.("data-rp-settings"),
+      );
+      if (!inside) onCloseRef.current();
     };
     document.addEventListener("pointerdown", onDown, true);
     return () => document.removeEventListener("pointerdown", onDown, true);
@@ -221,8 +233,8 @@ export function SettingsMenu({ commands, onChangeCommands, onClose }: SettingsMe
           {gestureRow("Copier l'élément", "copy", <CopyIcon />)}
           {gestureRow("Copier le HTML", "copyHtml", <Html5Icon />)}
           {gestureRow("Sélection multiple", "multi", <MultiIcon />)}
-          {gestureRow("Ouvrir le composant (global)", "source", <VsCodeIcon />)}
-          {gestureRow("Ouvrir le composant (local)", "usage", <VsCodeIcon />)}
+          {showVsCode && gestureRow("Ouvrir le composant (global)", "source", <VsCodeIcon />)}
+          {showVsCode && gestureRow("Ouvrir le composant (local)", "usage", <VsCodeIcon />)}
 
           <div
             style={{

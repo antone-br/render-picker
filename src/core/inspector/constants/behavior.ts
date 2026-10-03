@@ -3,6 +3,12 @@
 /** Attribut marquant une surface non-pickable (overlay, tooltip, HUD, bouton). */
 export const IGNORE_ATTR = "data-pathpicker-ignore";
 
+/**
+ * Attribut posé sur `<html>` par le package npm (init / bouton monté). L'extension
+ * Chrome le lit pour se désactiver si l'app utilise déjà le package (pas de double picker).
+ */
+export const NPM_MARKER_ATTR = "data-render-picker";
+
 /** Profondeur max de descente du hit-test dans les enfants `pointer-events:none`. */
 export const MAX_DESCEND = 32;
 

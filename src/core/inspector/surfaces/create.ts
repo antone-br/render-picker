@@ -100,7 +100,8 @@ export function createSurfaces(): Surfaces {
 
   tooltip.appendChild(tooltipCol);
 
-  // Badge dimensions, intégré dans la bulle (coin haut-droite), poussé à droite.
+  // Badge dimensions (ex. 12×522), intégré dans la bulle (coin haut-droite), poussé
+  // à droite. Variante « blue » (comme les dropdowns ≠ défaut).
   const dims = document.createElement("span");
   assign(dims, {
     marginLeft: "auto",
@@ -108,7 +109,9 @@ export function createSurfaces(): Surfaces {
     padding: "1px 5px",
     borderRadius: "4px",
     font: "600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace",
-    background: "rgba(255,255,255,0.12)",
+    color: "#60a5fa",
+    background: "rgba(59,130,246,0.15)",
+    border: "1px solid rgba(59,130,246,0.3)",
     whiteSpace: "nowrap",
   });
   tooltip.appendChild(dims);

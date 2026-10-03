@@ -46,6 +46,8 @@ export interface InspectorCallbacks {
   getOverlays?: () => LayoutOverlays;
   /** Liaisons des commandes (copy/multi/confirm/cancel). Lu à chaque event. */
   getCommands?: () => RenderPickerSettings["commands"];
+  /** Titre du tooltip (défaut : nom du composant). L'extension passe les classes. */
+  getTitle?: (el: Element, selection: Element[]) => string;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }

@@ -26,15 +26,29 @@ export function dimsText(rect: DOMRect): string {
   return `${Math.round(rect.width)}×${Math.round(rect.height)}`;
 }
 
+/** Suffixes communs d'un titre de tooltip : `disabled`, `selected #n`. */
+function titleSuffixes(el: Element, selection: Element[]): string[] {
+  const parts: string[] = [];
+  if (isDisabled(el)) parts.push("disabled");
+  const selIdx = selection.indexOf(el);
+  if (selIdx >= 0) parts.push(`selected #${selIdx + 1}`);
+  return parts;
+}
+
 /** Titre du tooltip : nom du composant (+ `· disabled`, `· selected #n`). `""` si rien. */
 export function tooltipTitle(el: Element, selection: Element[]): string {
   const parts: string[] = [];
   const comp = componentInfo(el as HTMLElement)?.component;
   if (comp) parts.push(comp);
-  if (isDisabled(el)) parts.push("disabled");
-  const selIdx = selection.indexOf(el);
-  if (selIdx >= 0) parts.push(`selected #${selIdx + 1}`);
+  parts.push(...titleSuffixes(el, selection));
   return parts.join(" · ");
+}
+
+/** Titre alternatif : classes CSS de l'élément (sinon le tag) + suffixes. Pour l'extension. */
+export function tooltipClasses(el: Element, selection: Element[]): string {
+  const cls = (el.getAttribute("class") || "").trim();
+  const head = cls || el.tagName.toLowerCase();
+  return [head, ...titleSuffixes(el, selection)].join(" · ");
 }
 
 /** Métriques layout en px : `padding: …` / `gap: …` / `margin: …` (que si non nuls). */
@@ -76,8 +90,9 @@ export function updateTooltip(
   el: Element,
   selection: Element[],
   rect: DOMRect,
+  titleOf: (el: Element, selection: Element[]) => string = tooltipTitle,
 ): void {
-  const title = tooltipTitle(el, selection);
+  const title = titleOf(el, selection);
   const metricsText = tooltipMetrics(el);
   label.textContent = title;
   label.style.display = title ? "block" : "none";

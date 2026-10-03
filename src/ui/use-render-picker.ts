@@ -23,6 +23,8 @@ export interface UseRenderPickerOptions {
   overlays?: LayoutOverlays;
   /** Liaisons des commandes (copy/multi/confirm/cancel). Lu en direct. */
   commands?: RenderPickerSettings["commands"];
+  /** Titre du tooltip (défaut : nom du composant). */
+  getTitle?: (el: Element, selection: Element[]) => string;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }
@@ -44,6 +46,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     onCopyHtml,
     overlays,
     commands,
+    getTitle,
     onSelectionChange,
   } = options;
 
@@ -60,6 +63,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     onCopyHtml,
     overlays,
     commands,
+    getTitle,
     onSelectionChange,
   });
   optsRef.current = {
@@ -70,6 +74,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     onCopyHtml,
     overlays,
     commands,
+    getTitle,
     onSelectionChange,
   };
 
@@ -132,6 +137,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
       getOverlays: () =>
         optsRef.current.overlays ?? { padding: false, gap: false, margin: false },
       getCommands: () => optsRef.current.commands ?? DEFAULT_SETTINGS.commands,
+      getTitle: optsRef.current.getTitle,
       onSelectionChange: (n) => optsRef.current.onSelectionChange?.(n),
     });
     inspector.activate();

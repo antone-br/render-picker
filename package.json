@@ -70,10 +70,14 @@
     "prepublishOnly": "npm run typecheck && npm run test && npm run build",
     "release:staging": "npm version prerelease --preid=staging -m \"chore(release): %s\" && npm publish --tag staging && git push --follow-tags",
     "release:latest": "npm version patch -m \"chore(release): %s\" && npm publish && git push --follow-tags",
-    "release:promote": "npm dist-tag add @antone-br/render-picker@$npm_package_version latest"
+    "release:promote": "npm dist-tag add @antone-br/render-picker@$npm_package_version latest",
+    "ext:build": "node extension/build.mjs",
+    "ext:watch": "node extension/build.mjs --watch"
   },
   "devDependencies": {
+    "@types/chrome": "^0.0.270",
     "@types/node": "^26.6.3",
+    "esbuild": "^0.25.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "jsdom": "^29.1.1",

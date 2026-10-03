@@ -58,6 +58,24 @@ describe("initRenderPicker", () => {
     expect(clicks).toHaveLength(1);
   });
 
+  it("pose le marqueur data-render-picker, retiré au dispose", () => {
+    const dispose = initRenderPicker({
+      enabled: true,
+      clickToSource: false,
+      annotate: false,
+      hushConsole: false,
+    });
+    expect(document.documentElement.getAttribute("data-render-picker")).toBe("npm");
+    dispose();
+    expect(document.documentElement.hasAttribute("data-render-picker")).toBe(false);
+  });
+
+  it("pas de marqueur si désactivé", () => {
+    const dispose = initRenderPicker({ enabled: false });
+    expect(document.documentElement.hasAttribute("data-render-picker")).toBe(false);
+    dispose();
+  });
+
   it("annote après le délai configuré", () => {
     vi.useFakeTimers();
     const dispose = initRenderPicker({

@@ -50,8 +50,9 @@ export function Select<T extends string>({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: Event) => {
-      const t = e.target as Element | null;
-      if (!ref.current?.contains(t as Node)) setOpen(false);
+      // composedPath() : e.target est retargeté sur le host en shadow DOM.
+      const path = e.composedPath?.() ?? [];
+      if (ref.current && !path.includes(ref.current)) setOpen(false);
     };
     document.addEventListener("pointerdown", onDown, true);
     return () => document.removeEventListener("pointerdown", onDown, true);

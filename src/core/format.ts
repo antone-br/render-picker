@@ -32,6 +32,65 @@ export function formatResult(r: PickResult): string {
   ].join("\n");
 }
 
+const VOID_ELEMENTS = new Set([
+  "area", "base", "br", "col", "embed", "hr", "img", "input",
+  "link", "meta", "param", "source", "track", "wbr",
+]);
+
+/** Attributs sérialisés dans l'ordre : ` name="value"` (quotes échappées). */
+function serializeAttrs(el: Element): string {
+  let out = "";
+  for (const attr of Array.from(el.attributes)) {
+    out += ` ${attr.name}="${attr.value.replace(/"/g, "&quot;")}"`;
+  }
+  return out;
+}
+
+function printNode(node: Node, depth: number, indent: string): string {
+  const pad = indent.repeat(depth);
+  if (node.nodeType === 3) {
+    const text = (node.textContent ?? "").trim();
+    return text ? pad + text : "";
+  }
+  if (node.nodeType !== 1) return "";
+
+  const el = node as Element;
+  const tag = el.tagName.toLowerCase();
+  const open = `<${tag}${serializeAttrs(el)}>`;
+  if (VOID_ELEMENTS.has(tag)) return pad + open;
+
+  const children = Array.from(el.childNodes);
+  const hasElementChild = children.some((c) => c.nodeType === 1);
+
+  // Pas d'enfant élément : inline (ou balise vide).
+  if (!hasElementChild) {
+    const text = (el.textContent ?? "").trim();
+    return text ? `${pad}${open}${text}</${tag}>` : `${pad}${open}</${tag}>`;
+  }
+
+  const lines = [pad + open];
+  for (const child of children) {
+    const line = printNode(child, depth + 1, indent);
+    if (line) lines.push(line);
+  }
+  lines.push(`${pad}</${tag}>`);
+  return lines.join("\n");
+}
+
+/**
+ * Pretty-print d'un fragment HTML (`outerHTML`) : indentation par profondeur,
+ * éléments void sans fermeture, texte simple en ligne. No-op hors navigateur.
+ */
+export function formatHtml(html: string, indent = "  "): string {
+  if (typeof document === "undefined") return html;
+  const container = document.createElement("div");
+  container.innerHTML = html.trim();
+  return Array.from(container.childNodes)
+    .map((n) => printNode(n, 0, indent))
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** Formate plusieurs résultats — Route partagée en tête, un bloc par élément. */
 export function formatResults(results: PickResult[]): string {
   if (results.length <= 1) {

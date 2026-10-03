@@ -7,9 +7,10 @@ import {
   type FC,
 } from "react";
 
-import { formatResult, formatResults } from "./core/format";
+import { formatHtml, formatResult, formatResults } from "./core/format";
 import { loadSettings, saveSettings } from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
+import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
   PANEL_BORDER,
@@ -22,7 +23,7 @@ import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
 
 export type { PickResult } from "./core/types";
-export { OUTPUT_PREFIX, formatResult, formatResults } from "./core/format";
+export { OUTPUT_PREFIX, formatResult, formatResults, formatHtml } from "./core/format";
 export {
   useRenderPicker,
   type UseRenderPickerOptions,
@@ -82,6 +83,12 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     [],
   );
 
+  // Marqueur lu par l'extension Chrome pour se désactiver (évite le double picker).
+  useEffect(() => {
+    document.documentElement.setAttribute(NPM_MARKER_ATTR, "npm");
+    return () => document.documentElement.removeAttribute(NPM_MARKER_ATTR);
+  }, []);
+
   const handlePick = useCallback(
     (result: PickResult) => {
       const enriched = enrichResult(result);
@@ -115,7 +122,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
 
   const handleCopyHtml = useCallback(
     (html: string) => {
-      copy(html);
+      copy(formatHtml(html));
       showToast("HTML copié ✓");
     },
     [showToast],

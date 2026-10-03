@@ -1,3 +1,4 @@
+import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { initClickToSource } from "./core/dev/click-to-source";
 import { initComponentAnnotator } from "./core/source/component-annotate";
 import { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
@@ -55,6 +56,10 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
   if (!enabled || typeof window === "undefined") return () => {};
 
   const cleanups: (() => void)[] = [];
+
+  // Marqueur lu par l'extension Chrome pour se désactiver (évite le double picker).
+  document.documentElement.setAttribute(NPM_MARKER_ATTR, "npm");
+  cleanups.push(() => document.documentElement.removeAttribute(NPM_MARKER_ATTR));
 
   if (hushConsole) {
     cleanups.push(

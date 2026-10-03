@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "render-picker",
+  "version": "0.1.0",
+  "description": "Pick any element on a dev page: route, XPath, CSS, React component + source file:line, copy raw HTML, Ctrl+click to open in VS Code.",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_title": "render-picker — toggle picker"
+  },
+  "options_page": "options.html",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://127.0.0.1/*",
+        "https://127.0.0.1/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["main-world.js"],
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://127.0.0.1/*",
+        "https://127.0.0.1/*"
+      ]
+    }
+  ]
+}

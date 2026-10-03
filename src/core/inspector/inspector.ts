@@ -118,6 +118,7 @@ class Inspector {
       el,
       this.selection,
       rect,
+      this.callbacks.getTitle,
     );
     this.renderDecor(el, rect);
     this.hovering = true;

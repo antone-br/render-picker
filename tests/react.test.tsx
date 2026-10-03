@@ -13,7 +13,12 @@ vi.mock("../src/core/inspector/inspector", () => ({
   },
 }));
 
-import { RenderPickerButton, formatResult, formatResults } from "../src/react";
+import {
+  RenderPickerButton,
+  formatHtml,
+  formatResult,
+  formatResults,
+} from "../src/react";
 import type { PickResult } from "../src/core/types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -75,6 +80,22 @@ describe("formatResult / formatResults", () => {
   });
 });
 
+describe("formatHtml", () => {
+  it("indente, inline le texte simple, void sans fermeture", () => {
+    const out = formatHtml(`<div class="a"><span>x</span><img src="y"></div>`);
+    expect(out).toBe(
+      ['<div class="a">', '  <span>x</span>', '  <img src="y">', "</div>"].join("\n"),
+    );
+  });
+
+  it("ignore le texte whitespace-only entre balises", () => {
+    const out = formatHtml(`<ul>\n  <li>a</li>\n  <li>b</li>\n</ul>`);
+    expect(out).toBe(
+      ["<ul>", "  <li>a</li>", "  <li>b</li>", "</ul>"].join("\n"),
+    );
+  });
+});
+
 describe("RenderPickerButton", () => {
   it("rend un bouton accessible, data-pathpicker-ignore, et s'arme au clic", () => {
     const container = document.createElement("div");
@@ -94,6 +115,16 @@ describe("RenderPickerButton", () => {
     expect(document.body.textContent).toContain("Échap pour annuler");
 
     act(() => root.unmount());
+  });
+
+  it("pose le marqueur data-render-picker (retiré au démontage)", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+    expect(document.documentElement.getAttribute("data-render-picker")).toBe("npm");
+    act(() => root.unmount());
+    expect(document.documentElement.hasAttribute("data-render-picker")).toBe(false);
   });
 
   it("l'icône paramètre ouvre le dropdown des commandes (plus de toggles overlay)", () => {

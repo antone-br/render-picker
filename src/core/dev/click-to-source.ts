@@ -1,5 +1,5 @@
 import { loadSettings, modifierMatches } from "../settings";
-import type { ClickTrigger } from "../settings";
+import type { ClickTrigger, RenderPickerSettings } from "../settings";
 
 /**
  * Clic (modificateur configurable) sur un élément annoté → ouvre dans VS Code sa
@@ -30,7 +30,10 @@ const SWALLOWED_EVENTS = ["click", "auxclick", "pointerup", "mouseup"] as const;
  * liaisons `settings.commands.source` / `.usage`. Retourne une fonction d'arrêt.
  * `root` = racine absolue du projet (ex. `process.env.NEXT_PUBLIC_PROJECT_ROOT`).
  */
-export function initClickToSource(root: string | undefined | null): () => void {
+export function initClickToSource(
+  root: string | undefined | null,
+  getCommands: () => RenderPickerSettings["commands"] = () => loadSettings().commands,
+): () => void {
   if (!root) {
     console.warn(
       "[render-picker] projectRoot absent (NEXT_PUBLIC_PROJECT_ROOT non injecté ?) — ouverture VS Code désactivée.",
@@ -56,7 +59,7 @@ export function initClickToSource(root: string | undefined | null): () => void {
     e: MouseEvent,
     kind: ClickTrigger,
   ): "source" | "usage" | null {
-    const { source, usage } = loadSettings().commands;
+    const { source, usage } = getCommands();
     if (usage.trigger === kind && modifierMatches(usage.modifier, e)) return "usage";
     if (source.trigger === kind && modifierMatches(source.modifier, e)) return "source";
     return null;

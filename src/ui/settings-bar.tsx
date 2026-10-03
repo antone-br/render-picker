@@ -35,6 +35,8 @@ export interface SettingsBarProps {
   onCloseSettings: () => void;
   commands: Commands;
   onChangeCommands: (next: Commands) => void;
+  /** Afficher les commandes VS Code (source/usage). Défaut : `true`. */
+  showVsCode?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export function SettingsBar({
   onCloseSettings,
   commands,
   onChangeCommands,
+  showVsCode = true,
 }: SettingsBarProps) {
   return (
     <div
@@ -72,6 +75,7 @@ export function SettingsBar({
           commands={commands}
           onChangeCommands={onChangeCommands}
           onClose={onCloseSettings}
+          showVsCode={showVsCode}
         />
       )}
 
