@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInspector } from "../../src/core/inspector/inspector";
+import { CONTEXT_MENU_OPEN } from "../../src/core/inspector/constants/behavior";
 import { DEFAULT_SETTINGS } from "../../src/core/settings";
 import type { PickResult } from "../../src/core/types";
 
@@ -228,6 +229,27 @@ describe("createInspector — interactions", () => {
 
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onContextMenu).not.toHaveBeenCalled();
+  });
+
+  it("menu contextuel ouvert : le clic de fermeture ne pick pas ; le suivant oui", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onPick = vi.fn<(r: PickResult) => void>();
+    const insp = createInspector({ onPick, onCancel: () => {}, getRoute: () => "/test" });
+    insp.activate();
+
+    CONTEXT_MENU_OPEN.value = true;
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+    expect(onPick).toHaveBeenCalledTimes(0);
+
+    // Menu fermé (comme la sortie du handler du composant) :
+    CONTEXT_MENU_OPEN.value = false;
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    insp.deactivate();
+    CONTEXT_MENU_OPEN.value = false;
   });
 
   it("refreshDecorations met à jour les décorations sans mousemove", () => {

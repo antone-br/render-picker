@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
+import { CONTEXT_MENU_OPEN } from "../core/inspector/constants/behavior";
 import { UI_Z } from "../core/inspector/constants/picker";
 import {
   CARD_SHADOW,
@@ -46,6 +47,8 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
 
   useEffect(() => {
     if (!at) return;
+    // Flag global : le geste de fermeture (clic hors) ne pick pas.
+    CONTEXT_MENU_OPEN.value = true;
     ref.current?.animate?.(
       [
         { opacity: 0, transform: "scale(.95)" },
@@ -53,6 +56,9 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
       ],
       { duration: 100, easing: "ease-out" },
     );
+    return () => {
+      CONTEXT_MENU_OPEN.value = false;
+    };
   }, [at]);
 
   // Clic hors (composedPath → shadow DOM inclus) et Échap → fermer.

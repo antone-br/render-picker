@@ -5,7 +5,7 @@ import {
   type ClickTrigger,
 } from "../settings";
 import type { InspectorCallbacks, PickResult } from "../types";
-import { DOWN_TYPE, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
+import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
 import { PICKING_CSS } from "./constants/picker";
 import { getCssSelector } from "./css-selector";
 import { containsPoint, resolveTarget, shouldIgnore } from "./hit-test";
@@ -288,6 +288,9 @@ class Inspector {
     // Mode recherche exclusif : les gestes de picking sont désactivés ; un clic
     // hors de l'UI de recherche la fermera (handler doc-level du popover).
     if (this.searchMode) return;
+    // Menu contextuel ouvert : ce geste ne fait que le fermer — pas de pick
+    // (le prochain clic, menu fermé, pickera normalement).
+    if (CONTEXT_MENU_OPEN.value) return;
     const me = e as MouseEvent;
     if (shouldIgnore(e.target as Element | null)) return;
 

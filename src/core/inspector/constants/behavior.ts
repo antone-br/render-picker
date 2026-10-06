@@ -27,6 +27,9 @@ export const PRESS_EVENTS = [
   "contextmenu",
 ] as const;
 
+/** Menu contextuel ouvert : le clic qui le ferme ne doit pas pick (fermeture seule). */
+export const CONTEXT_MENU_OPEN = { value: false };
+
 const hasPointer = typeof window !== "undefined" && "PointerEvent" in window;
 
 /** Type d'event « down » de référence (pointer si dispo, sinon souris). */
