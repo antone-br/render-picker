@@ -69,7 +69,7 @@ export function ExtensionRoot({
 
   const hotkey = commands.arm === "off" ? false : commands.arm;
 
-  const { isActive, toggle, setSearchMode } = useRenderPicker({
+  const { isActive, toggle, setSearchMode, disarm } = useRenderPicker({
     hotkey,
     commands,
     getTitle: tooltipClasses,
@@ -193,6 +193,7 @@ export function ExtensionRoot({
                 copy(formatHtml(contextMenu.el.outerHTML));
                 showToast("HTML copié ✓");
                 setContextMenu(null);
+                disarm();
               },
             },
             {
@@ -202,6 +203,7 @@ export function ExtensionRoot({
                 copy(cls ?? "");
                 showToast(cls ? "Classes copiées ✓" : "Aucune classe");
                 setContextMenu(null);
+                disarm();
               },
             },
           ]}

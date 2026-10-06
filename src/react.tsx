@@ -176,7 +176,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     [showToast],
   );
 
-  const { isActive, toggle, setSearchMode } = useRenderPicker({
+  const { isActive, toggle, setSearchMode, disarm } = useRenderPicker({
     pathname,
     hotkey: effectiveHotkey,
     multi,
@@ -210,6 +210,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           if (!contextMenu) return;
           handleCopyHtml(contextMenu.el);
           closeContextMenu();
+          disarm();
         },
       },
       {
@@ -218,6 +219,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           if (!contextMenu) return;
           handleCopyClasses(contextMenu.el);
           closeContextMenu();
+          disarm();
         },
       },
     ],

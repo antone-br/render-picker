@@ -41,6 +41,8 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
   isActive: boolean;
   toggle: () => void;
   setSearchMode: (on: boolean) => void;
+  /** Désarme net (post-action du menu contextuel). */
+  disarm: () => void;
 } {
   const {
     pathname,
@@ -90,6 +92,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
   };
 
   const toggle = useCallback(() => setActive((a) => !a), []);
+  const disarm = useCallback(() => setActive(false), []);
   const setSearchMode = useCallback((on: boolean) => {
     inspectorRef.current?.setSearchMode(on);
   }, []);
@@ -166,5 +169,5 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     inspectorRef.current?.refreshDecorations();
   }, [overlays?.padding, overlays?.gap, overlays?.margin]);
 
-  return { isActive, toggle, setSearchMode };
+  return { isActive, toggle, setSearchMode, disarm };
 }
