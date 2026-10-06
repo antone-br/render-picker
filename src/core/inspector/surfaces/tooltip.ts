@@ -44,16 +44,18 @@ export function tooltipClassSummary(el: Element): string {
   return tokens.length > 3 ? `${head} (+${tokens.length - 3})` : head;
 }
 
-/** Titre du tooltip : nom du composant (+ classes + tag, + `disabled`, `selected #n`). */
+/** Titre du tooltip : ligne 1 = nom du composant (+ `disabled`, `selected #n`) ;
+ * ligne 2 = classes/tag + `#id` (au-dessus des métriques padding). */
 export function tooltipTitle(el: Element, selection: Element[]): string {
-  const parts: string[] = [];
+  const top: string[] = [];
   const comp = componentInfo(el as HTMLElement)?.component;
-  if (comp) parts.push(comp);
+  if (comp) top.push(comp);
+  top.push(...titleSuffixes(el, selection));
+  const below: string[] = [];
   const cls = tooltipClassSummary(el);
-  if (cls) parts.push(cls);
-  if (el.id) parts.push(`#${el.id}`);
-  parts.push(...titleSuffixes(el, selection));
-  return parts.join(" · ");
+  if (cls) below.push(cls);
+  if (el.id) below.push(`#${el.id}`);
+  return [top.join(" · "), below.join(" · ")].filter(Boolean).join("\n");
 }
 
 /** Titre alternatif : classes CSS de l'élément (sinon le tag) + suffixes. Pour l'extension. */
