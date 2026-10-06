@@ -153,14 +153,16 @@ describe("groupResults", () => {
       '<input type="text" />';
     const groups = groupResults(searchElements("button, input"));
 
+    // Tri croissant par longueur de classe : nu → court → composé.
     expect(groups.map((g) => g.key)).toEqual([
-      "button.btn.primary",
       "button",
       "input",
+      "button.btn.primary",
     ]);
-    expect(groups[0]!.count).toBe(2);
-    expect(groups[0]!.indices).toEqual([0, 1]);
-    expect(groups[1]!.indices).toEqual([2]);
+    expect(groups[0]!.count).toBe(1);
+    expect(groups[2]!.count).toBe(2);
+    expect(groups[2]!.indices).toEqual([0, 1]);
+    expect(groups[0]!.indices).toEqual([2]);
   });
 
   it("vide pour une liste vide", () => {

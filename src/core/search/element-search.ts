@@ -173,5 +173,6 @@ export function groupResults(elements: HTMLElement[]): SearchGroup[] {
     group.count++;
     group.indices.push(i);
   });
-  return Array.from(byKey.values());
+  // Tri : du plus court au plus long en classe (les éléments nus d'abord).
+  return Array.from(byKey.values()).sort((a, b) => a.cls.length - b.cls.length);
 }
