@@ -21,7 +21,7 @@ import { DevPanel } from "../../../src/ui/dev-panel";
 import { formatResult } from "../../../src/core/format";
 import { pickResultFromElement } from "../../../src/core/search/element-search";
 import { ContextMenu, type ContextMenuState } from "../../../src/ui/context-menu";
-import { CopyIcon, CrosshairIcon, Html5Icon } from "../../../src/ui/icons";
+import { CrosshairIcon } from "../../../src/ui/icons";
 import { SettingsBar } from "../../../src/ui/settings-bar";
 import { SearchPopover } from "../../../src/ui/search-popover";
 import { useRenderPicker } from "../../../src/ui/use-render-picker";
@@ -189,8 +189,6 @@ export function ExtensionRoot({
           items={[
             {
               label: "Copier en HTML",
-              description: "outerHTML brut, formaté",
-              icon: <Html5Icon />,
               onClick: () => {
                 copy(formatHtml(contextMenu.el.outerHTML));
                 showToast("HTML copié ✓");
@@ -199,8 +197,6 @@ export function ExtensionRoot({
             },
             {
               label: "Copier les classes",
-              description: "liste des classes de l'élément",
-              icon: <CopyIcon />,
               onClick: () => {
                 const cls = contextMenu.el.getAttribute("class");
                 copy(cls ?? "");

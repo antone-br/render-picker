@@ -30,7 +30,7 @@ import type { PickResult } from "./core/types";
 import { DevPanel } from "./ui/dev-panel";
 import { SearchPopover } from "./ui/search-popover";
 import { ContextMenu, type ContextMenuState } from "./ui/context-menu";
-import { CopyIcon, CrosshairIcon, Html5Icon } from "./ui/icons";
+import { CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
 
@@ -206,8 +206,6 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     () => [
       {
         label: "Copier en HTML",
-        description: "outerHTML brut, formaté",
-        icon: <Html5Icon />,
         onClick: () => {
           if (!contextMenu) return;
           handleCopyHtml(contextMenu.el);
@@ -216,8 +214,6 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       },
       {
         label: "Copier les classes",
-        description: "liste des classes de l'élément",
-        icon: <CopyIcon />,
         onClick: () => {
           if (!contextMenu) return;
           handleCopyClasses(contextMenu.el);
