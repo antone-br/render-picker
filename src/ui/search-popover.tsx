@@ -140,12 +140,11 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  /** Occurrence m du groupe actif : scroll immédiat + net (via state). */
+  /** Occurrence m du groupe actif : déplace le rect net, SANS scroller le site (Entrée localise). */
   const stepTo = (m: number) => {
     const group = groups[index];
     if (!group || group.indices.length === 0) return;
-    setMember(m);
-    locate(results[group.indices[m]!]!);
+    setMember(((m % group.indices.length) + group.indices.length) % group.indices.length);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -167,15 +166,16 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
       const group = groups[index];
       if (!group || group.indices.length === 0) return;
       e.preventDefault();
-      const n = group.indices.length;
-      stepTo(((member + (e.key === "ArrowDown" ? 1 : -1)) % n + n) % n);
+      stepTo(member + (e.key === "ArrowDown" ? 1 : -1));
       return;
     }
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation(); // Pas de confirmation de sélection multiple côté inspecteur.
-      const n = groups[index]?.indices.length ?? 0;
-      if (n > 0) stepTo(((member % n) + n) % n);
+      const group = groups[index];
+      if (!group || group.indices.length === 0) return;
+      const m = ((member % group.indices.length) + group.indices.length) % group.indices.length;
+      locate(results[group.indices[m]!]!);
     }
     // Échap : laisse-propager → désarme aussi (sémantique « Échap désarme toujours »).
   };
@@ -238,10 +238,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
             dir: "left" as const,
             disabled: groups.length === 0,
             onClick: () => {
-              const group = groups[index];
-              if (!group || group.indices.length === 0) return;
-              const n = group.indices.length;
-              stepTo(((member - 1) % n + n) % n);
+              stepTo(member - 1);
             },
             label: "Occurrence précédente",
           },
@@ -249,10 +246,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
             dir: "right" as const,
             disabled: groups.length === 0,
             onClick: () => {
-              const group = groups[index];
-              if (!group || group.indices.length === 0) return;
-              const n = group.indices.length;
-              stepTo(((member + 1) % n + n) % n);
+              stepTo(member + 1);
             },
             label: "Occurrence suivante",
           },
