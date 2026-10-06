@@ -87,6 +87,24 @@ describe("createInspector — interactions", () => {
     expect(result.id).toBe("b");
   });
 
+  it("mode recherche : clic → pas de pick (exclusif) ; sortie du mode → pick OK", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onPick = vi.fn<(r: PickResult) => void>();
+    const insp = createInspector({ onPick, onCancel: () => {}, getRoute: () => "/test" });
+    insp.activate();
+
+    insp.setSearchMode(true);
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+    expect(onPick).toHaveBeenCalledTimes(0);
+
+    insp.setSearchMode(false);
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+    expect(onPick).toHaveBeenCalledTimes(1);
+  });
+
   it("Maj+clic accumule, Entrée → onPickMany", () => {
     document.body.innerHTML = `<ul><li id="a">a</li></ul>`;
     const li = document.getElementById("a")!;

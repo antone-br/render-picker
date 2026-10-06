@@ -285,6 +285,9 @@ class Inspector {
   }
 
   private onPress = (e: Event): void => {
+    // Mode recherche exclusif : les gestes de picking sont désactivés ; un clic
+    // hors de l'UI de recherche la fermera (handler doc-level du popover).
+    if (this.searchMode) return;
     const me = e as MouseEvent;
     if (shouldIgnore(e.target as Element | null)) return;
 
