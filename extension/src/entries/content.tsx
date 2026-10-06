@@ -1,6 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 
 import { NPM_MARKER_ATTR } from "../../../src/core/inspector/constants/behavior";
+import { addLog, addRequest } from "../../../src/core/devpanel/store";
 import { initStorage } from "../storage";
 import { ExtensionRoot } from "../ui/root";
 
@@ -48,6 +49,14 @@ async function main(): Promise<void> {
   (window as unknown as Record<string, boolean>)[FLAG] = true;
 
   injectMainWorld();
+
+  // Relais des captures console/network (MAIN world → store du monde isolé).
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (!d || d.source !== "render-picker-devpanel") return;
+    if (d.kind === "log") addLog(d.entry);
+    else if (d.kind === "net") addRequest(d.entry);
+  });
 
   await initStorage();
 

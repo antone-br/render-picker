@@ -48,6 +48,8 @@ export interface InspectorCallbacks {
   getCommands?: () => RenderPickerSettings["commands"];
   /** Titre du tooltip (défaut : nom du composant). L'extension passe les classes. */
   getTitle?: (el: Element, selection: Element[]) => string;
+  /** Ouvre le panneau d'inspection pour l'élément (touche `inspect`). */
+  onInspect?: (el: Element) => void;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }

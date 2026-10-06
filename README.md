@@ -2,7 +2,7 @@
 
 Dev-only toolkit for **Next.js + React 19**: click any element and get a clipboard-ready
 snippet for your AI agent — route, XPath, CSS selector, React component **and its source
-`file:line`** — plus **Ctrl+click to open the source in VS Code** (and **Alt+click to jump to
+`file:line`** — plus **Alt+click to open the source in VS Code** (and **Ctrl+click to jump to
 the usage site** — where a shared component is written, not its definition).
 
 ```
@@ -70,7 +70,8 @@ export function DevRenderPicker() {
 | Click | Copy one element and close |
 | `Shift`+click, then `Enter` | Copy several elements at once |
 | `Esc` | Cancel |
-| `Ctrl`+click (picker off) | Open the element's source in VS Code |
+| `Alt`+click (picker off) | Open the element's source in VS Code |
+| `Ctrl`+click (picker off) | Jump to the usage site |
 
 ## API
 
@@ -107,7 +108,7 @@ Layout overlays (padding / gap / margin) are **always on** when hovering while a
 The settings dropdown (gear) holds a **Commands** accordion to remap every shortcut: the arm hotkey
 (default double `Shift`), the mouse gestures — **Copy** (default click), **Copy raw HTML**
 (default right-click, copies `outerHTML`), **Multi-select** (default `Shift`+click), **Open source**
-(default `Ctrl`+click), **Open usage** (default `Alt`+click), each a *modifier* + *click type*
+(default `Alt`+click), **Open usage** (default `Ctrl`+click), each a *modifier* + *click type*
 (click / right-click / double-click) — and the keyboard keys **Confirm** (default `Enter`) and
 **Cancel** (default `Esc`). `Esc` always disarms as a safety net.
 
@@ -130,9 +131,10 @@ export { GET, POST } from "@antone-br/render-picker/next";
     "multi": { "modifier": "shift", "trigger": "click" },
     "confirm": "enter",
     "cancel": "escape",
-    "source": { "modifier": "ctrl", "trigger": "click" },
-    "usage": { "modifier": "alt", "trigger": "click" }
-  }
+    "source": { "modifier": "alt", "trigger": "click" },
+    "usage": { "modifier": "ctrl", "trigger": "click" }
+  },
+  "panel": { "width": 420, "height": 320 }
 }
 ```
 

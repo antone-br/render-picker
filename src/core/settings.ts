@@ -22,6 +22,9 @@ export type ArmHotkey = "shift shift" | "ctrl ctrl" | "alt alt" | "off";
 /** Touche d'une commande clavier (valider / annuler). */
 export type KeyChoice = "enter" | "escape" | "space";
 
+/** Touche d'ouverture du panneau d'inspection (ou désactivé). */
+export type InspectKey = "i" | "d" | "k" | "off";
+
 export interface RenderPickerSettings {
   /** Commandes remappables (raccourcis). */
   commands: {
@@ -37,11 +40,15 @@ export interface RenderPickerSettings {
     confirm: KeyChoice;
     /** Annuler / désarmer. Défaut : Échap. */
     cancel: KeyChoice;
-    /** Ouvrir la source exacte dans VS Code. Défaut : Ctrl+clic. */
+    /** Ouvrir le panneau d'inspection (Composant/Console/Network). Défaut : touche « i ». */
+    inspect: InspectKey;
+    /** Ouvrir la source exacte dans VS Code. Défaut : Alt+clic. */
     source: GestureBinding;
-    /** Ouvrir le fichier d'usage dans VS Code. Défaut : Alt+clic. */
+    /** Ouvrir le fichier d'usage dans VS Code. Défaut : Ctrl+clic. */
     usage: GestureBinding;
   };
+  /** Panneau d'inspection : taille (px) persistée via le fichier de config. */
+  panel: { width: number; height: number };
 }
 
 export const DEFAULT_SETTINGS: RenderPickerSettings = {
@@ -52,9 +59,11 @@ export const DEFAULT_SETTINGS: RenderPickerSettings = {
     multi: { modifier: "shift", trigger: "click" },
     confirm: "enter",
     cancel: "escape",
-    source: { modifier: "ctrl", trigger: "click" },
-    usage: { modifier: "alt", trigger: "click" },
+    inspect: "i",
+    source: { modifier: "alt", trigger: "click" },
+    usage: { modifier: "ctrl", trigger: "click" },
   },
+  panel: { width: 420, height: 320 },
 };
 
 /** État des modificateurs d'un event souris/clavier (sous-ensemble de MouseEvent). */
@@ -141,9 +150,11 @@ function merge(
       multi: { ...base.commands.multi, ...(patchCommands.multi ?? {}) },
       confirm: patchCommands.confirm ?? base.commands.confirm,
       cancel: patchCommands.cancel ?? base.commands.cancel,
+      inspect: patchCommands.inspect ?? base.commands.inspect,
       source: { ...base.commands.source, ...(patchCommands.source ?? {}) },
       usage: { ...base.commands.usage, ...(patchCommands.usage ?? {}) },
     },
+    panel: { ...base.panel, ...(patch.panel ?? {}) },
   };
 }
 

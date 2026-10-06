@@ -16,6 +16,8 @@ import { formatHtml, formatResult, formatResults } from "../../../src/core/forma
 import { tooltipClasses } from "../../../src/core/inspector/surfaces/tooltip";
 import { enrichResult } from "../../../src/core/source/enrich";
 import type { RenderPickerSettings } from "../../../src/core/settings";
+import { loadPanelState, savePanelState } from "../../../src/core/devpanel/panel-state";
+import { DevPanel } from "../../../src/ui/dev-panel";
 import { CrosshairIcon } from "../../../src/ui/icons";
 import { SettingsBar } from "../../../src/ui/settings-bar";
 import { useRenderPicker } from "../../../src/ui/use-render-picker";
@@ -43,6 +45,7 @@ export function ExtensionRoot({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(() => loadPanelState().open);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => onCommandsChange(setCommands), []);
@@ -76,6 +79,10 @@ export function ExtensionRoot({
     onCopyHtml: (html) => {
       copy(formatHtml(html));
       showToast("HTML copié ✓");
+    },
+    onInspect: () => {
+      setPanelOpen(true);
+      savePanelState({ open: true });
     },
     onSelectionChange: (n) => setHasSelection(n > 0),
   });
@@ -133,7 +140,22 @@ export function ExtensionRoot({
           onCloseSettings={() => setSettingsOpen(false)}
           commands={commands}
           onChangeCommands={changeCommands}
+          onOpenPanel={() => {
+            setPanelOpen(true);
+            savePanelState({ open: true });
+          }}
           showVsCode={false}
+        />
+      )}
+
+      {panelOpen && (
+        <DevPanel
+          size={{ width: loadPanelState().width, height: loadPanelState().height }}
+          onSizeChange={(s) => savePanelState(s)}
+          onClose={() => {
+            setPanelOpen(false);
+            savePanelState({ open: false });
+          }}
         />
       )}
 

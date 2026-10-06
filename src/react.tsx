@@ -10,6 +10,8 @@ import {
 import { formatHtml, formatResult, formatResults } from "./core/format";
 import { loadSettings, saveSettings } from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
+import { startCapture } from "./core/devpanel/capture";
+import { loadPanelState, savePanelState } from "./core/devpanel/panel-state";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
@@ -18,6 +20,7 @@ import {
   TOOLTIP_SHADOW,
 } from "./core/inspector/constants/theme";
 import type { PickResult } from "./core/types";
+import { DevPanel } from "./ui/dev-panel";
 import { CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
@@ -66,6 +69,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   const [hovered, setHovered] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(() => loadPanelState().open);
   const [commands, setCommands] = useState(() => loadSettings().commands);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
@@ -88,6 +92,9 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     document.documentElement.setAttribute(NPM_MARKER_ATTR, "npm");
     return () => document.documentElement.removeAttribute(NPM_MARKER_ATTR);
   }, []);
+
+  // Capture console + network pour le panneau d'inspection (si init non appelé).
+  useEffect(() => startCapture(), []);
 
   const handlePick = useCallback(
     (result: PickResult) => {
@@ -135,6 +142,10 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     onPick: handlePick,
     onPickMany: handlePickMany,
     onCopyHtml: handleCopyHtml,
+    onInspect: () => {
+      setPanelOpen(true);
+      savePanelState({ open: true });
+    },
     // Overlays layout toujours actifs (plus de toggle).
     overlays: { padding: true, gap: true, margin: true },
     commands,
@@ -161,7 +172,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     }
     if (json === lastSavedRef.current) return;
     lastSavedRef.current = json;
-    saveSettings({ commands });
+    saveSettings({ ...loadSettings(), commands });
   }, [commands]);
 
   const borderColor = isActive ? color : "rgba(255,255,255,0.18)";
@@ -195,7 +206,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         onClick={toggle}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        aria-label="renderPicker — pick an element (Ctrl+click opens VS Code)"
+        aria-label="renderPicker — pick an element (Alt+click opens VS Code)"
         style={buttonStyle}
       >
         <CrosshairIcon color={isActive ? "#fff" : "rgba(255,255,255,0.85)"} />
@@ -209,6 +220,21 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           onCloseSettings={() => setSettingsOpen(false)}
           commands={commands}
           onChangeCommands={setCommands}
+          onOpenPanel={() => {
+            setPanelOpen(true);
+            savePanelState({ open: true });
+          }}
+        />
+      )}
+
+      {panelOpen && (
+        <DevPanel
+          size={loadSettings().panel}
+          onSizeChange={(panel) => saveSettings({ ...loadSettings(), panel })}
+          onClose={() => {
+            setPanelOpen(false);
+            savePanelState({ open: false });
+          }}
         />
       )}
 

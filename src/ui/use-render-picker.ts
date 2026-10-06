@@ -25,6 +25,8 @@ export interface UseRenderPickerOptions {
   commands?: RenderPickerSettings["commands"];
   /** Titre du tooltip (défaut : nom du composant). */
   getTitle?: (el: Element, selection: Element[]) => string;
+  /** Ouvre le panneau d'inspection pour l'élément (touche `inspect`). */
+  onInspect?: (el: Element) => void;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }
@@ -47,6 +49,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     overlays,
     commands,
     getTitle,
+    onInspect,
     onSelectionChange,
   } = options;
 
@@ -64,6 +67,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     overlays,
     commands,
     getTitle,
+    onInspect,
     onSelectionChange,
   });
   optsRef.current = {
@@ -75,6 +79,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     overlays,
     commands,
     getTitle,
+    onInspect,
     onSelectionChange,
   };
 
@@ -138,6 +143,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
         optsRef.current.overlays ?? { padding: false, gap: false, margin: false },
       getCommands: () => optsRef.current.commands ?? DEFAULT_SETTINGS.commands,
       getTitle: optsRef.current.getTitle,
+      onInspect: (el) => optsRef.current.onInspect?.(el),
       onSelectionChange: (n) => optsRef.current.onSelectionChange?.(n),
     });
     inspector.activate();

@@ -55,7 +55,7 @@ describe("initClickToSource", () => {
     vi.restoreAllMocks();
   });
 
-  it("Ctrl+clic sur [data-source] → ouvre VS Code + désarme (Escape)", () => {
+  it("Alt+clic sur [data-source] → ouvre VS Code + désarme (Escape)", () => {
     const el = document.createElement("div");
     el.setAttribute("data-source", "src/a.tsx:3");
     document.body.appendChild(el);
@@ -72,7 +72,7 @@ describe("initClickToSource", () => {
     stop = initClickToSource("C:/proj");
     el.dispatchEvent(
       new MouseEvent("pointerdown", {
-        ctrlKey: true,
+        altKey: true,
         button: 0,
         bubbles: true,
       }),
@@ -83,7 +83,7 @@ describe("initClickToSource", () => {
     expect(escape).toBe(true);
   });
 
-  it("Alt+clic → ouvre data-owner-source (fichier d'usage), pas data-source", () => {
+  it("Ctrl+clic → ouvre data-owner-source (fichier d'usage), pas data-source", () => {
     const el = document.createElement("div");
     el.setAttribute("data-source", "src/components/button.tsx:178");
     el.setAttribute("data-owner-source", "src/features/kanban.tsx:12");
@@ -98,14 +98,14 @@ describe("initClickToSource", () => {
 
     stop = initClickToSource("C:/proj");
     el.dispatchEvent(
-      new MouseEvent("pointerdown", { altKey: true, button: 0, bubbles: true }),
+      new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
     );
 
     expect(href).toContain("src/features/kanban.tsx:12");
     expect(href).not.toContain("button.tsx");
   });
 
-  it("Alt+clic sans data-owner-source → fallback data-source", () => {
+  it("Ctrl+clic sans data-owner-source → fallback data-source", () => {
     const el = document.createElement("div");
     el.setAttribute("data-source", "src/a.tsx:3");
     document.body.appendChild(el);
@@ -119,13 +119,13 @@ describe("initClickToSource", () => {
 
     stop = initClickToSource("C:/proj");
     el.dispatchEvent(
-      new MouseEvent("pointerdown", { altKey: true, button: 0, bubbles: true }),
+      new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
     );
 
     expect(href).toContain("src/a.tsx:3");
   });
 
-  it("clic normal (sans Ctrl) → n'ouvre rien", () => {
+  it("clic normal (sans Alt) → n'ouvre rien", () => {
     const el = document.createElement("div");
     el.setAttribute("data-source", "src/a.tsx:3");
     document.body.appendChild(el);
@@ -157,17 +157,17 @@ describe("initClickToSource", () => {
 
     stop = initClickToSource("C:/proj");
 
-    // Ctrl ne matche plus le binding source (meta).
+    // Ctrl matche le binding usage (defaut : ctrl+clic).
     el.dispatchEvent(
       new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
     );
-    expect(clickSpy).not.toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalledTimes(1);
 
-    // Cmd (meta) matche.
+    // Cmd (meta) matche la source remappée.
     el.dispatchEvent(
       new MouseEvent("pointerdown", { metaKey: true, button: 0, bubbles: true }),
     );
-    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(clickSpy).toHaveBeenCalledTimes(2);
   });
 
   it("trigger rightclick : usage = Alt+clic droit → contextmenu ouvre l'usage", () => {

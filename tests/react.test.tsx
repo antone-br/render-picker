@@ -20,6 +20,7 @@ import {
   formatResults,
 } from "../src/react";
 import type { PickResult } from "../src/core/types";
+import { addRequest, clearLogs, clearRequests } from "../src/core/devpanel/store";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -37,6 +38,9 @@ const result: PickResult = {
 afterEach(() => {
   document.body.innerHTML = "";
   captured = null;
+  window.localStorage.clear();
+  clearLogs();
+  clearRequests();
   vi.restoreAllMocks();
 });
 
@@ -113,6 +117,84 @@ describe("RenderPickerButton", () => {
     // Armé → l'inspecteur est monté (callbacks capturés) + barre du bas affichée.
     expect(captured).not.toBeNull();
     expect(document.body.textContent).toContain("Échap pour annuler");
+
+    act(() => root.unmount());
+  });
+
+  it("onInspect ouvre le panneau (Console/Network)", () => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+
+    act(() => captured?.onInspect?.(el));
+
+    expect(document.body.textContent).toContain("Console");
+    expect(document.body.textContent).toContain("Network");
+
+    act(() => root.unmount());
+  });
+
+  it("déplier une requête Network montre les détails (headers)", () => {
+    window.localStorage.clear();
+    clearRequests();
+    addRequest({
+      method: "GET",
+      url: "/seed",
+      status: 200,
+      ok: true,
+      durationMs: 5,
+      ts: 0,
+      reqHeaders: { authorization: "tok" },
+      resBody: "hello",
+    });
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+
+    // Onglet Network
+    const netTab = Array.from(document.querySelectorAll("button")).find((b) =>
+      b.textContent?.startsWith("Network"),
+    );
+    act(() => netTab?.click());
+
+    // Ligne de la requête → clic sur le parent du span url
+    const urlSpan = Array.from(document.querySelectorAll("span")).find(
+      (s) => s.textContent === "/seed",
+    );
+    act(() => (urlSpan?.parentElement as HTMLElement | undefined)?.click());
+
+    expect(document.body.textContent).toContain("Request headers");
+    expect(document.body.textContent).toContain("Response");
+
+    act(() => root.unmount());
+  });
+
+  it("le bouton de la barre ouvre le panneau", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+
+    expect(document.body.textContent).toContain("Console");
+    expect(document.body.textContent).toContain("Network");
 
     act(() => root.unmount());
   });
@@ -221,10 +303,10 @@ describe("RenderPickerButton", () => {
     expect(sel).not.toBeNull();
     act(() => sel?.click());
 
-    // Choisit « Alt » (≠ défaut Ctrl) → change les commandes → POST.
+    // Choisit « Ctrl » (≠ défaut Alt) → change les commandes → POST.
     const opt = Array.from(
       document.querySelectorAll<HTMLButtonElement>("button[role='option']"),
-    ).find((b) => b.textContent === "Alt");
+    ).find((b) => b.textContent === "Ctrl");
     act(() => opt?.click());
 
     const posted = fetchMock.mock.calls.some(
@@ -252,22 +334,22 @@ describe("RenderPickerButton", () => {
       document.querySelector<HTMLButtonElement>(
         "button[aria-label='Ouvrir le composant (global) — modificateur']",
       );
-    expect(sel()?.textContent).toContain("Ctrl");
+    expect(sel()?.textContent).toContain("Alt");
 
-    // Change source → Alt.
+    // Change source → Ctrl.
     act(() => sel()?.click());
     const alt = Array.from(
       document.querySelectorAll<HTMLButtonElement>("button[role='option']"),
-    ).find((b) => b.textContent === "Alt");
+    ).find((b) => b.textContent === "Ctrl");
     act(() => alt?.click());
-    expect(sel()?.textContent).toContain("Alt");
+    expect(sel()?.textContent).toContain("Ctrl");
 
-    // Réinitialiser → retour au défaut Ctrl.
+    // Réinitialiser → retour au défaut Alt.
     const reset = Array.from(
       document.querySelectorAll<HTMLButtonElement>("button"),
     ).find((b) => b.textContent === "Réinitialiser");
     act(() => reset?.click());
-    expect(sel()?.textContent).toContain("Ctrl");
+    expect(sel()?.textContent).toContain("Alt");
 
     act(() => root.unmount());
   });

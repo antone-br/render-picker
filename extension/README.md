@@ -11,6 +11,9 @@ sans l'installer dans le projet. Réutilise le moteur maison de `../src`.
 - Barre de paramètres : commandes remappables (persistées via `chrome.storage.sync`).
 - `Maj Maj` ou l'**icône de la barre d'outils** arme/désarme le picker.
 - Pas d'ouverture VS Code dans l'extension (feature réservée au package npm).
+- **Ctrl + i** (sur l'élément survolé) → **panneau d'inspection** flottant (déplaçable/redimensionnable) :
+  onglets Console / Network, capturés en MAIN world, streamés au content via `postMessage`. Chaque
+  requête Network est **dépliable** (headers / payload / response / initiator ; corps texte capé ~10k).
 
 ## Installation (dev, non empaquetée)
 

@@ -1,3 +1,4 @@
+import { startCapture } from "./core/devpanel/capture";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { initClickToSource } from "./core/dev/click-to-source";
 import { initComponentAnnotator } from "./core/source/component-annotate";
@@ -8,7 +9,7 @@ export interface RenderPickerOptions {
   enabled?: boolean;
   /** Racine absolue du projet. Défaut : `process.env.NEXT_PUBLIC_PROJECT_ROOT`. */
   projectRoot?: string | null;
-  /** Ctrl+clic → VS Code. Défaut : true. */
+  /** Alt+clic → VS Code. Défaut : true. */
   clickToSource?: boolean;
   /**
    * Annotation `data-component` / `data-source`. Défaut : true, après 2000 ms —
@@ -60,6 +61,9 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
   // Marqueur lu par l'extension Chrome pour se désactiver (évite le double picker).
   document.documentElement.setAttribute(NPM_MARKER_ATTR, "npm");
   cleanups.push(() => document.documentElement.removeAttribute(NPM_MARKER_ATTR));
+
+  // Capture console + network pour le panneau d'inspection.
+  cleanups.push(startCapture());
 
   if (hushConsole) {
     cleanups.push(

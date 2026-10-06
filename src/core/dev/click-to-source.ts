@@ -4,8 +4,8 @@ import type { ClickTrigger, RenderPickerSettings } from "../settings";
 /**
  * Clic (modificateur configurable) sur un élément annoté → ouvre dans VS Code sa
  * source exacte (`data-source`) ou son fichier d'**usage** (`data-owner-source`, là
- * où le composant est écrit, pas sa définition partagée). Défauts : Ctrl+clic →
- * source, Alt+clic → usage. Les liaisons viennent de `settings.commands`. Dev only.
+ * où le composant est écrit, pas sa définition partagée). Défauts : Alt+clic →
+ * source, Ctrl+clic → usage. Les liaisons viennent de `settings.commands`. Dev only.
  */
 
 /**

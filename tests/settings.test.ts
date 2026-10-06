@@ -29,6 +29,15 @@ describe("loadSettings", () => {
     });
   });
 
+  it("merge panel.width (largeur du panneau)", () => {
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ panel: { width: 600 } }),
+    );
+    expect(loadSettings().panel.width).toBe(600);
+    expect(loadSettings().commands.arm).toBe("shift shift");
+  });
+
   it("le fichier racine (env) a priorité sur localStorage", () => {
     window.localStorage.setItem(
       "render-picker:settings",
@@ -40,7 +49,7 @@ describe("loadSettings", () => {
     );
     expect(loadSettings().commands).toEqual({
       ...DEFAULT_SETTINGS.commands,
-      usage: { modifier: "alt", trigger: "dblclick" },
+      usage: { modifier: "ctrl", trigger: "dblclick" },
     });
   });
 });
@@ -52,6 +61,7 @@ describe("saveSettings", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     saveSettings({
+      ...DEFAULT_SETTINGS,
       commands: { ...DEFAULT_SETTINGS.commands, arm: "ctrl ctrl" },
     });
     await Promise.resolve();

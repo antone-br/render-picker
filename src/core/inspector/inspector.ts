@@ -316,6 +316,24 @@ class Inspector {
 
   private onKeyDown = (e: KeyboardEvent): void => {
     const cmds = this.commands();
+
+    // Ctrl + touche « inspect » → ouvre le panneau pour l'élément survolé, puis désarme.
+    if (
+      cmds.inspect !== "off" &&
+      e.ctrlKey &&
+      e.key.toLowerCase() === cmds.inspect &&
+      this.callbacks.onInspect &&
+      this.lastTarget &&
+      this.lastTarget.isConnected
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = this.lastTarget;
+      this.deactivate();
+      this.callbacks.onInspect(el);
+      return;
+    }
+
     if (keyMatches(cmds.confirm, e.key) && this.multi && this.selection.length > 0) {
       e.preventDefault();
       e.stopPropagation();

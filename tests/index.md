@@ -21,3 +21,4 @@
 | `inspector/surfaces/`   | `src/core/inspector/surfaces/`       | [`inspector/surfaces/index.md`](inspector/surfaces/index.md) |
 | `source/`               | `src/core/source/`                   | [`source/index.md`](source/index.md) |
 | `dev/`                  | `src/core/dev/`                      | [`dev/index.md`](dev/index.md)    |
+| `devpanel/`             | `src/core/devpanel/`                 | [`devpanel/index.md`](devpanel/index.md) |

@@ -2,6 +2,7 @@ import type {
   ArmHotkey,
   ClickModifier,
   ClickTrigger,
+  InspectKey,
   KeyChoice,
 } from "../core/settings";
 import type { SelectOption } from "./select";
@@ -37,4 +38,11 @@ export const CONFIRM_KEY_OPTIONS: SelectOption<KeyChoice>[] = [
 export const CANCEL_KEY_OPTIONS: SelectOption<KeyChoice>[] = [
   { value: "escape", label: "Échap" },
   { value: "space", label: "Espace" },
+];
+
+export const INSPECT_OPTIONS: SelectOption<InspectKey>[] = [
+  { value: "i", label: "Ctrl + I" },
+  { value: "d", label: "Ctrl + D" },
+  { value: "k", label: "Ctrl + K" },
+  { value: "off", label: "Désactivé" },
 ];

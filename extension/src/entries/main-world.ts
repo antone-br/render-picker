@@ -1,14 +1,23 @@
 import { initComponentAnnotator } from "../../../src/core/source/component-annotate";
+import { initConsoleCapture } from "../../../src/core/devpanel/console-capture";
+import { initNetworkCapture } from "../../../src/core/devpanel/network-capture";
 
 /**
- * Script injecté dans le **MAIN world** de la page (accès aux fibers React
- * `__reactFiber$…`). Annote le DOM avec `data-component` / `data-source` /
- * `data-owner-source` (résolus via les sourcemaps des chunks). Le content script
- * isolé lit ensuite ces **attributs DOM** (partagés entre les mondes).
- *
- * Délai : laisser l'hydratation finir avant de poser des attributs (sinon
- * "tree hydrated but some attributes didn't match").
+ * Script injecté dans le **MAIN world** de la page (accès aux fibers React +
+ * aux vrais `console`/`fetch` de la page). Annote le DOM (`data-*`) et capture
+ * console + network, streamés au content script (monde isolé) via `postMessage`.
  */
+
+const SOURCE = "render-picker-devpanel";
+
+initConsoleCapture((entry) => {
+  window.postMessage({ source: SOURCE, kind: "log", entry }, "*");
+});
+initNetworkCapture((entry) => {
+  window.postMessage({ source: SOURCE, kind: "net", entry }, "*");
+});
+
+// Annotation fibers : laisser l'hydratation finir avant de poser des attributs.
 setTimeout(() => {
   try {
     initComponentAnnotator();

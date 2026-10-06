@@ -11,6 +11,7 @@ import {
   ARM_OPTIONS,
   CANCEL_KEY_OPTIONS,
   CONFIRM_KEY_OPTIONS,
+  INSPECT_OPTIONS,
   MODIFIER_OPTIONS,
   TRIGGER_OPTIONS,
 } from "./commands";
@@ -236,6 +237,7 @@ export function SettingsMenu({
           {showVsCode && gestureRow("Ouvrir le composant (global)", "source", <VsCodeIcon />)}
           {showVsCode && gestureRow("Ouvrir le composant (local)", "usage", <VsCodeIcon />)}
 
+
           <div
             style={{
               height: 1,
@@ -246,6 +248,18 @@ export function SettingsMenu({
 
           {keyRow("Valider la sélection", "confirm", CONFIRM_KEY_OPTIONS)}
           {keyRow("Annuler / désarmer", "cancel", CANCEL_KEY_OPTIONS)}
+
+          <div style={rowStyle}>
+            <span style={{ whiteSpace: "nowrap" }}>Ouvrir l'inspecteur</span>
+            <Select
+              ariaLabel="Ouvrir l'inspecteur"
+              value={commands.inspect}
+              options={INSPECT_OPTIONS}
+              onChange={(inspect) => onChangeCommands({ ...commands, inspect })}
+              width={100}
+              highlight={commands.inspect !== def.inspect}
+            />
+          </div>
       </div>
     </div>
   );

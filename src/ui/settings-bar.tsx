@@ -8,7 +8,7 @@ import {
   SECONDARY_SURFACE,
 } from "../core/inspector/constants/theme";
 import type { RenderPickerSettings } from "../core/settings";
-import { GearIcon } from "./icons";
+import { GearIcon, PanelIcon } from "./icons";
 import { SettingsMenu } from "./settings-menu";
 
 type Commands = RenderPickerSettings["commands"];
@@ -35,6 +35,8 @@ export interface SettingsBarProps {
   onCloseSettings: () => void;
   commands: Commands;
   onChangeCommands: (next: Commands) => void;
+  /** Ouvre le panneau d'inspection (bouton à gauche). */
+  onOpenPanel: () => void;
   /** Afficher les commandes VS Code (source/usage). Défaut : `true`. */
   showVsCode?: boolean;
 }
@@ -51,6 +53,7 @@ export function SettingsBar({
   onCloseSettings,
   commands,
   onChangeCommands,
+  onOpenPanel,
   showVsCode = true,
 }: SettingsBarProps) {
   return (
@@ -85,7 +88,7 @@ export function SettingsBar({
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          padding: "4px 6px 4px 12px",
+          padding: "4px 6px",
           borderRadius: 6,
           fontSize: 12,
           fontWeight: 500,
@@ -96,7 +99,24 @@ export function SettingsBar({
           boxShadow: BTN_SHADOW,
         }}
       >
-        <span>{hasSelection ? "Entrée pour valider" : "Échap pour annuler"}</span>
+        <button
+          type="button"
+          data-rp-panel=""
+          aria-label="Ouvrir l'inspecteur"
+          onClick={onOpenPanel}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = SECONDARY_BG_HOVER;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+          }}
+          style={ghostButton(false)}
+        >
+          <PanelIcon color={MUTED} />
+        </button>
+        <span style={{ padding: "0 2px" }}>
+          {hasSelection ? "Entrée pour valider" : "Échap pour annuler"}
+        </span>
         <button
           type="button"
           data-rp-gear=""
