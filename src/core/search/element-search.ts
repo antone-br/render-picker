@@ -154,17 +154,37 @@ export interface SearchGroup {
   indices: number[];
 }
 
+/**
+ * Préfixe de classe d'une requête partielle (`div.car` → `"car"`, `div.` → `""`).
+ * `null` si la requête n'est pas partielle (CSS direct / mot libre).
+ */
+export function classPrefixOf(query: string): string | null {
+  const m = PARTIAL_RE.exec(query.trim());
+  return m ? (m[2] ?? "") : null;
+}
+
 /** Regroupe la liste plate en suggestions par sélecteur (ordre du document). */
-export function groupResults(elements: HTMLElement[]): SearchGroup[] {
+export function groupResults(
+  elements: HTMLElement[],
+  prefix = "",
+): SearchGroup[] {
   const byKey = new Map<string, SearchGroup>();
+  const lower = prefix.toLowerCase();
   elements.forEach((el, i) => {
     const tag = el.tagName.toLowerCase();
     const attr = el.getAttribute("class"); // couvre SVG (className = objet)
-    const rawTokens = attr && attr.trim() ? attr.trim().split(/\s+/).slice(0, 3) : [];
-    const cls = rawTokens.length > 0 ? `.${rawTokens.join(".")}` : "";
-    const escaped = rawTokens
-      .map((t) => `.${escapeClassToken(t)}`)
-      .join("");
+    const rawTokens = attr && attr.trim() ? attr.trim().split(/\s+/) : [];
+    // Le token matchant la frappe part en tête (sinon invisible : affiché au-delà du 3e).
+    const ordered = lower
+      ? [...rawTokens].sort(
+          (a, b) =>
+            Number(b.toLowerCase().startsWith(lower)) -
+            Number(a.toLowerCase().startsWith(lower)),
+        )
+      : rawTokens;
+    const shown = ordered.slice(0, 3);
+    const cls = shown.length > 0 ? `.${shown.join(".")}` : "";
+    const escaped = shown.map((t) => `.${escapeClassToken(t)}`).join("");
     const key = `${tag}${cls}`;
     let group = byKey.get(key);
     if (!group) {

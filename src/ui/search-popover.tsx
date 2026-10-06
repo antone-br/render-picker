@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import {
+  classPrefixOf,
   groupResults,
   searchElements,
   SEARCH_UI_ATTR,
@@ -78,9 +79,10 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
   }, []);
   // Cap interne (SEARCH_MAX_RESULTS) : la liste reste lisible sur les grosses pages.
   const results = useMemo(() => searchElements(query), [query]);
-  // Suggestions = sélecteurs regroupés ; le survol/sélection met en relief TOUTES
-  // les occurrences du groupe.
-  const groups = useMemo(() => groupResults(results), [results]);
+  // Suggestions = sélecteurs regroupés ; le token matchant la frappe partielle
+  // part en tête de clé (sinon invisible au-delà de la 3e classe).
+  const prefix = useMemo(() => classPrefixOf(query) ?? "", [query]);
+  const groups = useMemo(() => groupResults(results, prefix), [results, prefix]);
   const highlightRef = useRef<ReturnType<typeof createSearchHighlight> | null>(null);
 
   // Autofocus à l'ouverture + couche de highlights (détruite à la fermeture).

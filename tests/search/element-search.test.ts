@@ -145,6 +145,21 @@ describe("searchElements", () => {
 });
 
 describe("groupResults", () => {
+  it("token matchant la frappe partielle part en tête (sinon invisible > 3 classes)", () => {
+    document.body.innerHTML =
+      '<div class="relative w-full h-full group hidden" id="a"></div>';
+    const groups = groupResults(searchElements(".gr"), "gr");
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.key).toBe("div.group.relative.w-full");
+    expect(groups[0]!.selector).toBe("div.group.relative.w-full");
+  });
+
+  it("sans préfixe : ordre brut conservé", () => {
+    document.body.innerHTML = '<div class="b a c"></div>';
+    const groups = groupResults(searchElements("div"));
+    expect(groups[0]!.key).toBe("div.b.a.c");
+  });
   it("regroupe par tag + classes (3 max), compte les occurrences", () => {
     document.body.innerHTML =
       '<button class="btn primary">1</button>' +
