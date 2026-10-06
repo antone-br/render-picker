@@ -305,7 +305,8 @@ export function SearchPopover({
         )}
         {groups.map((g, i) => {
           const first = results[g.indices[0]!]!;
-          const text = (first.textContent?.trim().slice(0, 40) || "").replace(/\s+/g, " ");
+          const component =
+            first.closest("[data-component]")?.getAttribute("data-component") ?? null;
           return (
             <div
               key={g.key}
@@ -333,6 +334,7 @@ export function SearchPopover({
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  minWidth: 0,
                 }}
               >
                 <b style={{ fontWeight: 600 }}>{g.tag}</b>
@@ -341,14 +343,16 @@ export function SearchPopover({
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <span
                   style={{
-                    color: MUTED,
+                    color: "#93c5fd",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    maxWidth: 120,
+                    maxWidth: 110,
+                    fontSize: 10,
+                    fontWeight: 600,
                   }}
                 >
-                  {text}
+                  {component}
                 </span>
                 <span
                   style={{
