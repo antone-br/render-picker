@@ -117,7 +117,9 @@ typing autocompletes (`div.` lists the divs, `div.car` matches classes starting 
 `Ctrl+Z`/`Ctrl+Y` walk the query history. Results
 group into suggestions (selector + occurrence count); hovering a suggestion (mouse) shows ONLY
 its occurrences as net rects, while keyboard selection keeps every match visible with the
-active group highlighted — live rects (follows scroll/resize); the
+current occurrence highlighted — the ‹ › arrows (or ↑/↓) cycle WITHIN the active suggestion's
+elements on the page (scroll at each step), the suggestion line itself only changes by mouse
+hover — live rects (follows scroll/resize); the
 inspector's own hover rect is paused while searching. Hovering a search rect then shows the element
 tooltip (component, metrics, dimensions), clicking one copies the enriched snippet (pick),
 right-clicking one copies the raw `outerHTML`; the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the

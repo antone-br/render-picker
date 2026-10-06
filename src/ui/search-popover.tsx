@@ -58,6 +58,8 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
   const [index, setIndex] = useState(0);
   /** Ligne de suggestion survolée (souris) ; `-1` = aucune (tous les rects visibles). */
   const [rowHover, setRowHover] = useState(-1);
+  /** Occurrence courante dans le groupe actif (cycling via flèches/↑/↓). */
+  const [member, setMember] = useState(0);
   // Undo/redo maison : l'input contrôlé + les changements programmatiques (clic
   // suggestion) ne remontent pas via l'undo natif du navigateur.
   const historyRef = useRef(makeQueryHistory(""));
@@ -71,6 +73,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
     if (!moved) return;
     setQuery(history.current);
     setIndex(0);
+    setMember(0);
   }, []);
   // Cap interne (SEARCH_MAX_RESULTS) : la liste reste lisible sur les grosses pages.
   const results = useMemo(() => searchElements(query), [query]);
@@ -107,12 +110,18 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
   useEffect(() => {
     const highlight = highlightRef.current;
     if (!highlight) return;
-    const activeIndices = groups[index]?.indices ?? [];
-    highlight.setActive(activeIndices);
+    const group = groups[index];
+    // Engagement find-bar : une seule occurrence est « courante » (rect net),
+    // les autres matches du groupe restent translucides.
+    const currentFlat =
+      group && group.indices.length > 0
+        ? group.indices[((member % group.indices.length) + group.indices.length) % group.indices.length]!
+        : -1;
+    highlight.setActive(currentFlat === -1 ? [] : [currentFlat]);
     highlight.setFilter(
       rowHover === -1 ? null : (groups[rowHover]?.indices ?? null),
     );
-  }, [index, groups, rowHover]);
+  }, [index, groups, rowHover, member]);
 
   // Fermeture au clic hors du popover (composedPath → traverse aussi le shadow DOM).
   useEffect(() => {
@@ -131,6 +140,14 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  /** Occurrence m du groupe actif : scroll immédiat + net (via state). */
+  const stepTo = (m: number) => {
+    const group = groups[index];
+    if (!group || group.indices.length === 0) return;
+    setMember(m);
+    locate(results[group.indices[m]!]!);
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     const metaHeld = e.ctrlKey || e.metaKey;
     if (metaHeld && (e.key === "z" || e.key === "Z")) {
@@ -147,20 +164,18 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
       return;
     }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (groups.length === 0) return;
+      const group = groups[index];
+      if (!group || group.indices.length === 0) return;
       e.preventDefault();
-      const next =
-        e.key === "ArrowDown"
-          ? (index + 1) % groups.length
-          : (index - 1 + groups.length) % groups.length;
-      setIndex(next);
+      const n = group.indices.length;
+      stepTo(((member + (e.key === "ArrowDown" ? 1 : -1)) % n + n) % n);
       return;
     }
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation(); // Pas de confirmation de sélection multiple côté inspecteur.
-      const first = results[groups[index]?.indices[0] ?? 0];
-      if (first) locate(first);
+      const n = groups[index]?.indices.length ?? 0;
+      if (n > 0) stepTo(((member % n) + n) % n);
     }
     // Échap : laisse-propager → désarme aussi (sémantique « Échap désarme toujours »).
   };
@@ -197,6 +212,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
           onChange={(e) => {
             commit(e.target.value);
             setIndex(0);
+            setMember(0);
           }}
           onKeyDown={onKeyDown}
           style={{
@@ -213,20 +229,32 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
           }}
         />
         <span style={{ fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>
-          {results.length === 0 ? "0" : `${groups.length}/${results.length}`}
+          {groups[index] && groups[index]!.count > 0
+            ? `${((member % groups[index]!.count) + groups[index]!.count) % groups[index]!.count + 1}/${groups[index]!.count}`
+            : String(results.length)}
         </span>
         {[
           {
             dir: "left" as const,
             disabled: groups.length === 0,
-            onClick: () => groups.length > 0 && setIndex((i) => (i - 1 + groups.length) % groups.length),
-            label: "Suggestion précédente",
+            onClick: () => {
+              const group = groups[index];
+              if (!group || group.indices.length === 0) return;
+              const n = group.indices.length;
+              stepTo(((member - 1) % n + n) % n);
+            },
+            label: "Occurrence précédente",
           },
           {
             dir: "right" as const,
             disabled: groups.length === 0,
-            onClick: () => groups.length > 0 && setIndex((i) => (i + 1) % groups.length),
-            label: "Suggestion suivante",
+            onClick: () => {
+              const group = groups[index];
+              if (!group || group.indices.length === 0) return;
+              const n = group.indices.length;
+              stepTo(((member + 1) % n + n) % n);
+            },
+            label: "Occurrence suivante",
           },
         ].map(({ dir, disabled, onClick, label }) => (
           <button
@@ -288,6 +316,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
               onClick={() => {
                 commit(g.selector);
                 setIndex(0);
+                setMember(0);
                 inputRef.current?.focus();
               }}
               style={{
