@@ -23,6 +23,7 @@ function mergeCommands(stored: Partial<Commands> | undefined): Commands {
     confirm: stored.confirm ?? d.confirm,
     cancel: stored.cancel ?? d.cancel,
     inspect: stored.inspect ?? d.inspect,
+    search: stored.search ?? d.search,
     source: { ...d.source, ...stored.source },
     usage: { ...d.usage, ...stored.usage },
   };

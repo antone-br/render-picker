@@ -317,6 +317,15 @@ class Inspector {
   private onKeyDown = (e: KeyboardEvent): void => {
     const cmds = this.commands();
 
+    // Ctrl + touche « search » → ouvre la recherche d'éléments (sans désarmer :
+    // l'UI de recherche vit hors de la barre, comme le panneau d'inspection).
+    if (cmds.search !== "off" && e.ctrlKey && e.key.toLowerCase() === cmds.search) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.callbacks.onSearch?.();
+      return;
+    }
+
     // Ctrl + touche « inspect » → ouvre le panneau pour l'élément survolé, puis désarme.
     if (
       cmds.inspect !== "off" &&

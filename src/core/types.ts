@@ -50,6 +50,8 @@ export interface InspectorCallbacks {
   getTitle?: (el: Element, selection: Element[]) => string;
   /** Ouvre le panneau d'inspection pour l'élément (touche `inspect`). */
   onInspect?: (el: Element) => void;
+  /** Ouvre la recherche d'éléments (touche `search`, Ctrl + touche). */
+  onSearch?: () => void;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }

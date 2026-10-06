@@ -4,6 +4,7 @@ import type {
   ClickTrigger,
   InspectKey,
   KeyChoice,
+  SearchKey,
 } from "../core/settings";
 import type { SelectOption } from "./select";
 
@@ -43,6 +44,13 @@ export const CANCEL_KEY_OPTIONS: SelectOption<KeyChoice>[] = [
 export const INSPECT_OPTIONS: SelectOption<InspectKey>[] = [
   { value: "i", label: "Ctrl + I" },
   { value: "d", label: "Ctrl + D" },
+  { value: "k", label: "Ctrl + K" },
+  { value: "off", label: "Désactivé" },
+];
+
+export const SEARCH_KEY_OPTIONS: SelectOption<SearchKey>[] = [
+  { value: "f", label: "Ctrl + F" },
+  { value: "p", label: "Ctrl + P" },
   { value: "k", label: "Ctrl + K" },
   { value: "off", label: "Désactivé" },
 ];

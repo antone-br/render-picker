@@ -8,7 +8,7 @@ import {
   SECONDARY_SURFACE,
 } from "../core/inspector/constants/theme";
 import type { RenderPickerSettings } from "../core/settings";
-import { GearIcon, PanelIcon } from "./icons";
+import { GearIcon, PanelIcon, SearchIcon } from "./icons";
 import { SettingsMenu } from "./settings-menu";
 
 type Commands = RenderPickerSettings["commands"];
@@ -37,6 +37,10 @@ export interface SettingsBarProps {
   onChangeCommands: (next: Commands) => void;
   /** Ouvre le panneau d'inspection (bouton à gauche). */
   onOpenPanel: () => void;
+  /** Ouvre la recherche d'éléments (bouton loupe, avant l'engrenage). */
+  onToggleSearch: () => void;
+  /** Recherche ouverte (état du bouton — fond actif). */
+  searchOpen: boolean;
   /** Afficher les commandes VS Code (source/usage). Défaut : `true`. */
   showVsCode?: boolean;
 }
@@ -54,6 +58,8 @@ export function SettingsBar({
   commands,
   onChangeCommands,
   onOpenPanel,
+  onToggleSearch,
+  searchOpen,
   showVsCode = true,
 }: SettingsBarProps) {
   return (
@@ -117,6 +123,22 @@ export function SettingsBar({
         <span style={{ padding: "0 2px" }}>
           {hasSelection ? "Entrée pour valider" : "Échap pour annuler"}
         </span>
+        <button
+          type="button"
+          data-rp-search=""
+          aria-label="Rechercher des éléments"
+          aria-expanded={searchOpen}
+          onClick={onToggleSearch}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = SECONDARY_BG_HOVER;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = searchOpen ? HOVER_BG : "transparent";
+          }}
+          style={ghostButton(searchOpen)}
+        >
+          <SearchIcon color={MUTED} />
+        </button>
         <button
           type="button"
           data-rp-gear=""

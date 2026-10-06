@@ -15,6 +15,7 @@ import {
   saveSettings,
 } from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
+import { pickResultFromElement } from "./core/search/element-search";
 import { startCapture } from "./core/devpanel/capture";
 import { loadPanelState, savePanelState } from "./core/devpanel/panel-state";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
@@ -26,6 +27,7 @@ import {
 } from "./core/inspector/constants/theme";
 import type { PickResult } from "./core/types";
 import { DevPanel } from "./ui/dev-panel";
+import { SearchPopover } from "./ui/search-popover";
 import { CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
@@ -75,6 +77,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   const [hasSelection, setHasSelection] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(() => loadPanelState().open);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [commands, setCommands] = useState(() => loadSettings().commands);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
@@ -172,6 +175,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       setPanelOpen(true);
       savePanelState({ open: true });
     },
+    onSearch: () => setSearchOpen((o) => !o),
     // Overlays layout toujours actifs (plus de toggle).
     overlays: { padding: true, gap: true, margin: true },
     commands,
@@ -186,9 +190,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       setHasSelection(false);
       setSettingsOpen(false);
     }
-  }, [isActive]);
-
-  // Persistance des commandes (localStorage + POST route). Ignore la valeur initiale
+  }, [isActive]);  // Persistance des commandes (localStorage + POST route). Ignore la valeur initiale
   // (anti-boucle) via comparaison. Lecture initiale = loadSettings (env/localStorage).
   useEffect(() => {
     const json = JSON.stringify(commands);
@@ -246,10 +248,24 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           onCloseSettings={() => setSettingsOpen(false)}
           commands={commands}
           onChangeCommands={setCommands}
+          searchOpen={searchOpen}
+          onToggleSearch={() => setSearchOpen((o) => !o)}
           onOpenPanel={() => {
             setPanelOpen(true);
             savePanelState({ open: true });
           }}
+        />
+      )}
+
+      {searchOpen && (
+        <SearchPopover
+          onActivate={(el) => {
+            const route = pathname ?? window.location.pathname ?? "/";
+            const enriched = enrichResult(pickResultFromElement(el, route));
+            copy(formatResult(enriched));
+            showToast("Copié ✓");
+          }}
+          onClose={() => setSearchOpen(false)}
         />
       )}
 

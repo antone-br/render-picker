@@ -101,6 +101,11 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
 
 export { buildVscodeUri, initClickToSource } from "./core/dev/click-to-source";
 export {
+  pickResultFromElement,
+  searchElements,
+  toSelector,
+} from "./core/search/element-search";
+export {
   annotate,
   annotateTree,
   componentInfo,

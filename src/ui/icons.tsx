@@ -129,6 +129,26 @@ export function MultiIcon({ color = "#d4d4d8" }: { color?: string }) {
   );
 }
 
+export function SearchIcon({ color = "#d4d4d8" }: { color?: string }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: "block" }}
+    >
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.5" y2="16.5" />
+    </svg>
+  );
+}
+
 export function VsCodeIcon({ size = 13 }: { size?: number }) {
   return (
     <svg

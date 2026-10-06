@@ -27,6 +27,8 @@ export interface UseRenderPickerOptions {
   getTitle?: (el: Element, selection: Element[]) => string;
   /** Ouvre le panneau d'inspection pour l'élément (touche `inspect`). */
   onInspect?: (el: Element) => void;
+  /** Ouvre la recherche d'éléments (touche `search`). */
+  onSearch?: () => void;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }
@@ -50,6 +52,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     commands,
     getTitle,
     onInspect,
+    onSearch,
     onSelectionChange,
   } = options;
 
@@ -68,6 +71,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     commands,
     getTitle,
     onInspect,
+    onSearch,
     onSelectionChange,
   });
   optsRef.current = {
@@ -80,6 +84,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     commands,
     getTitle,
     onInspect,
+    onSearch,
     onSelectionChange,
   };
 
@@ -144,6 +149,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
       getCommands: () => optsRef.current.commands ?? DEFAULT_SETTINGS.commands,
       getTitle: optsRef.current.getTitle,
       onInspect: (el) => optsRef.current.onInspect?.(el),
+      onSearch: () => optsRef.current.onSearch?.(),
       onSelectionChange: (n) => optsRef.current.onSelectionChange?.(n),
     });
     inspector.activate();

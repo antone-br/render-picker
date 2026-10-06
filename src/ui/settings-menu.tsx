@@ -13,6 +13,7 @@ import {
   CONFIRM_KEY_OPTIONS,
   INSPECT_OPTIONS,
   MODIFIER_OPTIONS,
+  SEARCH_KEY_OPTIONS,
   TRIGGER_OPTIONS,
 } from "./commands";
 import { CopyIcon, CrosshairIcon, Html5Icon, MultiIcon, VsCodeIcon } from "./icons";
@@ -249,6 +250,17 @@ export function SettingsMenu({
           {keyRow("Valider la sélection", "confirm", CONFIRM_KEY_OPTIONS)}
           {keyRow("Annuler / désarmer", "cancel", CANCEL_KEY_OPTIONS)}
 
+          <div style={rowStyle}>
+            <span style={{ whiteSpace: "nowrap" }}>Rechercher</span>
+            <Select
+              ariaLabel="Rechercher"
+              value={commands.search}
+              options={SEARCH_KEY_OPTIONS}
+              onChange={(search) => onChangeCommands({ ...commands, search })}
+              width={100}
+              highlight={commands.search !== def.search}
+            />
+          </div>
           <div style={rowStyle}>
             <span style={{ whiteSpace: "nowrap" }}>Ouvrir l'inspecteur</span>
             <Select

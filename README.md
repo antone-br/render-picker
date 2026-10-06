@@ -110,7 +110,11 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 (default right-click, copies `outerHTML`), **Multi-select** (default `Shift`+click), **Open source**
 (default `Alt`+click), **Open usage** (default `Ctrl`+click), each a *modifier* + *click type*
 (click / right-click / double-click) — and the keyboard keys **Confirm** (default `Enter`) and
-**Cancel** (default `Esc`). `Esc` always disarms as a safety net.
+**Cancel** (default `Esc`), plus **Search** (default `Ctrl`+`F`, armed only) and **Inspector**
+(default `Ctrl`+`I`). Search opens an element finder: type a tag (`div`), a class (`.card`) or a
+CSS selector, pick a result to scroll + flash it and copy the enriched snippet. The SettingsBar
+also hosts a magnifier icon next to the gear (npm package and Chrome extension). `Esc` always
+disarms as a safety net.
 
 Choices are saved to `localStorage` by default. To persist them to a committable
 **`render-picker.config.json`** at the project root, add a dev API route (one line) — changes then

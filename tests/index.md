@@ -22,3 +22,4 @@
 | `source/`               | `src/core/source/`                   | [`source/index.md`](source/index.md) |
 | `dev/`                  | `src/core/dev/`                      | [`dev/index.md`](dev/index.md)    |
 | `devpanel/`             | `src/core/devpanel/`                 | [`devpanel/index.md`](devpanel/index.md) |
+| `search/`               | `src/core/search/`                   | [`search/index.md`](search/index.md) |

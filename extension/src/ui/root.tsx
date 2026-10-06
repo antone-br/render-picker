@@ -18,8 +18,11 @@ import { enrichResult } from "../../../src/core/source/enrich";
 import type { RenderPickerSettings } from "../../../src/core/settings";
 import { loadPanelState, savePanelState } from "../../../src/core/devpanel/panel-state";
 import { DevPanel } from "../../../src/ui/dev-panel";
+import { formatResult } from "../../../src/core/format";
+import { pickResultFromElement } from "../../../src/core/search/element-search";
 import { CrosshairIcon } from "../../../src/ui/icons";
 import { SettingsBar } from "../../../src/ui/settings-bar";
+import { SearchPopover } from "../../../src/ui/search-popover";
 import { useRenderPicker } from "../../../src/ui/use-render-picker";
 import { getCommandsSync, onCommandsChange, saveCommands } from "../storage";
 
@@ -43,6 +46,7 @@ export function ExtensionRoot({
   const [commands, setCommands] = useState<Commands>(() => getCommandsSync());
   const [hasSelection, setHasSelection] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
   const [panelOpen, setPanelOpen] = useState(() => loadPanelState().open);
@@ -84,6 +88,7 @@ export function ExtensionRoot({
       setPanelOpen(true);
       savePanelState({ open: true });
     },
+    onSearch: () => setSearchOpen((o) => !o),
     onSelectionChange: (n) => setHasSelection(n > 0),
   });
 
@@ -140,11 +145,32 @@ export function ExtensionRoot({
           onCloseSettings={() => setSettingsOpen(false)}
           commands={commands}
           onChangeCommands={changeCommands}
+          searchOpen={searchOpen}
+          onToggleSearch={() => setSearchOpen((o) => !o)}
           onOpenPanel={() => {
             setPanelOpen(true);
             savePanelState({ open: true });
           }}
           showVsCode={false}
+        />
+      )}
+
+      {searchOpen && (
+        <SearchPopover
+          onActivate={(el) => {
+            copy(
+              formatResult(
+                enrichResult(
+                  pickResultFromElement(
+                    el,
+                    window.location.pathname ?? "/",
+                  ),
+                ),
+              ),
+            );
+            showToast("Copié ✓");
+          }}
+          onClose={() => setSearchOpen(false)}
         />
       )}
 

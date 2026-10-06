@@ -26,6 +26,9 @@ export type KeyChoice = "enter" | "escape" | "space";
 /** Touche d'ouverture du panneau d'inspection (ou désactivé). */
 export type InspectKey = "i" | "d" | "k" | "off";
 
+/** Touche d'ouverture de la recherche d'éléments (ou désactivé). */
+export type SearchKey = "f" | "p" | "k" | "off";
+
 export interface RenderPickerSettings {
   /** Commandes remappables (raccourcis). */
   commands: {
@@ -43,6 +46,8 @@ export interface RenderPickerSettings {
     cancel: KeyChoice;
     /** Ouvrir le panneau d'inspection (Composant/Console/Network). Défaut : touche « i ». */
     inspect: InspectKey;
+    /** Ouvrir la recherche d'éléments (tag/classe/sélecteur). Défaut : touche « f ». */
+    search: SearchKey;
     /** Ouvrir la source exacte dans VS Code. Défaut : Alt+clic. */
     source: GestureBinding;
     /** Ouvrir le fichier d'usage dans VS Code. Défaut : Ctrl+clic. */
@@ -61,6 +66,7 @@ export const DEFAULT_SETTINGS: RenderPickerSettings = {
     confirm: "enter",
     cancel: "escape",
     inspect: "i",
+    search: "f",
     source: { modifier: "alt", trigger: "click" },
     usage: { modifier: "ctrl", trigger: "click" },
   },
@@ -160,6 +166,7 @@ export function settingsDelta(
   if (sc.confirm !== bc.confirm) commands.confirm = sc.confirm;
   if (sc.cancel !== bc.cancel) commands.cancel = sc.cancel;
   if (sc.inspect !== bc.inspect) commands.inspect = sc.inspect;
+  if (sc.search !== bc.search) commands.search = sc.search;
   if (!sameBinding(sc.source, bc.source)) commands.source = sc.source;
   if (!sameBinding(sc.usage, bc.usage)) commands.usage = sc.usage;
   if (Object.keys(commands).length > 0) delta.commands = commands;
@@ -190,6 +197,7 @@ function merge(
       confirm: patchCommands.confirm ?? base.commands.confirm,
       cancel: patchCommands.cancel ?? base.commands.cancel,
       inspect: patchCommands.inspect ?? base.commands.inspect,
+      search: patchCommands.search ?? base.commands.search,
       source: { ...base.commands.source, ...(patchCommands.source ?? {}) },
       usage: { ...base.commands.usage, ...(patchCommands.usage ?? {}) },
     },
