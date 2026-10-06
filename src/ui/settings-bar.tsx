@@ -35,8 +35,8 @@ export interface SettingsBarProps {
   onCloseSettings: () => void;
   commands: Commands;
   onChangeCommands: (next: Commands) => void;
-  /** Ouvre le panneau d'inspection (bouton à gauche). */
-  onOpenPanel: () => void;
+  /** Ouvre/ferme le panneau d'inspection (bouton à gauche). */
+  onTogglePanel: () => void;
   /** Ouvre la recherche d'éléments (bouton loupe, avant l'engrenage). */
   onToggleSearch: () => void;
   /** Recherche ouverte (état du bouton — fond actif). */
@@ -57,7 +57,7 @@ export function SettingsBar({
   onCloseSettings,
   commands,
   onChangeCommands,
-  onOpenPanel,
+  onTogglePanel,
   onToggleSearch,
   searchOpen,
   showVsCode = true,
@@ -109,7 +109,7 @@ export function SettingsBar({
           type="button"
           data-rp-panel=""
           aria-label="Ouvrir l'inspecteur"
-          onClick={onOpenPanel}
+          onClick={onTogglePanel}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = SECONDARY_BG_HOVER;
           }}
@@ -126,6 +126,7 @@ export function SettingsBar({
         <button
           type="button"
           data-rp-search=""
+          data-rp-search-ui=""
           aria-label="Rechercher des éléments"
           aria-expanded={searchOpen}
           onClick={onToggleSearch}

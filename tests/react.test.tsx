@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { loadPanelState } from "../src/core/devpanel/panel-state";
 
 import type { InspectorCallbacks } from "../src/core/types";
 
@@ -9,7 +10,12 @@ let captured: InspectorCallbacks | null = null;
 vi.mock("../src/core/inspector/inspector", () => ({
   createInspector: (cb: InspectorCallbacks) => {
     captured = cb;
-    return { activate: () => {}, deactivate: () => {}, refreshDecorations: () => {} };
+    return {
+      activate: () => {},
+      deactivate: () => {},
+      refreshDecorations: () => {},
+      setSearchMode: () => {},
+    };
   },
 }));
 
@@ -232,6 +238,32 @@ describe("RenderPickerButton", () => {
     // Les anciens toggles overlay ont disparu.
     expect(document.body.textContent).not.toContain("Afficher le padding");
 
+    // Re-lock du gear : le menu se ferme (toggle).
+    act(() => gear?.click());
+    expect(document.body.textContent).not.toContain("Armer le picker");
+
+    act(() => root.unmount());
+  });
+
+  it("la loupe s'ouvre puis se referme au re-clic (toggle, pas de race pointerdown)", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const btn = document.querySelector<HTMLButtonElement>(
+      "button[aria-label^='renderPicker']",
+    );
+    act(() => btn?.click());
+
+    const loupe = document.querySelector<HTMLButtonElement>("button[data-rp-search]");
+    expect(loupe?.getAttribute("aria-expanded")).toBe("false");
+    act(() => loupe?.click());
+    expect(loupe?.getAttribute("aria-expanded")).toBe("true");
+    act(() => loupe?.click());
+    expect(loupe?.getAttribute("aria-expanded")).toBe("false");
+
     act(() => root.unmount());
   });
 
@@ -253,6 +285,29 @@ describe("RenderPickerButton", () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(writeText.mock.calls[0]![0]).toContain("[renderPicker]");
     expect(document.body.textContent).toContain("Copié");
+
+    act(() => root.unmount());
+  });
+
+  it("le bouton inspecteur bascule le panneau (ouvre puis ferme)", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const btn = document.querySelector<HTMLButtonElement>(
+      "button[aria-label^='renderPicker']",
+    );
+    act(() => btn?.click());
+
+    const panelBtn = document.querySelector<HTMLButtonElement>("button[data-rp-panel]");
+
+    act(() => panelBtn?.click());
+    expect(loadPanelState().open).toBe(true);
+
+    act(() => panelBtn?.click());
+    expect(loadPanelState().open).toBe(false);
 
     act(() => root.unmount());
   });

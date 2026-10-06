@@ -153,9 +153,10 @@ export function ExtensionRoot({
           onChangeCommands={changeCommands}
           searchOpen={searchOpen}
           onToggleSearch={() => setSearchOpen((o) => !o)}
-          onOpenPanel={() => {
-            setPanelOpen(true);
-            savePanelState({ open: true });
+          onTogglePanel={() => {
+            const next = !panelOpen;
+            setPanelOpen(next);
+            savePanelState({ open: next });
           }}
           showVsCode={false}
         />

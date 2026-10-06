@@ -258,9 +258,10 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           onChangeCommands={setCommands}
           searchOpen={searchOpen}
           onToggleSearch={() => setSearchOpen((o) => !o)}
-          onOpenPanel={() => {
-            setPanelOpen(true);
-            savePanelState({ open: true });
+          onTogglePanel={() => {
+            const next = !panelOpen;
+            setPanelOpen(next);
+            savePanelState({ open: next });
           }}
         />
       )}
