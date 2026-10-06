@@ -111,6 +111,37 @@ describe("searchElements", () => {
     document.body.innerHTML = "<div></div>";
     expect(searchElements("div[class")).toHaveLength(0);
   });
+
+  it("autocomplétion `div.` : tous les div du DOM", () => {
+    document.body.innerHTML =
+      '<div class="a"></div><div class="b"></div><span></span>';
+    const found = searchElements("div.");
+    expect(found).toHaveLength(2);
+  });
+
+  it("autocomplétion `div.car` : préfixe de classe (casse ignorée)", () => {
+    document.body.innerHTML =
+      '<div class="card main"></div><div class="cart"></div>' +
+      '<div class="foot"></div><section class="card"></section>';
+    const keys = groupResults(searchElements("div.car")).map((g) => g.key);
+    expect(keys).toContain("div.card.main");
+    expect(keys).toContain("div.cart");
+    expect(keys.every((k) => k.startsWith("div.card") || k.startsWith("div.cart"))).toBe(
+      true,
+    );
+  });
+
+  it("autocomplétion `.car` sans tag : scan global", () => {
+    document.body.innerHTML =
+      '<div class="card"></div><section class="cart"></section><p></p>';
+    expect(searchElements(".car")).toHaveLength(2);
+  });
+
+  it("autocomplétion exclut l'UI+hôte et respecte le cap", () => {
+    document.body.innerHTML =
+      '<div class="x"></div><aside data-pathpicker-ignore=""><div class="x"></div></aside>';
+    expect(searchElements("div.")).toHaveLength(1);
+  });
 });
 
 describe("groupResults", () => {

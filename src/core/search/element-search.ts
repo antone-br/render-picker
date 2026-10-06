@@ -5,7 +5,9 @@ import type { PickResult } from "../types";
 /**
  * Recherche d'éléments dans le DOM par tag (`div`), classe (`.card`), sélecteur
  * CSS direct (`div.card`, `input[type=checkbox]`) ou mot libre (tag OU classe).
- * L'UI du picker hôte (`data-pathpicker-ignore`) est exclue. Pure sauf lecture DOM.
+ * Frappe partielle : `div.` (tag seul), `div.car` (préfixe de classe), `.car`
+ * (sans tag) → autocomplétion par préfixe de classe. L'UI du picker hôte
+ * (`data-pathpicker-ignore`) est exclue. Pure sauf lecture DOM.
  */
 
 /** La recherche ne retourne jamais plus de résultats (liste de l'UI lisible). */
@@ -19,11 +21,17 @@ const IGNORE_SELECTOR = "[data-pathpicker-ignore]";
 
 const WORD_RE = /^[a-zA-Z][\w-]*$/;
 
+/** Requête partielle autocomplétable : `tag?` + `.prefix?` (dot requis). */
+const PARTIAL_RE = /^([a-zA-Z][\w-]*)?\.(\w*)$/;
+
 /** Résultats dans l'ordre du document (querySelectorAll le garantit déjà). */
 export function searchElements(
   query: string,
   root: Document | HTMLElement = document,
 ): HTMLElement[] {
+  const partial = PARTIAL_RE.exec(query.trim());
+  if (partial) return searchPartial(partial[1] ?? null, partial[2] ?? "");
+
   const selector = toSelector(query);
   if (!selector) return [];
 
@@ -35,11 +43,45 @@ export function searchElements(
     return [];
   }
 
+  return collect(matches);
+}
+
+function collect(matches: NodeListOf<HTMLElement>): HTMLElement[] {
   const results: HTMLElement[] = [];
   for (const el of matches) {
     if (results.length >= SEARCH_MAX_RESULTS) break;
     if (!el.isConnected) continue;
     if (el.closest(IGNORE_SELECTOR)) continue;
+    results.push(el);
+  }
+  return results;
+}
+
+/** Autocomplétion : éléments du tag (ou du DOM entier) filtrés par préfixe de classe. */
+function searchPartial(
+  tag: string | null,
+  prefix: string,
+  root: Document | HTMLElement = document,
+): HTMLElement[] {
+  let candidates: NodeListOf<HTMLElement>;
+  try {
+    candidates = root.querySelectorAll<HTMLElement>(tag ?? "*");
+  } catch {
+    return [];
+  }
+  const results: HTMLElement[] = [];
+  const lower = prefix.toLowerCase();
+  for (const el of candidates) {
+    if (results.length >= SEARCH_MAX_RESULTS) break;
+    if (!el.isConnected) continue;
+    if (el.closest(IGNORE_SELECTOR)) continue;
+    if (typeof el.className === "string") {
+      const hit = el.className
+        .trim()
+        .split(/\s+/)
+        .some((cls) => (lower === "" ? cls !== "" : cls.toLowerCase().startsWith(lower)));
+      if (!hit) continue;
+    }
     results.push(el);
   }
   return results;

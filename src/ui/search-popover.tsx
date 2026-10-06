@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import {
   groupResults,
   searchElements,
   SEARCH_UI_ATTR,
 } from "../core/search/element-search";
+import { makeQueryHistory } from "../core/search/query-history";
 import { createSearchHighlight } from "../core/search/highlight";
 import {
   ELEVATED_BG,
@@ -55,6 +56,20 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
 
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
+  // Undo/redo maison : l'input contrôlé + les changements programmatiques (clic
+  // suggestion) ne remontent pas via l'undo natif du navigateur.
+  const historyRef = useRef(makeQueryHistory(""));
+  const commit = useCallback((next: string) => {
+    historyRef.current.push(next);
+    setQuery(next);
+  }, []);
+  const stepHistory = useCallback((forward: boolean) => {
+    const history = historyRef.current;
+    const moved = forward ? history.redo() : history.undo();
+    if (!moved) return;
+    setQuery(history.current);
+    setIndex(0);
+  }, []);
   // Cap interne (SEARCH_MAX_RESULTS) : la liste reste lisible sur les grosses pages.
   const results = useMemo(() => searchElements(query), [query]);
   // Suggestions = sélecteurs regroupés ; le survol/sélection met en relief TOUTES
@@ -109,6 +124,20 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    const metaHeld = e.ctrlKey || e.metaKey;
+    if (metaHeld && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) stepHistory(true);
+      else stepHistory(false);
+      return;
+    }
+    if (metaHeld && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      e.stopPropagation();
+      stepHistory(true);
+      return;
+    }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (groups.length === 0) return;
       e.preventDefault();
@@ -158,7 +187,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
           placeholder="tag, .classe ou sélecteur CSS (div.card)"
           value={query}
           onChange={(e) => {
-            setQuery(e.target.value);
+            commit(e.target.value);
             setIndex(0);
           }}
           onKeyDown={onKeyDown}
@@ -243,7 +272,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
               aria-selected={i === index}
               onMouseEnter={() => setIndex(i)}
               onClick={() => {
-                setQuery(g.key);
+                commit(g.key);
                 setIndex(0);
                 inputRef.current?.focus();
               }}
@@ -304,7 +333,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
           justifyContent: "flex-start",
         }}
       >
-        Clic : affiner · Entrée : localiser (scroll) · Échap : fermer
+        Clic : affiner · Entrée : localiser (scroll) · Ctrl+Z/Y : historique · Échap : fermer
       </div>
     </div>
   );
