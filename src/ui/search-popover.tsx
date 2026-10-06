@@ -227,7 +227,10 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
         ))}
       </div>
 
-      <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}>
+      <div
+        style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}
+        onMouseLeave={() => highlightRef.current?.setHover(-1)}
+      >
         {query.trim() === "" && (
           <div style={{ ...rowStyle, color: MUTED }}>
             Rechercher par tag (div), classe (.card) ou sélecteur CSS.
@@ -244,7 +247,10 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
               key={i}
               role="option"
               aria-selected={i === index}
-              onMouseEnter={() => setIndex(i)}
+              onMouseEnter={() => {
+                setIndex(i);
+                highlightRef.current?.setHover(i);
+              }}
               onClick={() => {
                 setQuery(value);
                 setIndex(0);

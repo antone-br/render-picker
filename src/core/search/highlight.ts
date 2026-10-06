@@ -29,6 +29,8 @@ export interface SearchHighlight {
   update(elements: HTMLElement[]): void;
   /** Déplace le rect actif (index dans la dernière liste passée à `update`). */
   setActive(index: number): void;
+  /** Survol d'une ligne de suggestion : `-1` = tous les rects, sinon SEUL l'index reste visible. */
+  setHover(index: number): void;
   /** Retire tous les rects (input vidé). */
   clear(): void;
   /** Retire la couche du DOM et arrête la boucle rAF. */
@@ -126,6 +128,8 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
   let elements: HTMLElement[] = [];
   let activeIndex = -1;
   let hoveredIndex = -1;
+  /** Ligne de suggestion survolée : seul ce rect reste visible (`-1` = tous). */
+  let rowHoverIndex = -1;
   let disposed = false;
   let rafId = 0;
 
@@ -159,7 +163,9 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
     if (disposed) return;
     elements.forEach((el, i) => {
       const rect = rects[i];
-      if (!rect || !el.isConnected) {
+      const visible =
+        rowHoverIndex === -1 ? !!el.isConnected : i === rowHoverIndex && el.isConnected;
+      if (!rect || !visible) {
         if (rect) rect.style.display = "none";
         return;
       }
@@ -198,6 +204,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
   return {
     update(next) {
       elements = next;
+      rowHoverIndex = -1;
       // Réutilise les rects existants (pool), crée le manque, cache le surplus.
       while (rects.length < elements.length) rects.push(makeRect());
       for (const rect of rects.slice(elements.length)) rect.style.display = "none";
@@ -238,9 +245,14 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
       activeIndex = index;
       redraw();
     },
+    setHover(index) {
+      rowHoverIndex = index;
+      redraw();
+    },
     clear() {
       elements = [];
       hoveredIndex = -1;
+      rowHoverIndex = -1;
       surface.tooltip.style.display = "none";
       for (const rect of rects) rect.style.display = "none";
     },
