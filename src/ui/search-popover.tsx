@@ -7,7 +7,9 @@ import {
   CARD_SHADOW,
   MUTED,
   HOVER_BG,
+  SECONDARY_BG_HOVER,
 } from "../core/inspector/constants/theme";
+import { ChevronIcon } from "./icons";
 
 const POPOVER_ATTR = "data-rp-search-popover";
 
@@ -166,8 +168,52 @@ export function SearchPopover({ onClose }: SearchPopoverProps) {
           }}
         />
         <span style={{ fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>
-          {results.length}
+          {results.length === 0 ? "0" : `${index + 1}/${results.length}`}
         </span>
+        {[
+          {
+            dir: "left" as const,
+            disabled: results.length === 0,
+            onClick: () => results.length > 0 && setIndex((i) => (i - 1 + results.length) % results.length),
+            label: "Élément précédent",
+          },
+          {
+            dir: "right" as const,
+            disabled: results.length === 0,
+            onClick: () => results.length > 0 && setIndex((i) => (i + 1) % results.length),
+            label: "Élément suivant",
+          },
+        ].map(({ dir, disabled, onClick, label }) => (
+          <button
+            key={dir}
+            type="button"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+            onMouseEnter={(e) => {
+              if (!disabled) e.currentTarget.style.background = SECONDARY_BG_HOVER;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 20,
+              height: 20,
+              borderRadius: 4,
+              cursor: disabled ? "default" : "pointer",
+              background: "transparent",
+              border: "none",
+              opacity: disabled ? 0.4 : 1,
+              color: MUTED,
+              padding: 0,
+            }}
+          >
+            <ChevronIcon dir={dir} color={MUTED} />
+          </button>
+        ))}
       </div>
 
       <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}>

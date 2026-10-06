@@ -12,7 +12,23 @@ afterEach(() => {
 
 describe("toSelector", () => {
   it("tag simple : tag exact OU classe du même nom", () => {
-    expect(toSelector("div")).toBe("div, .div");
+    expect(toSelector("div")).toBe(
+      'div, .div, [data-component="div" i]',
+    );
+  });
+
+  it("mot libre : inclut aussi le nom de composant React (data-component)", () => {
+    document.body.innerHTML =
+      '<section data-component="Button"><span>1</span></section>' +
+      '<div class="Button">2</div>';
+    const found = searchElements("Button");
+    expect(found).toHaveLength(2);
+    expect(found[0]!.getAttribute("data-component")).toBe("Button");
+  });
+
+  it("match composant insensible à la casse", () => {
+    document.body.innerHTML = '<section data-component="HeaderBar"></section>';
+    expect(searchElements("headerbar")).toHaveLength(1);
   });
 
   it("classe : CSS direct", () => {

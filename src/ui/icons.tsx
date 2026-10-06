@@ -149,6 +149,31 @@ export function SearchIcon({ color = "#d4d4d8" }: { color?: string }) {
   );
 }
 
+export function ChevronIcon({
+  dir,
+  color = "#d4d4d8",
+}: {
+  dir: "left" | "right";
+  color?: string;
+}) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: "block", transform: dir === "left" ? "scaleX(-1)" : "none" }}
+    >
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
+  );
+}
+
 export function VsCodeIcon({ size = 13 }: { size?: number }) {
   return (
     <svg
