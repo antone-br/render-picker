@@ -56,6 +56,8 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
 
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
+  /** Ligne de suggestion survolée (souris) ; `-1` = aucune (tous les rects visibles). */
+  const [rowHover, setRowHover] = useState(-1);
   // Undo/redo maison : l'input contrôlé + les changements programmatiques (clic
   // suggestion) ne remontent pas via l'undo natif du navigateur.
   const historyRef = useRef(makeQueryHistory(""));
@@ -103,8 +105,14 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
     highlightRef.current?.update(results);
   }, [results]);
   useEffect(() => {
-    highlightRef.current?.setActive(groups[index]?.indices ?? []);
-  }, [index, groups]);
+    const highlight = highlightRef.current;
+    if (!highlight) return;
+    const activeIndices = groups[index]?.indices ?? [];
+    highlight.setActive(activeIndices);
+    highlight.setFilter(
+      rowHover === -1 ? null : (groups[rowHover]?.indices ?? null),
+    );
+  }, [index, groups, rowHover]);
 
   // Fermeture au clic hors du popover (composedPath → traverse aussi le shadow DOM).
   useEffect(() => {
@@ -253,7 +261,10 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
         ))}
       </div>
 
-      <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}>
+      <div
+        style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}
+        onMouseLeave={() => setRowHover(-1)}
+      >
         {query.trim() === "" && (
           <div style={{ ...rowStyle, color: MUTED }}>
             Rechercher par tag (div), classe (.card) ou sélecteur CSS.
@@ -270,7 +281,10 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
               key={g.key}
               role="option"
               aria-selected={i === index}
-              onMouseEnter={() => setIndex(i)}
+              onMouseEnter={() => {
+                setIndex(i);
+                setRowHover(i);
+              }}
               onClick={() => {
                 commit(g.selector);
                 setIndex(0);

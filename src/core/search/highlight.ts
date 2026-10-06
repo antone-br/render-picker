@@ -29,6 +29,8 @@ export interface SearchHighlight {
   update(elements: HTMLElement[]): void;
   /** Rects nets (indices dans la dernière liste — sélection de groupe multi). */
   setActive(indices: number[]): void;
+  /** Filtre souris (survol d'une ligne de suggestion) : `null` = tous, sinon SEULES ces occurrences visibles. */
+  setFilter(indices: number[] | null): void;
   /** Retire tous les rects (input vidé). */
   clear(): void;
   /** Retire la couche du DOM et arrête la boucle rAF. */
@@ -125,6 +127,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
   let rects: HTMLElement[] = [];
   let elements: HTMLElement[] = [];
   let activeSet = new Set<number>();
+  let filterSet: Set<number> | null = null;
   let hoveredIndex = -1;
   let disposed = false;
   let rafId = 0;
@@ -159,6 +162,10 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
     if (disposed) return;
     elements.forEach((el, i) => {
       const rect = rects[i];
+      if (filterSet && !filterSet.has(i)) {
+        if (rect) rect.style.display = "none";
+        return;
+      }
       if (!rect || !el.isConnected) {
         if (rect) rect.style.display = "none";
         return;
@@ -198,6 +205,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
   return {
     update(next) {
       elements = next;
+      filterSet = null;
       // Réutilise les rects existants (pool), crée le manque, cache le surplus.
       while (rects.length < elements.length) rects.push(makeRect());
       for (const rect of rects.slice(elements.length)) rect.style.display = "none";
@@ -238,10 +246,15 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
       activeSet = new Set(indices);
       redraw();
     },
+    setFilter(indices) {
+      filterSet = indices ? new Set(indices) : null;
+      redraw();
+    },
     clear() {
       elements = [];
       hoveredIndex = -1;
       activeSet = new Set();
+      filterSet = null;
       surface.tooltip.style.display = "none";
       for (const rect of rects) rect.style.display = "none";
     },

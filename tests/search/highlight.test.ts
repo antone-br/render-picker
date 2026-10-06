@@ -39,7 +39,28 @@ describe("createSearchHighlight", () => {
     hl.destroy();
   });
 
-  it("setActive : indices multiples nets (selection de groupe)", () => {
+  it("setFilter : survol d'une ligne → SEULES ces occurrences visibles", () => {
+    const hl = createSearchHighlight();
+    hl.update([makeEl(), makeEl(), makeEl()]);
+    const rects = () =>
+      Array.from(document.querySelectorAll<HTMLElement>(RECT_SELECTOR));
+
+    hl.setFilter([1]);
+    const visible = rects().filter((r) => r.style.display === "block");
+    expect(visible).toHaveLength(1);
+    expect(visible[0]).toBe(rects()[1]);
+
+    hl.setFilter(null);
+    expect(rects().filter((r) => r.style.display === "block")).toHaveLength(3);
+
+    hl.setFilter([0, 2]);
+    expect(rects()[1]!.style.display).toBe("none");
+    expect(rects()[0]!.style.display).toBe("block");
+    expect(rects()[2]!.style.display).toBe("block");
+    hl.destroy();
+  });
+
+  it("setActive : indices multiples nets (sélection de groupe)", () => {
     const hl = createSearchHighlight();
     hl.update([makeEl(), makeEl(), makeEl()]);
     hl.setActive([0, 2]);
@@ -50,6 +71,16 @@ describe("createSearchHighlight", () => {
     expect(rects[0]!.style.background).toBe("rgba(59, 130, 246, 0.24)");
     expect(rects[1]!.style.background).toBe("rgba(59, 130, 246, 0.15)");
     expect(rects[2]!.style.background).toBe("rgba(59, 130, 246, 0.24)");
+    hl.destroy();
+  });
+
+  it("update réinitialise le filtre (tous les rects reviennent)", () => {
+    const hl = createSearchHighlight();
+    hl.update([makeEl(), makeEl()]);
+    hl.setFilter([0]);
+    hl.update([makeEl(), makeEl()]);
+    const rects = Array.from(document.querySelectorAll<HTMLElement>(RECT_SELECTOR));
+    expect(rects.every((r) => r.style.display === "block")).toBe(true);
     hl.destroy();
   });
 

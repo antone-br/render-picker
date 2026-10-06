@@ -115,8 +115,9 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 CSS selector or a React component name (`Button`, only where the npm annotator runs); partial
 typing autocompletes (`div.` lists the divs, `div.car` matches classes starting with `car`) and
 `Ctrl+Z`/`Ctrl+Y` walk the query history. Results
-group into suggestions (selector + occurrence count), and hovering/selecting a suggestion
-highlights ALL its occurrences on the page with live rects (follows scroll/resize); the
+group into suggestions (selector + occurrence count); hovering a suggestion (mouse) shows ONLY
+its occurrences as net rects, while keyboard selection keeps every match visible with the
+active group highlighted — live rects (follows scroll/resize); the
 inspector's own hover rect is paused while searching. Hovering a search rect then shows the element
 tooltip (component, metrics, dimensions), clicking one copies the enriched snippet (pick),
 right-clicking one copies the raw `outerHTML`; the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the
