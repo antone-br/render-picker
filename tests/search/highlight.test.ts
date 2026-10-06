@@ -78,36 +78,6 @@ describe("createSearchHighlight", () => {
     hl.destroy();
   });
 
-  it("setHover : survol d'une ligne → SEUL ce rect visible ; -1 → tous", () => {
-    const hl = createSearchHighlight();
-    hl.update([makeEl(), makeEl(), makeEl()]);
-    const rects = () =>
-      Array.from(document.querySelectorAll<HTMLElement>(RECT_SELECTOR));
-
-    hl.setHover(1);
-    expect(rects().filter((r) => r.style.display === "block")).toHaveLength(1);
-    expect(rects()[1]!.style.display).toBe("block");
-
-    hl.setHover(-1);
-    expect(rects().filter((r) => r.style.display === "block")).toHaveLength(3);
-
-    hl.setHover(0);
-    expect(rects()[1]!.style.display).toBe("none");
-    expect(rects()[2]!.style.display).toBe("none");
-    hl.destroy();
-  });
-
-  it("update réinitialise le survol de ligne (tous les rects reviennent)", () => {
-    const hl = createSearchHighlight();
-    hl.update([makeEl(), makeEl()]);
-    hl.setHover(0);
-    hl.update([makeEl(), makeEl()]);
-    const rects = Array.from(document.querySelectorAll<HTMLElement>(RECT_SELECTOR));
-    expect(rects[0]!.style.display).toBe("block");
-    expect(rects[1]!.style.display).toBe("block");
-    hl.destroy();
-  });
-
   it("clic sur un rect → callback onPick (côté appelant)", () => {
     const picks: HTMLElement[] = [];
     const hl = createSearchHighlight({ onPick: (el) => picks.push(el) });
