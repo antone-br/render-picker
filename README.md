@@ -113,9 +113,11 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 **Cancel** (default `Esc`), plus **Search** (default `Ctrl`+`F`, armed only) and **Inspector**
 (default `Ctrl`+`I`). Search opens an element finder: type a tag (`div`), a class (`.card`), a
 CSS selector or a React component name (`Button`, only where the npm annotator runs) — every
-match gets the hover-style highlight rect on the page (live, follows scroll/resize);
-‹ › arrow buttons (or ↑/↓, or hovering a row) switch the active element, clicking a row
-refines the query (tag + classes back into the input), `Enter` scrolls to it. The
+match gets the hover-style highlight rect on the page (live, follows scroll/resize); the
+inspector's own hover rect is paused while searching. Hovering a search rect shows the element
+tooltip (component, metrics, dimensions); ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the
+active element, clicking a row refines the query (tag + classes back into the input), `Enter`
+scrolls to it. The
 SettingsBar also hosts a magnifier icon next to the gear (npm package and Chrome extension).
 `Esc` always disarms as a safety net.
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import { searchElements } from "../core/search/element-search";
+import { searchElements, SEARCH_UI_ATTR } from "../core/search/element-search";
 import { createSearchHighlight } from "../core/search/highlight";
 import {
   ELEVATED_BG,
@@ -11,7 +11,6 @@ import {
 } from "../core/inspector/constants/theme";
 import { ChevronIcon } from "./icons";
 
-const POPOVER_ATTR = "data-rp-search-popover";
 
 export interface SearchPopoverProps {
   /** Ferme la recherche (bouton, changement de page, clic hors du popover). */
@@ -79,7 +78,7 @@ export function SearchPopover({ onClose }: SearchPopoverProps) {
     const onDown = (e: Event) => {
       const path = e.composedPath?.() ?? [];
       const inside = path.some(
-        (n) => n instanceof Element && n.hasAttribute?.(POPOVER_ATTR),
+        (n) => n instanceof Element && n.hasAttribute?.(SEARCH_UI_ATTR),
       );
       if (!inside) onCloseRef.current();
     };
@@ -126,6 +125,7 @@ export function SearchPopover({ onClose }: SearchPopoverProps) {
       ref={ref}
       data-pathpicker-ignore=""
       data-rp-search-popover=""
+      data-rp-search-ui=""
       style={{
         position: "fixed",
         bottom: 70,

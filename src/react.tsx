@@ -163,7 +163,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     [showToast],
   );
 
-  const { isActive, toggle } = useRenderPicker({
+  const { isActive, toggle, setSearchMode } = useRenderPicker({
     pathname,
     hotkey: effectiveHotkey,
     multi,
@@ -189,7 +189,14 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       setHasSelection(false);
       setSettingsOpen(false);
     }
-  }, [isActive]);  // Persistance des commandes (localStorage + POST route). Ignore la valeur initiale
+  }, [isActive]);
+
+  // Mode recherche : fige le rect de survol de l'inspecteur (les rects de
+  // recherche prennent le relais, avec leur tooltip au survol).
+  useEffect(() => {
+    setSearchMode(searchOpen);
+    return () => setSearchMode(false);
+  }, [searchOpen, setSearchMode]);  // Persistance des commandes (localStorage + POST route). Ignore la valeur initiale
   // (anti-boucle) via comparaison. Lecture initiale = loadSettings (env/localStorage).
   useEffect(() => {
     const json = JSON.stringify(commands);

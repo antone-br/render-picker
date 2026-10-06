@@ -6,13 +6,22 @@ import {
   OVERLAY_Z,
   SELECTED_BG,
 } from "../inspector/constants/picker";
+import {
+  BTN_SHADOW,
+  SECONDARY_BG_HOVER,
+  SECONDARY_BORDER,
+  SECONDARY_SURFACE,
+} from "../inspector/constants/theme";
 import { assign } from "../inspector/surfaces/dom";
+import { dimsText, updateTooltip } from "../inspector/surfaces/tooltip";
+import { SEARCH_UI_ATTR } from "./element-search";
 
 /**
  * Highlights « survol » pour les résultats de recherche : tout match porte un
  * rect au style de l'overlay de survol de l'inspecteur, l'élément actif
  * (↑/↓ ou survol de la ligne) en reçoit un plus net par-dessus. Repositionne en
  * continu (rAF) pour suivre le scroll/resize de la page — sans React.
+ * Survole un rect (rects interactifs) → tooltip info du composant + métriques.
  */
 
 export interface SearchHighlight {
@@ -26,9 +35,75 @@ export interface SearchHighlight {
   destroy(): void;
 }
 
+function createTooltipSurface(): {
+  tooltip: HTMLElement;
+  label: HTMLElement;
+  divider: HTMLElement;
+  metrics: HTMLElement;
+  dims: HTMLElement;
+} {
+  const tooltip = document.createElement("div");
+  assign(tooltip, {
+    position: "fixed",
+    display: "none",
+    zIndex: "3",
+    maxWidth: "420px",
+    padding: "6px 6px 6px 10px",
+    borderRadius: "6px",
+    font: "12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace",
+    color: "#fff",
+    background: SECONDARY_SURFACE,
+    border: SECONDARY_BORDER,
+    boxShadow: BTN_SHADOW,
+    pointerEvents: "none",
+    alignItems: "flex-start",
+    gap: "10px",
+  });
+
+  const col = document.createElement("div");
+  assign(col, { display: "flex", flexDirection: "column", minWidth: "0" });
+
+  const label = document.createElement("span");
+  assign(label, { whiteSpace: "pre-line" });
+  col.appendChild(label);
+
+  const divider = document.createElement("div");
+  assign(divider, {
+    display: "none",
+    height: "1px",
+    margin: "5px 0",
+    alignSelf: "stretch",
+    background: "rgba(255,255,255,0.14)",
+  });
+  col.appendChild(divider);
+
+  const metrics = document.createElement("span");
+  assign(metrics, { display: "none", whiteSpace: "pre-line", color: "#d4d4d8" });
+  col.appendChild(metrics);
+
+  tooltip.appendChild(col);
+
+  const dims = document.createElement("span");
+  assign(dims, {
+    marginLeft: "auto",
+    flexShrink: "0",
+    padding: "1px 5px",
+    borderRadius: "4px",
+    font: "600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace",
+    color: "#60a5fa",
+    background: "rgba(59,130,246,0.15)",
+    border: "1px solid rgba(59,130,246,0.3)",
+    whiteSpace: "nowrap",
+  });
+  tooltip.appendChild(dims);
+
+  return { tooltip, label, divider, metrics, dims };
+}
+
 export function createSearchHighlight(): SearchHighlight {
   const root = document.createElement("div");
   root.setAttribute(IGNORE_ATTR, "");
+  root.setAttribute(SEARCH_UI_ATTR, "");
   assign(root, {
     position: "fixed",
     inset: "0",
@@ -37,21 +112,27 @@ export function createSearchHighlight(): SearchHighlight {
   });
   document.documentElement.appendChild(root);
 
+  const surface = createTooltipSurface();
+  root.appendChild(surface.tooltip);
+
   let rects: HTMLElement[] = [];
   let elements: HTMLElement[] = [];
   let activeIndex = -1;
+  let hoveredIndex = -1;
   let disposed = false;
   let rafId = 0;
 
-  function makeRect(bg: string, border: string): HTMLElement {
+  function makeRect(): HTMLElement {
     const rect = document.createElement("div");
+    rect.setAttribute(SEARCH_UI_ATTR, "");
     assign(rect, {
       position: "fixed",
-      background: bg,
-      border,
+      background: HIGHLIGHT_BG,
+      border: HIGHLIGHT_BORDER,
       borderRadius: OVERLAY_RADIUS,
       boxSizing: "border-box",
-      pointerEvents: "none",
+      pointerEvents: "auto",
+      cursor: "crosshair",
       display: "none",
     });
     root.appendChild(rect);
@@ -75,13 +156,27 @@ export function createSearchHighlight(): SearchHighlight {
         if (rect) rect.style.display = "none";
         return;
       }
-      const active = i === activeIndex;
+      const active = i === activeIndex || i === hoveredIndex;
       rect.style.background = active ? SELECTED_BG : HIGHLIGHT_BG;
       rect.style.border = active
         ? HIGHLIGHT_BORDER
         : "1px solid rgba(59,130,246,0.35)";
       place(rect, el);
     });
+
+    if (hoveredIndex >= 0 && rects[hoveredIndex] && elements[hoveredIndex]?.isConnected) {
+      const el = elements[hoveredIndex]!;
+      updateTooltip(
+        surface.tooltip,
+        surface.label,
+        surface.divider,
+        surface.metrics,
+        surface.dims,
+        el,
+        [],
+        el.getBoundingClientRect(),
+      );
+    }
   }
 
   // Suivi scroll/resize en continu (les scrolls de sous-conteneurs ne
@@ -96,12 +191,26 @@ export function createSearchHighlight(): SearchHighlight {
   return {
     update(next) {
       elements = next;
-      // Réutilise les rects existants (.WebElement pooled), crée le manque, cache le surplus.
-      while (rects.length < elements.length)
-        rects.push(makeRect(HIGHLIGHT_BG, HIGHLIGHT_BORDER));
+      // Réutilise les rects existants (pool), crée le manque, cache le surplus.
+      while (rects.length < elements.length) rects.push(makeRect());
       for (const rect of rects.slice(elements.length)) rect.style.display = "none";
       rects.length = elements.length;
-      this.setActive(activeIndex);
+      rects.forEach((rect, i) => {
+        rect.onmouseenter = () => {
+          if (rect.style.display === "none") return;
+          hoveredIndex = i;
+          redraw();
+        };
+        rect.onmouseleave = () => {
+          hoveredIndex = -1;
+          surface.tooltip.style.display = "none";
+        };
+        rect.onmousedown = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        rect.onclick = () => elements[i]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
       redraw();
     },
     setActive(index) {
@@ -110,6 +219,8 @@ export function createSearchHighlight(): SearchHighlight {
     },
     clear() {
       elements = [];
+      hoveredIndex = -1;
+      surface.tooltip.style.display = "none";
       for (const rect of rects) rect.style.display = "none";
     },
     destroy() {

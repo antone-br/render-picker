@@ -11,6 +11,9 @@ import type { PickResult } from "../types";
 /** La recherche ne retourne jamais plus de résultats (liste de l'UI lisible). */
 export const SEARCH_MAX_RESULTS = 50;
 
+/** Attribut marquant l'UI de recherche (popover + rects) — ferme le clic-hors. */
+export const SEARCH_UI_ATTR = "data-rp-search-ui";
+
 /** Élément hôte du picker — exclu des résultats. */
 const IGNORE_SELECTOR = "[data-pathpicker-ignore]";
 

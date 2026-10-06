@@ -65,7 +65,7 @@ export function ExtensionRoot({
 
   const hotkey = commands.arm === "off" ? false : commands.arm;
 
-  const { isActive, toggle } = useRenderPicker({
+  const { isActive, toggle, setSearchMode } = useRenderPicker({
     hotkey,
     commands,
     getTitle: tooltipClasses,
@@ -98,6 +98,11 @@ export function ExtensionRoot({
       setSettingsOpen(false);
     }
   }, [isActive]);
+
+  useEffect(() => {
+    setSearchMode(searchOpen);
+    return () => setSearchMode(false);
+  }, [searchOpen, setSearchMode]);
 
   const buttonStyle: CSSProperties = {
     position: "fixed",

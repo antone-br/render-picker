@@ -34,6 +34,8 @@ class Inspector {
   private selection: Element[] = [];
   private observer: ResizeObserver | null = null;
   private hovering = false;
+  /** Mode recherche actif : pas de rect de survol (les rects de recherche prennent le relais). */
+  private searchMode = false;
 
   constructor(private readonly callbacks: InspectorCallbacks) {}
 
@@ -240,7 +242,18 @@ class Inspector {
 
   // --- Handlers (arrow = identité stable pour add/remove) -------------------
 
+  /** Active/désactive le mode recherche : fige le rect de survol de l'inspecteur. */
+  setSearchMode(on: boolean): void {
+    this.searchMode = on;
+    if (on) this.hideHover();
+  }
+
   private onMouseMove = (e: MouseEvent): void => {
+    if (this.searchMode) {
+      this.lastTarget = null;
+      this.hideHover();
+      return;
+    }
     const target = resolveTarget(e.clientX, e.clientY);
     if (!target || shouldIgnore(target)) {
       this.lastTarget = null;
@@ -370,11 +383,13 @@ export function createInspector(callbacks: InspectorCallbacks): {
   activate: () => void;
   deactivate: () => void;
   refreshDecorations: () => void;
+  setSearchMode: (on: boolean) => void;
 } {
   const inspector = new Inspector(callbacks);
   return {
     activate: () => inspector.activate(),
     deactivate: () => inspector.deactivate(),
     refreshDecorations: () => inspector.refreshDecorations(),
+    setSearchMode: (on) => inspector.setSearchMode(on),
   };
 }

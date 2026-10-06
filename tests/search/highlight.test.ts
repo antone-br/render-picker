@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSearchHighlight } from "../../src/core/search/highlight";
 
+const RECT_SELECTOR = "[data-pathpicker-ignore] > [data-rp-search-ui]";
+
 afterEach(() => {
   document.documentElement.innerHTML = "";
 });
@@ -28,7 +30,7 @@ describe("createSearchHighlight", () => {
     hl.update([makeEl(), makeEl()]);
 
     const rects = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-pathpicker-ignore] > *"),
+      document.querySelectorAll<HTMLElement>(RECT_SELECTOR),
     );
     expect(rects).toHaveLength(2);
     expect(rects[0]!.style.background).toBe("rgba(59, 130, 246, 0.15)");
@@ -42,7 +44,7 @@ describe("createSearchHighlight", () => {
     hl.setActive(1);
 
     const rects = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-pathpicker-ignore] > *"),
+      document.querySelectorAll<HTMLElement>(RECT_SELECTOR),
     );
     expect(rects[0]!.style.background).toBe("rgba(59, 130, 246, 0.15)");
     expect(rects[1]!.style.background).toBe("rgba(59, 130, 246, 0.24)");
@@ -55,7 +57,7 @@ describe("createSearchHighlight", () => {
     hl.update([makeEl(), makeEl()]);
 
     const rects = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-pathpicker-ignore] > *"),
+      document.querySelectorAll<HTMLElement>(RECT_SELECTOR),
     );
     expect(rects).toHaveLength(3);
     expect(rects[2]!.style.display).toBe("none");
@@ -69,7 +71,7 @@ describe("createSearchHighlight", () => {
 
     expect(document.querySelector<HTMLElement>("[data-pathpicker-ignore]")).not.toBeNull();
     const rects = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-pathpicker-ignore] > *"),
+      document.querySelectorAll<HTMLElement>(RECT_SELECTOR),
     );
     expect(rects.every((r) => r.style.display === "none")).toBe(true);
     hl.destroy();
@@ -83,5 +85,34 @@ describe("createSearchHighlight", () => {
     const atDestroy = rafSpy.mock.calls.length;
     await new Promise((r) => setTimeout(r, 20));
     expect(rafSpy.mock.calls.length).toBe(atDestroy);
+  });
+
+  it("hover d'un rect → tooltip : composant + métriques + dims", () => {
+    const hl = createSearchHighlight();
+    const el = makeEl();
+    el.setAttribute("data-component", "Card");
+    el.style.padding = "4px";
+    Object.defineProperty(el, "getBoundingClientRect", {
+      value: () => ({ top: 0, left: 0, right: 120, bottom: 20, width: 120, height: 20 }),
+      configurable: true,
+    });
+    hl.update([el]);
+
+    const layer = document.querySelector<HTMLElement>("[data-pathpicker-ignore]")!;
+    const tooltip = layer.firstElementChild as HTMLElement;
+
+    expect(tooltip.style.display).toBe("none");
+
+    const rectEl = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
+    rectEl.onmouseenter?.(new MouseEvent("mouseenter"));
+    expect(rectEl.style.background).toBe("rgba(59, 130, 246, 0.24)");
+    expect(tooltip.style.display).toBe("flex");
+    // Dims = badge dimensions (le label composants dépend des fibers React, absentes en jsdom).
+    const badge = tooltip.children[tooltip.children.length - 1] as HTMLElement;
+    expect(badge.textContent).toContain("120×20");
+
+    rectEl.onmouseleave?.(new MouseEvent("mouseleave"));
+    expect(tooltip.style.display).toBe("none");
+    hl.destroy();
   });
 });

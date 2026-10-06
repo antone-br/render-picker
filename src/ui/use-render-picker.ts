@@ -40,6 +40,7 @@ export interface UseRenderPickerOptions {
 export function useRenderPicker(options: UseRenderPickerOptions): {
   isActive: boolean;
   toggle: () => void;
+  setSearchMode: (on: boolean) => void;
 } {
   const {
     pathname,
@@ -89,6 +90,9 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
   };
 
   const toggle = useCallback(() => setActive((a) => !a), []);
+  const setSearchMode = useCallback((on: boolean) => {
+    inspectorRef.current?.setSearchMode(on);
+  }, []);
 
   // Raccourci clavier d'armement.
   useEffect(() => {
@@ -165,5 +169,5 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     inspectorRef.current?.refreshDecorations();
   }, [overlays?.padding, overlays?.gap, overlays?.margin]);
 
-  return { isActive, toggle };
+  return { isActive, toggle, setSearchMode };
 }
