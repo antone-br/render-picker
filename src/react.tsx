@@ -184,11 +184,12 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     onSelectionChange: (n) => setHasSelection(n > 0),
   });
 
-  // Reset au désarmement.
+  // Reset au désarmement : Échap ferme aussi la recherche (popover + rects).
   useEffect(() => {
     if (!isActive) {
       setHasSelection(false);
       setSettingsOpen(false);
+      setSearchOpen(false);
     }
   }, [isActive]);
 

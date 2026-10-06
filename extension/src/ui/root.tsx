@@ -98,6 +98,7 @@ export function ExtensionRoot({
     if (!isActive) {
       setHasSelection(false);
       setSettingsOpen(false);
+      setSearchOpen(false);
     }
   }, [isActive]);
 
