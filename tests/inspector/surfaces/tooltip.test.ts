@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   dimsText,
+  tooltipClassSummary,
   tooltipMetrics,
   tooltipTitle,
 } from "../../../src/core/inspector/surfaces/tooltip";
@@ -12,9 +13,14 @@ afterEach(() => {
 });
 
 describe("tooltipTitle", () => {
-  it("vide sans composant ni marqueur (plus de <div>)", () => {
-    document.body.innerHTML = `<div class="flex"></div>`;
+  it("vide sans classe ni marqueur", () => {
+    document.body.innerHTML = `<div></div>`;
     expect(tooltipTitle(document.querySelector("div")!, [])).toBe("");
+  });
+
+  it("classes en tête (sans composant/fibre)", () => {
+    document.body.innerHTML = `<div class="flex"></div>`;
+    expect(tooltipTitle(document.querySelector("div")!, [])).toBe(".flex");
   });
 
   it("marque · disabled", () => {
@@ -26,6 +32,26 @@ describe("tooltipTitle", () => {
     document.body.innerHTML = `<span></span><span></span>`;
     const [a, b] = Array.from(document.querySelectorAll("span"));
     expect(tooltipTitle(b!, [a!, b!])).toBe("selected #2");
+  });
+
+  it("summary : 3 classes max + (+n) caché + id en suffixe", () => {
+    document.body.innerHTML = `<div id="app" class="a b c d e"></div>`;
+    const el = document.querySelector("div")!;
+    expect(tooltipTitle(el, [])).toBe(".a.b.c (+2) · #app");
+  });
+});
+
+describe("tooltipClassSummary", () => {
+  it("3 premières classes + (+n), brut si pas plus", () => {
+    document.body.innerHTML = `<div class="a b c d e"></div><div class="x"></div>`;
+    const [app, solo] = Array.from(document.querySelectorAll("div"));
+    expect(tooltipClassSummary(app!)).toBe(".a.b.c (+2)");
+    expect(tooltipClassSummary(solo!)).toBe(".x");
+  });
+
+  it("vide sans classe", () => {
+    document.body.innerHTML = `<div></div>`;
+    expect(tooltipClassSummary(document.querySelector("div")!)).toBe("");
   });
 });
 

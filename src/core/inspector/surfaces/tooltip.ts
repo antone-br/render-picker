@@ -35,11 +35,23 @@ function titleSuffixes(el: Element, selection: Element[]): string[] {
   return parts;
 }
 
-/** Titre du tooltip : nom du composant (+ `· disabled`, `· selected #n`). `""` si rien. */
+/** Résumé classes pour le tooltip : 3 premières + `(+n)`. Pure. */
+export function tooltipClassSummary(el: Element): string {
+  const raw = el.getAttribute("class") || "";
+  const tokens = raw.trim().length > 0 ? raw.trim().split(/\s+/) : [];
+  if (tokens.length === 0) return "";
+  const head = tokens.slice(0, 3).map((cls) => `.${cls}`).join("");
+  return tokens.length > 3 ? `${head} (+${tokens.length - 3})` : head;
+}
+
+/** Titre du tooltip : nom du composant (+ classes + tag, + `disabled`, `selected #n`). */
 export function tooltipTitle(el: Element, selection: Element[]): string {
   const parts: string[] = [];
   const comp = componentInfo(el as HTMLElement)?.component;
   if (comp) parts.push(comp);
+  const cls = tooltipClassSummary(el);
+  if (cls) parts.push(cls);
+  if (el.id) parts.push(`#${el.id}`);
   parts.push(...titleSuffixes(el, selection));
   return parts.join(" · ");
 }
