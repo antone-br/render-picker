@@ -44,18 +44,14 @@ export function tooltipClassSummary(el: Element): string {
   return tokens.length > 3 ? `${head} (+${tokens.length - 3})` : head;
 }
 
-/** Titre du tooltip : ligne 1 = nom du composant (+ `disabled`, `selected #n`) ;
- * ligne 2 = classes/tag + `#id` (au-dessus des métriques padding). */
+/** Titre du tooltip : nom du composant + marqueurs (`· disabled`, `· selected #n`).
+ * Les classes/tag + `#id` vivent SOUS le divider (via `tooltipMetrics`). */
 export function tooltipTitle(el: Element, selection: Element[]): string {
-  const top: string[] = [];
+  const parts: string[] = [];
   const comp = componentInfo(el as HTMLElement)?.component;
-  if (comp) top.push(comp);
-  top.push(...titleSuffixes(el, selection));
-  const below: string[] = [];
-  const cls = tooltipClassSummary(el);
-  if (cls) below.push(cls);
-  if (el.id) below.push(`#${el.id}`);
-  return [top.join(" · "), below.join(" · ")].filter(Boolean).join("\n");
+  if (comp) parts.push(comp);
+  parts.push(...titleSuffixes(el, selection));
+  return parts.join(" · ");
 }
 
 /** Titre alternatif : classes CSS de l'élément (sinon le tag) + suffixes. Pour l'extension. */
@@ -65,10 +61,15 @@ export function tooltipClasses(el: Element, selection: Element[]): string {
   return [head, ...titleSuffixes(el, selection)].join(" · ");
 }
 
-/** Métriques layout en px : `padding: …` / `gap: …` / `margin: …` (que si non nuls). */
+/** Métriques layout en px : classes/tag + `#id` (sous le divider), puis `padding: …` /
+ * `gap: …` / `margin: …` (que si non nuls). */
 export function tooltipMetrics(el: Element): string {
-  const cs = getComputedStyle(el);
   const lines: string[] = [];
+  const cls = tooltipClassSummary(el);
+  if (cls) lines.push(cls + (el.id ? ` · #${el.id}` : ""));
+  else if (el.id) lines.push(`#${el.id}`);
+
+  const cs = getComputedStyle(el);
 
   const padding = boxValue(
     px(cs.paddingTop),

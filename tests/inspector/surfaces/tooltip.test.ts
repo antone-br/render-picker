@@ -18,9 +18,9 @@ describe("tooltipTitle", () => {
     expect(tooltipTitle(document.querySelector("div")!, [])).toBe("");
   });
 
-  it("classes en tête (sans composant/fibre)", () => {
+  it("vide sans classe ni composant/fibre", () => {
     document.body.innerHTML = `<div class="flex"></div>`;
-    expect(tooltipTitle(document.querySelector("div")!, [])).toBe(".flex");
+    expect(tooltipTitle(document.querySelector("div")!, [])).toBe("");
   });
 
   it("marque · disabled", () => {
@@ -34,10 +34,24 @@ describe("tooltipTitle", () => {
     expect(tooltipTitle(b!, [a!, b!])).toBe("selected #2");
   });
 
-  it("summary : 3 classes max + (+n) caché + id en suffixe", () => {
+  it("summary : 3 classes max + (+n) + id vont SOUS le divider (métriques)", () => {
     document.body.innerHTML = `<div id="app" class="a b c d e"></div>`;
     const el = document.querySelector("div")!;
-    expect(tooltipTitle(el, [])).toBe(".a.b.c (+2) · #app");
+    expect(tooltipTitle(el, [])).toBe("");
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      display: "block",
+      paddingTop: "4px",
+      paddingRight: "0px",
+      paddingBottom: "0px",
+      paddingLeft: "0px",
+      rowGap: "0px",
+      columnGap: "0px",
+      marginTop: "0px",
+      marginRight: "0px",
+      marginBottom: "0px",
+      marginLeft: "0px",
+    } as CSSStyleDeclaration);
+    expect(tooltipMetrics(el)).toBe(".a.b.c (+2) · #app\npadding: 4px 0px 0px 0px");
   });
 });
 
