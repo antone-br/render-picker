@@ -82,3 +82,36 @@ export function pickResultFromElement(
     reactSource: null,
   };
 }
+
+/** Suggestion = sélecteur (tag + premières classes) regroupant plusieurs éléments. */
+export interface SearchGroup {
+  /** Clé du groupe = sélecteur affiché/complété (`button.btn-primary`). */
+  key: string;
+  tag: string;
+  cls: string;
+  /** Nombre d'éléments du groupe. */
+  count: number;
+  /** Indices du groupe dans la liste plate (`searchElements`). */
+  indices: number[];
+}
+
+/** Regroupe la liste plate en suggestions par sélecteur (ordre du document). */
+export function groupResults(elements: HTMLElement[]): SearchGroup[] {
+  const byKey = new Map<string, SearchGroup>();
+  elements.forEach((el, i) => {
+    const tag = el.tagName.toLowerCase();
+    const cls =
+      typeof el.className === "string" && el.className
+        ? `.${el.className.trim().split(/\s+/).slice(0, 3).join(".")}`
+        : "";
+    const key = `${tag}${cls}`;
+    let group = byKey.get(key);
+    if (!group) {
+      group = { key, tag, cls, count: 0, indices: [] };
+      byKey.set(key, group);
+    }
+    group.count++;
+    group.indices.push(i);
+  });
+  return Array.from(byKey.values());
+}

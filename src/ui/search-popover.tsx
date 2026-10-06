@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import { searchElements, SEARCH_UI_ATTR } from "../core/search/element-search";
+import {
+  groupResults,
+  searchElements,
+  SEARCH_UI_ATTR,
+} from "../core/search/element-search";
 import { createSearchHighlight } from "../core/search/highlight";
 import {
   ELEVATED_BG,
@@ -53,6 +57,9 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
   const [index, setIndex] = useState(0);
   // Cap interne (SEARCH_MAX_RESULTS) : la liste reste lisible sur les grosses pages.
   const results = useMemo(() => searchElements(query), [query]);
+  // Suggestions = sélecteurs regroupés ; le survol/sélection met en relief TOUTES
+  // les occurrences du groupe.
+  const groups = useMemo(() => groupResults(results), [results]);
   const highlightRef = useRef<ReturnType<typeof createSearchHighlight> | null>(null);
 
   // Autofocus à l'ouverture + couche de highlights (détruite à la fermeture).
@@ -81,8 +88,8 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
     highlightRef.current?.update(results);
   }, [results]);
   useEffect(() => {
-    highlightRef.current?.setActive(index);
-  }, [index, results]);
+    highlightRef.current?.setActive(groups[index]?.indices ?? []);
+  }, [index, groups]);
 
   // Fermeture au clic hors du popover (composedPath → traverse aussi le shadow DOM).
   useEffect(() => {
@@ -103,32 +110,22 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (results.length === 0) return;
+      if (groups.length === 0) return;
       e.preventDefault();
       const next =
         e.key === "ArrowDown"
-          ? (index + 1) % results.length
-          : (index - 1 + results.length) % results.length;
+          ? (index + 1) % groups.length
+          : (index - 1 + groups.length) % groups.length;
       setIndex(next);
       return;
     }
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation(); // Pas de confirmation de sélection multiple côté inspecteur.
-      const el = results[index] ?? results[0];
-      if (el) locate(el);
+      const first = results[groups[index]?.indices[0] ?? 0];
+      if (first) locate(first);
     }
     // Échap : laisse-propager → désarme aussi (sémantique « Échap désarme toujours »).
-  };
-
-  const labelOf = (el: HTMLElement) => {
-    const tag = el.tagName.toLowerCase();
-    const cls =
-      typeof el.className === "string" && el.className
-        ? `.${el.className.trim().split(/\s+/).slice(0, 3).join(".")}`
-        : "";
-    const text = (el.textContent?.trim().slice(0, 40) || "").replace(/\s+/g, " ");
-    return { tag, cls, text };
   };
 
   return (
@@ -179,20 +176,20 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
           }}
         />
         <span style={{ fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>
-          {results.length === 0 ? "0" : `${index + 1}/${results.length}`}
+          {results.length === 0 ? "0" : `${groups.length}/${results.length}`}
         </span>
         {[
           {
             dir: "left" as const,
-            disabled: results.length === 0,
-            onClick: () => results.length > 0 && setIndex((i) => (i - 1 + results.length) % results.length),
-            label: "Élément précédent",
+            disabled: groups.length === 0,
+            onClick: () => groups.length > 0 && setIndex((i) => (i - 1 + groups.length) % groups.length),
+            label: "Suggestion précédente",
           },
           {
             dir: "right" as const,
-            disabled: results.length === 0,
-            onClick: () => results.length > 0 && setIndex((i) => (i + 1) % results.length),
-            label: "Élément suivant",
+            disabled: groups.length === 0,
+            onClick: () => groups.length > 0 && setIndex((i) => (i + 1) % groups.length),
+            label: "Suggestion suivante",
           },
         ].map(({ dir, disabled, onClick, label }) => (
           <button
@@ -233,20 +230,20 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
             Rechercher par tag (div), classe (.card) ou sélecteur CSS.
           </div>
         )}
-        {query.trim() !== "" && results.length === 0 && (
+        {query.trim() !== "" && groups.length === 0 && (
           <div style={{ ...rowStyle, color: MUTED }}>Aucun résultat</div>
         )}
-        {results.map((el, i) => {
-          const { tag, cls, text } = labelOf(el);
-          const value = `${tag}${cls}`;
+        {groups.map((g, i) => {
+          const first = results[g.indices[0]!]!;
+          const text = (first.textContent?.trim().slice(0, 40) || "").replace(/\s+/g, " ");
           return (
             <div
-              key={i}
+              key={g.key}
               role="option"
               aria-selected={i === index}
               onMouseEnter={() => setIndex(i)}
               onClick={() => {
-                setQuery(value);
+                setQuery(g.key);
                 setIndex(0);
                 inputRef.current?.focus();
               }}
@@ -264,19 +261,34 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
                   textOverflow: "ellipsis",
                 }}
               >
-                <b style={{ fontWeight: 600 }}>{tag}</b>
-                <span style={{ opacity: 0.7 }}>{cls}</span>
+                <b style={{ fontWeight: 600 }}>{g.tag}</b>
+                <span style={{ opacity: 0.7 }}>{g.cls}</span>
               </span>
-              <span
-                style={{
-                  color: MUTED,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: 150,
-                }}
-              >
-                {text}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span
+                  style={{
+                    color: MUTED,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: 120,
+                  }}
+                >
+                  {text}
+                </span>
+                <span
+                  style={{
+                    color: "#60a5fa",
+                    background: "rgba(59,130,246,0.15)",
+                    border: "1px solid rgba(59,130,246,0.3)",
+                    borderRadius: 4,
+                    padding: "0 5px",
+                    font: "600 10px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ×{g.count}
+                </span>
               </span>
             </div>
           );

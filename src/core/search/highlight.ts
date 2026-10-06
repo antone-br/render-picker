@@ -27,8 +27,8 @@ import { SEARCH_UI_ATTR } from "./element-search";
 export interface SearchHighlight {
   /** (Re)dessine les rects pour la liste d'éléments (cap ~50 côté recherche). */
   update(elements: HTMLElement[]): void;
-  /** Déplace le rect actif (index dans la dernière liste passée à `update`). */
-  setActive(index: number): void;
+  /** Rects nets (indices dans la dernière liste — sélection de groupe multi). */
+  setActive(indices: number[]): void;
   /** Retire tous les rects (input vidé). */
   clear(): void;
   /** Retire la couche du DOM et arrête la boucle rAF. */
@@ -124,7 +124,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
 
   let rects: HTMLElement[] = [];
   let elements: HTMLElement[] = [];
-  let activeIndex = -1;
+  let activeSet = new Set<number>();
   let hoveredIndex = -1;
   let disposed = false;
   let rafId = 0;
@@ -163,7 +163,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
         if (rect) rect.style.display = "none";
         return;
       }
-      const active = i === activeIndex || i === hoveredIndex;
+      const active = activeSet.has(i) || i === hoveredIndex;
       rect.style.background = active ? SELECTED_BG : HIGHLIGHT_BG;
       rect.style.border = active
         ? HIGHLIGHT_BORDER
@@ -234,13 +234,14 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
       });
       redraw();
     },
-    setActive(index) {
-      activeIndex = index;
+    setActive(indices) {
+      activeSet = new Set(indices);
       redraw();
     },
     clear() {
       elements = [];
       hoveredIndex = -1;
+      activeSet = new Set();
       surface.tooltip.style.display = "none";
       for (const rect of rects) rect.style.display = "none";
     },

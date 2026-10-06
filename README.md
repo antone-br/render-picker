@@ -112,8 +112,9 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 (click / right-click / double-click) — and the keyboard keys **Confirm** (default `Enter`) and
 **Cancel** (default `Esc`), plus **Search** (default `Ctrl`+`F`, armed only) and **Inspector**
 (default `Ctrl`+`I`). Search opens an element finder: type a tag (`div`), a class (`.card`), a
-CSS selector or a React component name (`Button`, only where the npm annotator runs) — every
-match gets the hover-style highlight rect on the page (live, follows scroll/resize); the
+CSS selector or a React component name (`Button`, only where the npm annotator runs) — results
+group into suggestions (selector + occurrence count), and hovering/selecting a suggestion
+highlights ALL its occurrences on the page with live rects (follows scroll/resize); the
 inspector's own hover rect is paused while searching. Hovering a search rect then shows the element
 tooltip (component, metrics, dimensions), clicking one copies the enriched snippet (pick),
 right-clicking one copies the raw `outerHTML`; the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the

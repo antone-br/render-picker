@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  groupResults,
   pickResultFromElement,
   searchElements,
   toSelector,
@@ -109,6 +110,30 @@ describe("searchElements", () => {
   it("ne crashe pas sur un sélecteur CSS invalide", () => {
     document.body.innerHTML = "<div></div>";
     expect(searchElements("div[class")).toHaveLength(0);
+  });
+});
+
+describe("groupResults", () => {
+  it("regroupe par tag + classes (3 max), compte les occurrences", () => {
+    document.body.innerHTML =
+      '<button class="btn primary">1</button>' +
+      '<button class="btn primary">2</button>' +
+      "<button>3</button>" +
+      '<input type="text" />';
+    const groups = groupResults(searchElements("button, input"));
+
+    expect(groups.map((g) => g.key)).toEqual([
+      "button.btn.primary",
+      "button",
+      "input",
+    ]);
+    expect(groups[0]!.count).toBe(2);
+    expect(groups[0]!.indices).toEqual([0, 1]);
+    expect(groups[1]!.indices).toEqual([2]);
+  });
+
+  it("vide pour une liste vide", () => {
+    expect(groupResults([])).toEqual([]);
   });
 });
 

@@ -39,16 +39,17 @@ describe("createSearchHighlight", () => {
     hl.destroy();
   });
 
-  it("setActive : seul l'actif porte le rect net (SELECTED_BG)", () => {
+  it("setActive : indices multiples nets (selection de groupe)", () => {
     const hl = createSearchHighlight();
-    hl.update([makeEl(), makeEl()]);
-    hl.setActive(1);
+    hl.update([makeEl(), makeEl(), makeEl()]);
+    hl.setActive([0, 2]);
 
     const rects = Array.from(
       document.querySelectorAll<HTMLElement>(RECT_SELECTOR),
     );
-    expect(rects[0]!.style.background).toBe("rgba(59, 130, 246, 0.15)");
-    expect(rects[1]!.style.background).toBe("rgba(59, 130, 246, 0.24)");
+    expect(rects[0]!.style.background).toBe("rgba(59, 130, 246, 0.24)");
+    expect(rects[1]!.style.background).toBe("rgba(59, 130, 246, 0.15)");
+    expect(rects[2]!.style.background).toBe("rgba(59, 130, 246, 0.24)");
     hl.destroy();
   });
 
