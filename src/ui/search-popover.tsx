@@ -56,8 +56,8 @@ export function SearchPopover({ onClose, onPickElement }: SearchPopoverProps) {
     inputRef.current?.focus();
     ref.current?.animate?.(
       [
-        { opacity: 0, transform: "scale(.95) translateY(4px)" },
-        { opacity: 1, transform: "none" },
+        { opacity: 0, transform: "translateX(-50%) scale(.95) translateY(4px)" },
+        { opacity: 1, transform: "translateX(-50%)" },
       ],
       { duration: 120, easing: "ease-out" },
     );
