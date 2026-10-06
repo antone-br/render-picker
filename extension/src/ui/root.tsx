@@ -171,6 +171,10 @@ export function ExtensionRoot({
             );
             showToast("Copié ✓");
           }}
+          onCopyHtmlElement={(el) => {
+            copy(formatHtml(el.outerHTML));
+            showToast("HTML copié ✓");
+          }}
         />
       )}
 

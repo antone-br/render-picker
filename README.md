@@ -115,8 +115,8 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 CSS selector or a React component name (`Button`, only where the npm annotator runs) — every
 match gets the hover-style highlight rect on the page (live, follows scroll/resize); the
 inspector's own hover rect is paused while searching. Hovering a search rect shows the element
-tooltip (component, metrics, dimensions), clicking one copies the enriched snippet (pick);
-the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the
+tooltip (component, metrics, dimensions), clicking one copies the enriched snippet (pick),
+right-clicking one copies the raw `outerHTML`; the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the
 active element, clicking a row refines the query (tag + classes back into the input), `Enter`
 scrolls to it. The
 SettingsBar also hosts a magnifier icon next to the gear (npm package and Chrome extension).

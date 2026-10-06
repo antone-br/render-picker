@@ -92,6 +92,20 @@ describe("createSearchHighlight", () => {
     hl.destroy();
   });
 
+  it("clic droit sur un rect → callback onCopyHtml", () => {
+    const html: HTMLElement[] = [];
+    const hl = createSearchHighlight({ onCopyHtml: (el) => html.push(el) });
+    const el = makeEl();
+    hl.update([el]);
+
+    const rectEl = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
+    rectEl.oncontextmenu?.(new MouseEvent("contextmenu") as unknown as PointerEvent);
+
+    expect(html).toHaveLength(1);
+    expect(html[0]).toBe(el);
+    hl.destroy();
+  });
+
   it("destroy : arrête la boucle rAF (plus de redraw)", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame");
     const hl = createSearchHighlight();

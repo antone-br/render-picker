@@ -273,6 +273,10 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
             copy(formatResult(enriched));
             showToast("Copié ✓");
           }}
+          onCopyHtmlElement={(el) => {
+            copy(formatHtml(el.outerHTML));
+            showToast("HTML copié ✓");
+          }}
         />
       )}
 

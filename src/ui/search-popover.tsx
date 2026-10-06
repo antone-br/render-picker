@@ -17,6 +17,8 @@ export interface SearchPopoverProps {
   onClose: () => void;
   /** Clic sur un rect highlight → copie du snippet enrichi côté appelant. */
   onPickElement?: (el: HTMLElement) => void;
+  /** Clic droit sur un rect highlight → copie de l'`outerHTML` brut (côté appelant). */
+  onCopyHtmlElement?: (el: HTMLElement) => void;
 }
 
 const rowStyle = {
@@ -37,13 +39,15 @@ const rowStyle = {
  * l'élément actif (↑/↓ ou survol de la ligne) porte le rect le plus net,
  * Entrée le scrolle dans le viewport. Échap ferme. Interactive même picker armé.
  */
-export function SearchPopover({ onClose, onPickElement }: SearchPopoverProps) {
+export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: SearchPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
   const onPickRef = useRef(onPickElement);
+  const onCopyHtmlRef = useRef(onCopyHtmlElement);
   onCloseRef.current = onClose;
   onPickRef.current = onPickElement;
+  onCopyHtmlRef.current = onCopyHtmlElement;
 
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
@@ -63,6 +67,7 @@ export function SearchPopover({ onClose, onPickElement }: SearchPopoverProps) {
     );
     const highlight = createSearchHighlight({
       onPick: (el) => onPickRef.current?.(el),
+      onCopyHtml: (el) => onCopyHtmlRef.current?.(el),
     });
     highlightRef.current = highlight;
     return () => {

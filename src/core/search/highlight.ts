@@ -103,6 +103,8 @@ function createTooltipSurface(): {
 export interface SearchHighlightOptions {
   /** Clic sur un rect : copie le snippet enrichi côté appelant (scroll inclus). */
   onPick?: (el: HTMLElement) => void;
+  /** Clic droit sur un rect : copie l'`outerHTML` brut côté appelant. */
+  onCopyHtml?: (el: HTMLElement) => void;
 }
 
 export function createSearchHighlight(options: SearchHighlightOptions = {}): SearchHighlight {
@@ -213,6 +215,13 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
         rect.onmousedown = (e) => {
           e.preventDefault();
           e.stopPropagation();
+        };
+        rect.oncontextmenu = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const el = elements[i];
+          if (!el) return;
+          options.onCopyHtml?.(el);
         };
         rect.onclick = (e) => {
           e.preventDefault();
