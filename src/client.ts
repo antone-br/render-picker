@@ -3,6 +3,7 @@ import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { initClickToSource } from "./core/dev/click-to-source";
 import { initComponentAnnotator } from "./core/source/component-annotate";
 import { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
+import { initSettingsRefresh } from "./core/settings";
 
 export interface RenderPickerOptions {
   /** Active l'outillage. Défaut : `process.env.NODE_ENV !== "production"`. */
@@ -65,6 +66,9 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
   // Capture console + network pour le panneau d'inspection.
   cleanups.push(startCapture());
 
+  // Config.json relu sur le disque (route dev) au focus — remap à chaud.
+  cleanups.push(initSettingsRefresh());
+
   if (hushConsole) {
     cleanups.push(
       hushConsoleNoise(hushConsole === true ? DEFAULT_HUSH_RULES : hushConsole),
@@ -121,8 +125,11 @@ export {
 export {
   DEFAULT_SETTINGS,
   fetchSettings,
+  initSettingsRefresh,
   loadSettings,
+  refreshSettings,
   saveSettings,
+  settingsDelta,
   type RenderPickerSettings,
 } from "./core/settings";
 export type {

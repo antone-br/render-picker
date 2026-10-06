@@ -1,7 +1,8 @@
 /**
- * Paramètres utilisateur persistés. Priorité : `render-picker.config.json` à la
- * racine (injecté au build par `withRenderPicker` → `NEXT_PUBLIC_RENDER_PICKER_CONFIG`,
- * lecture seule) > `localStorage` > défauts. Sans React.
+ * Paramètres utilisateur persistés. Priorité : patch lu via la route dev
+ * (`render-picker.config.json` relu sur le disque — cache à chaud, rafraîchi au
+ * focus) > fichier racine injecté au build (`NEXT_PUBLIC_RENDER_PICKER_CONFIG`,
+ * figé au démarrage du serveur) > `localStorage` > défauts. Sans React.
  */
 
 /** Modificateur d'un geste souris remappable. */
@@ -116,13 +117,19 @@ const STORAGE_KEY = "render-picker:settings";
 /** Route API dev (handlers `GET`/`POST` de `@antone-br/render-picker/next`). */
 const ENDPOINT = "/api/render-picker";
 
+/** Patch partiel de settings : sous-ensembles de `commands` et `panel`. */
+export type SettingsPatch = {
+  commands?: Partial<RenderPickerSettings["commands"]>;
+  panel?: Partial<RenderPickerSettings["panel"]>;
+};
+
 /** Paramètres fournis par le fichier racine (ou `null` si absent). */
-function configSettings(): Partial<RenderPickerSettings> | null {
+function configSettings(): SettingsPatch | null {
   // Accès littéral : Next remplace `process.env.X` à la build.
   try {
     const raw = process.env.NEXT_PUBLIC_RENDER_PICKER_CONFIG;
     if (!raw) return null;
-    return JSON.parse(raw) as Partial<RenderPickerSettings>;
+    return JSON.parse(raw) as SettingsPatch;
   } catch {
     return null;
   }
@@ -133,9 +140,41 @@ export function hasConfigFile(): boolean {
   return configSettings() !== null;
 }
 
+function sameBinding(a: GestureBinding, b: GestureBinding): boolean {
+  return a.modifier === b.modifier && a.trigger === b.trigger;
+}
+
+/** Diff minimal entre des settings et une base (défauts par défaut). Pur. */
+export function settingsDelta(
+  settings: RenderPickerSettings,
+  base: RenderPickerSettings = DEFAULT_SETTINGS,
+): SettingsPatch {
+  const delta: SettingsPatch = {};
+  const commands: Partial<RenderPickerSettings["commands"]> = {};
+  const sc = settings.commands;
+  const bc = base.commands;
+  if (sc.arm !== bc.arm) commands.arm = sc.arm;
+  if (!sameBinding(sc.copy, bc.copy)) commands.copy = sc.copy;
+  if (!sameBinding(sc.copyHtml, bc.copyHtml)) commands.copyHtml = sc.copyHtml;
+  if (!sameBinding(sc.multi, bc.multi)) commands.multi = sc.multi;
+  if (sc.confirm !== bc.confirm) commands.confirm = sc.confirm;
+  if (sc.cancel !== bc.cancel) commands.cancel = sc.cancel;
+  if (sc.inspect !== bc.inspect) commands.inspect = sc.inspect;
+  if (!sameBinding(sc.source, bc.source)) commands.source = sc.source;
+  if (!sameBinding(sc.usage, bc.usage)) commands.usage = sc.usage;
+  if (Object.keys(commands).length > 0) delta.commands = commands;
+  if (
+    settings.panel.width !== base.panel.width ||
+    settings.panel.height !== base.panel.height
+  ) {
+    delta.panel = { width: settings.panel.width, height: settings.panel.height };
+  }
+  return delta;
+}
+
 function merge(
   base: RenderPickerSettings,
-  patch: Partial<RenderPickerSettings> | null,
+  patch: SettingsPatch | null,
 ): RenderPickerSettings {
   if (!patch) return base;
   const patchCommands: Partial<RenderPickerSettings["commands"]> =
@@ -158,8 +197,10 @@ function merge(
   };
 }
 
-/** Charge les paramètres : fichier racine si présent, sinon localStorage, sinon défauts. */
+/** Charge les paramètres : cache route > fichier racine (env) > localStorage > défauts. */
 export function loadSettings(): RenderPickerSettings {
+  if (routePatch !== undefined) return merge(DEFAULT_SETTINGS, routePatch);
+
   const file = configSettings();
   if (file) return merge(DEFAULT_SETTINGS, file);
 
@@ -167,7 +208,7 @@ export function loadSettings(): RenderPickerSettings {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw
-      ? merge(DEFAULT_SETTINGS, JSON.parse(raw) as Partial<RenderPickerSettings>)
+      ? merge(DEFAULT_SETTINGS, JSON.parse(raw) as SettingsPatch)
       : DEFAULT_SETTINGS;
   } catch {
     return DEFAULT_SETTINGS;
@@ -186,13 +227,21 @@ function warnNoRoute(detail: string): void {
 }
 
 /**
- * Sauvegarde : localStorage (cache instantané) + POST vers la route dev (écrit
- * `render-picker.config.json`). Prévient en console si la route est absente/échoue.
+ * Sauvegarde : **delta** vs défauts → localStorage (cache instantané) + POST vers
+ * la route dev (écrit `render-picker.config.json`). Delta vide → clé nettoyée et
+ * POST `{}`. Au POST OK, le cache route est alimenté (write-through) : le nouveau
+ * binding est effectif sans attendre le refocus. Prévient en console si la route
+ * est absente/échoue.
  */
 export function saveSettings(settings: RenderPickerSettings): void {
   if (typeof window === "undefined") return;
+  const delta = settingsDelta(settings);
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    if (Object.keys(delta).length === 0) {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(delta));
+    }
   } catch {
     // quota / mode privé — ignore
   }
@@ -200,28 +249,91 @@ export function saveSettings(settings: RenderPickerSettings): void {
     fetch(ENDPOINT, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(settings),
+      body: JSON.stringify(delta),
     })
       .then((res) => {
-        if (!res.ok) warnNoRoute(`status ${res.status}`);
+        if (!res.ok) {
+          warnNoRoute(`status ${res.status}`);
+          return;
+        }
+        routePatch = delta; // write-through : le disque vient d'être écrit
       })
       .catch((e) => warnNoRoute(String(e)));
   }
 }
 
-/**
- * Lit les settings via la route dev (`render-picker.config.json`, autoritaire).
- * `null` si la route est absente / indisponible.
- */
-export async function fetchSettings(): Promise<RenderPickerSettings | null> {
+/** Patch brut lu via la route (`undefined` = jamais lu, `null` = route absente). */
+let routePatch: SettingsPatch | null | undefined;
+let refreshUsers = 0;
+let stopRefresh: (() => void) | null = null;
+
+/** Patch brut de la route dev, ou `null` (absent, vide ou indisponible). */
+async function fetchPatch(): Promise<SettingsPatch | null> {
   if (typeof fetch === "undefined") return null;
   try {
     const res = await fetch(ENDPOINT);
     if (!res.ok) return null;
-    const data = (await res.json()) as Partial<RenderPickerSettings>;
-    if (!data || !data.commands) return null;
-    return merge(DEFAULT_SETTINGS, data);
+    const data = (await res.json()) as SettingsPatch | null;
+    if (!data || typeof data !== "object") return null;
+    // Fichier vide / absent (`{}`) = pas de config : on retombe sur env/localStorage.
+    if (Object.keys(data).length === 0) return null;
+    return data;
   } catch {
     return null;
   }
+}
+
+/**
+ * Relecture du disque via la route dev : alimente le cache route qui devient
+ * prioritaire dans `loadSettings`. Sans effet si la route est absente.
+ */
+export async function refreshSettings(): Promise<void> {
+  const patch = await fetchPatch();
+  if (patch) routePatch = patch;
+}
+
+/**
+ * Écoute les moments où le fichier de config peut avoir changé (focus,
+ * retour d'onglet) + fetch initial. Plusieurs init (client + bouton React)
+ * partagent les mêmes listeners. Retourne une fonction d'arrêt.
+ */
+export function initSettingsRefresh(): () => void {
+  if (typeof window === "undefined") return () => {};
+  if (refreshUsers === 0) {
+    void refreshSettings();
+    const onFocus = () => {
+      void refreshSettings();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refreshSettings();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    stopRefresh = () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      stopRefresh = null;
+    };
+  }
+  refreshUsers++;
+  return () => {
+    refreshUsers--;
+    if (refreshUsers === 0 && stopRefresh) stopRefresh();
+  };
+}
+
+/** Réinitialise le cache route et l'avertissement route absente (tests / hot-reload). */
+export function resetSettingsRouteCache(): void {
+  routePatch = undefined;
+  warnedNoRoute = false;
+}
+
+/**
+ * Lit les settings via la route dev (`render-picker.config.json`, autoritaire).
+ * `null` si la route est absente / indisponible / sans contenu.
+ */
+export async function fetchSettings(): Promise<RenderPickerSettings | null> {
+  const patch = await fetchPatch();
+  if (!patch || !patch.commands) return null;
+  return merge(DEFAULT_SETTINGS, patch);
 }

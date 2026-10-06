@@ -8,7 +8,12 @@ import {
 } from "react";
 
 import { formatHtml, formatResult, formatResults } from "./core/format";
-import { loadSettings, saveSettings } from "./core/settings";
+import {
+  initSettingsRefresh,
+  loadSettings,
+  refreshSettings,
+  saveSettings,
+} from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
 import { startCapture } from "./core/devpanel/capture";
 import { loadPanelState, savePanelState } from "./core/devpanel/panel-state";
@@ -95,6 +100,27 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
 
   // Capture console + network pour le panneau d'inspection (si init non appelé).
   useEffect(() => startCapture(), []);
+
+  // Config.json relu sur le disque au focus + re-sync de l'état des commandes
+  // (édit manuel du fichier pris en compte sans recharger la page).
+  useEffect(() => {
+    const stop = initSettingsRefresh();
+    const sync = async () => {
+      await refreshSettings();
+      setCommands(loadSettings().commands);
+    };
+    const onFocus = () => void sync();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void sync();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const handlePick = useCallback(
     (result: PickResult) => {

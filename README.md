@@ -114,7 +114,9 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 
 Choices are saved to `localStorage` by default. To persist them to a committable
 **`render-picker.config.json`** at the project root, add a dev API route (one line) — changes then
-write the file (GET reads it back):
+write the file (GET reads it back). Settings are read **live**: UI remaps apply immediately, and
+manual edits to `render-picker.config.json` are picked up on window focus — no `next dev` restart
+needed (the dev route reads the file from disk).
 
 ```ts
 // app/api/render-picker/route.ts
