@@ -113,7 +113,8 @@ The settings dropdown (gear) holds a **Commands** accordion to remap every short
 **Cancel** (default `Esc`), plus **Search** (default `Ctrl`+`F`, armed only) and **Inspector**
 (default `Ctrl`+`I`). Search opens an element finder: type a tag (`div`), a class (`.card`) or a
 CSS selector — every match gets the hover-style highlight rect on the page (live, follows
-scroll/resize); ↑/↓ or hovering a row picks the active one, `Enter` scrolls to it. The
+scroll/resize); hovering a row picks the active one, clicking a row refines the query
+(tag + classes back into the input), `Enter` scrolls to it. The
 SettingsBar also hosts a magnifier icon next to the gear (npm package and Chrome extension).
 `Esc` always disarms as a safety net.
 

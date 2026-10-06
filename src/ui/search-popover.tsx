@@ -181,13 +181,18 @@ export function SearchPopover({ onClose }: SearchPopoverProps) {
         )}
         {results.map((el, i) => {
           const { tag, cls, text } = labelOf(el);
+          const value = `${tag}${cls}`;
           return (
             <div
               key={i}
               role="option"
               aria-selected={i === index}
               onMouseEnter={() => setIndex(i)}
-              onClick={() => locate(el)}
+              onClick={() => {
+                setQuery(value);
+                setIndex(0);
+                inputRef.current?.focus();
+              }}
               style={{
                 ...rowStyle,
                 cursor: "pointer",
@@ -230,7 +235,7 @@ export function SearchPopover({ onClose }: SearchPopoverProps) {
           justifyContent: "flex-start",
         }}
       >
-        Entrée : localiser (scroll) · ↑/↓ : naviguer · Échap : fermer
+        Clic : affiner · Entrée : localiser (scroll) · Échap : fermer
       </div>
     </div>
   );
