@@ -17,8 +17,8 @@ export interface UseRenderPickerOptions {
   onPick?: (result: PickResult) => void;
   /** Confirmation d'une sélection multiple (Entrée). */
   onPickMany?: (results: PickResult[]) => void;
-  /** Copier l'HTML brut (clic droit par défaut). */
-  onCopyHtml?: (html: string, el: Element) => void;
+  /** Ouvre le menu contextuel (geste `copyHtml` : copier HTML / classes). */
+  onContextMenu?: (el: Element, pos: { x: number; y: number }) => void;
   /** Visualisations layout au survol (padding/gap/margin). Lu en direct. */
   overlays?: LayoutOverlays;
   /** Liaisons des commandes (copy/multi/confirm/cancel). Lu en direct. */
@@ -48,7 +48,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     multi = true,
     onPick,
     onPickMany,
-    onCopyHtml,
+    onContextMenu,
     overlays,
     commands,
     getTitle,
@@ -67,7 +67,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     multi,
     onPick,
     onPickMany,
-    onCopyHtml,
+    onContextMenu,
     overlays,
     commands,
     getTitle,
@@ -80,7 +80,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     multi,
     onPick,
     onPickMany,
-    onCopyHtml,
+    onContextMenu,
     overlays,
     commands,
     getTitle,
@@ -141,10 +141,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
         setActive(false);
         optsRef.current.onPickMany?.(rs);
       },
-      onCopyHtml: (html, el) => {
-        setActive(false);
-        optsRef.current.onCopyHtml?.(html, el);
-      },
+      onContextMenu: (el, pos) => optsRef.current.onContextMenu?.(el, pos),
       onCancel: () => setActive(false),
       getRoute: () => optsRef.current.pathname ?? window.location.pathname ?? "/",
       multi: optsRef.current.multi,

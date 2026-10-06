@@ -103,6 +103,7 @@ describe("createInspector — interactions", () => {
     insp.setSearchMode(false);
     pressDown({ clientX: 5, clientY: 5, button: 0 });
     expect(onPick).toHaveBeenCalledTimes(1);
+    insp.deactivate();
   });
 
   it("Maj+clic accumule, Entrée → onPickMany", () => {
@@ -184,15 +185,15 @@ describe("createInspector — interactions", () => {
     expect(onPick).toHaveBeenCalledTimes(1);
   });
 
-  it("clic droit (défaut) → onCopyHtml avec l'outerHTML", () => {
+  it("clic droit (défaut) → menu contextuel (el + position curseur)", () => {
     document.body.innerHTML = `<main><button id="b">x</button></main>`;
     const btn = document.getElementById("b")!;
     stubElementFromPoint(btn);
 
-    const onCopyHtml = vi.fn<(h: string, el: Element) => void>();
+    const onContextMenu = vi.fn<(el: Element, pos: { x: number; y: number }) => void>();
     const insp = createInspector({
       onPick: () => {},
-      onCopyHtml,
+      onContextMenu,
       onCancel: () => {},
       getRoute: () => "/",
     });
@@ -202,20 +203,22 @@ describe("createInspector — interactions", () => {
       new MouseEvent("contextmenu", { clientX: 5, clientY: 5, button: 2, bubbles: true }),
     );
 
-    expect(onCopyHtml).toHaveBeenCalledTimes(1);
-    expect(onCopyHtml.mock.calls[0]![0]).toContain('id="b"');
+    expect(onContextMenu).toHaveBeenCalledTimes(1);
+    expect(onContextMenu.mock.calls[0]![0]).toBe(btn);
+    expect(onContextMenu.mock.calls[0]![1]).toEqual({ x: 5, y: 5 });
+    insp.deactivate();
   });
 
-  it("clic gauche → onPick, jamais onCopyHtml", () => {
+  it("clic gauche → onPick, jamais de menu contextuel", () => {
     document.body.innerHTML = `<main><button id="b">x</button></main>`;
     const btn = document.getElementById("b")!;
     stubElementFromPoint(btn);
 
     const onPick = vi.fn();
-    const onCopyHtml = vi.fn();
+    const onContextMenu = vi.fn();
     const insp = createInspector({
       onPick,
-      onCopyHtml,
+      onContextMenu,
       onCancel: () => {},
       getRoute: () => "/",
     });
@@ -224,7 +227,7 @@ describe("createInspector — interactions", () => {
     pressDown({ clientX: 5, clientY: 5, button: 0 });
 
     expect(onPick).toHaveBeenCalledTimes(1);
-    expect(onCopyHtml).not.toHaveBeenCalled();
+    expect(onContextMenu).not.toHaveBeenCalled();
   });
 
   it("refreshDecorations met à jour les décorations sans mousemove", () => {

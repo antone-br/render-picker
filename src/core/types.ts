@@ -32,8 +32,6 @@ export interface PickResult {
 export interface InspectorCallbacks {
   /** Pick simple (clic) → résultat partiel (sans enrichissement React). */
   onPick: (result: PickResult) => void;
-  /** Copier l'HTML brut de l'élément (`outerHTML`). */
-  onCopyHtml?: (html: string, el: Element) => void;
   /** Confirmation d'une sélection multiple (Entrée). */
   onPickMany?: (results: PickResult[]) => void;
   /** Désarmement (Échap). */
@@ -50,6 +48,8 @@ export interface InspectorCallbacks {
   getTitle?: (el: Element, selection: Element[]) => string;
   /** Ouvre le panneau d'inspection pour l'élément (touche `inspect`). */
   onInspect?: (el: Element) => void;
+  /** Ouvre le menu contextuel (remappable `copyHtml` : copier HTML / classes). */
+  onContextMenu?: (el: Element, pos: { x: number; y: number }) => void;
   /** Ouvre la recherche d'éléments (touche `search`, Ctrl + touche). */
   onSearch?: () => void;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */

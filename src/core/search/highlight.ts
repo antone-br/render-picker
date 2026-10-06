@@ -106,8 +106,8 @@ function createTooltipSurface(): {
 export interface SearchHighlightOptions {
   /** Clic sur un rect : copie le snippet enrichi côté appelant (scroll inclus). */
   onPick?: (el: HTMLElement) => void;
-  /** Clic droit sur un rect : copie l'`outerHTML` brut côté appelant. */
-  onCopyHtml?: (el: HTMLElement) => void;
+  /** Clic droit sur un rect : ouvre le menu contextuel (copier HTML / classes). */
+  onContextMenu?: (el: HTMLElement, pos: { x: number; y: number }) => void;
   /**
    * Ctrl+click / Alt+click sur un rect → même geste que picker éteint (VS Code).
    * Retourne `true` quand l'ouverture a été prise en charge.
@@ -235,7 +235,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
           e.stopPropagation();
           const el = elements[i];
           if (!el) return;
-          options.onCopyHtml?.(el);
+          options.onContextMenu?.(el, { x: e.clientX, y: e.clientY });
         };
         rect.onclick = (e) => {
           e.preventDefault();

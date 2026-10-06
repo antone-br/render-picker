@@ -20,7 +20,8 @@ import { loadPanelState, savePanelState } from "../../../src/core/devpanel/panel
 import { DevPanel } from "../../../src/ui/dev-panel";
 import { formatResult } from "../../../src/core/format";
 import { pickResultFromElement } from "../../../src/core/search/element-search";
-import { CrosshairIcon } from "../../../src/ui/icons";
+import { ContextMenu, type ContextMenuState } from "../../../src/ui/context-menu";
+import { CopyIcon, CrosshairIcon, Html5Icon } from "../../../src/ui/icons";
 import { SettingsBar } from "../../../src/ui/settings-bar";
 import { SearchPopover } from "../../../src/ui/search-popover";
 import { useRenderPicker } from "../../../src/ui/use-render-picker";
@@ -47,6 +48,7 @@ export function ExtensionRoot({
   const [hasSelection, setHasSelection] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
   const [panelOpen, setPanelOpen] = useState(() => loadPanelState().open);
@@ -80,9 +82,10 @@ export function ExtensionRoot({
       copy(formatResults(rs.map((r) => enrichResult(r))));
       showToast(`Copié ✓ · ${rs.length}`);
     },
-    onCopyHtml: (html) => {
-      copy(formatHtml(html));
-      showToast("HTML copié ✓");
+    onContextMenu: (el, pos) => {
+      if (el instanceof HTMLElement) {
+        setContextMenu({ el, x: pos.x, y: pos.y });
+      }
     },
     onInspect: () => {
       setPanelOpen(true);
@@ -173,10 +176,39 @@ export function ExtensionRoot({
             );
             showToast("Copié ✓");
           }}
-          onCopyHtmlElement={(el) => {
-            copy(formatHtml(el.outerHTML));
-            showToast("HTML copié ✓");
+          onContextMenuElement={(el, pos) => {
+            setContextMenu({ el, x: pos.x, y: pos.y });
           }}
+        />
+      )}
+
+      {contextMenu && (
+        <ContextMenu
+          at={contextMenu}
+          onClose={() => setContextMenu(null)}
+          items={[
+            {
+              label: "Copier en HTML",
+              description: "outerHTML brut, formaté",
+              icon: <Html5Icon />,
+              onClick: () => {
+                copy(formatHtml(contextMenu.el.outerHTML));
+                showToast("HTML copié ✓");
+                setContextMenu(null);
+              },
+            },
+            {
+              label: "Copier les classes",
+              description: "liste des classes de l'élément",
+              icon: <CopyIcon />,
+              onClick: () => {
+                const cls = contextMenu.el.getAttribute("class");
+                copy(cls ?? "");
+                showToast(cls ? "Classes copiées ✓" : "Aucune classe");
+                setContextMenu(null);
+              },
+            },
+          ]}
         />
       )}
 

@@ -321,12 +321,10 @@ class Inspector {
       return;
     }
 
-    // Copier l'HTML brut (clic droit par défaut). Après `copy` (prioritaire si même geste).
-    if (isCopyHtml && this.callbacks.onCopyHtml) {
-      const html = target.outerHTML;
-      this.callbacks.onCopyHtml(html, target);
-      this.deactivate();
-      this.swallowTrailingPress();
+    // Menu contextuel (clic droit par défaut) — plus de copie directe ;
+    // l'inspecteur reste armé, le menu vit indépendamment.
+    if (isCopyHtml && this.callbacks.onContextMenu) {
+      this.callbacks.onContextMenu(target, { x: me.clientX, y: me.clientY });
     }
   };
 

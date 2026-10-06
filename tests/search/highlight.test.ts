@@ -124,17 +124,22 @@ describe("createSearchHighlight", () => {
     hl.destroy();
   });
 
-  it("clic droit sur un rect → callback onCopyHtml", () => {
-    const html: HTMLElement[] = [];
-    const hl = createSearchHighlight({ onCopyHtml: (el) => html.push(el) });
+  it("clic droit sur un rect → crée un menu contextuel (el + pos)", () => {
+    const menus: [HTMLElement, { x: number; y: number }][] = [];
+    const hl = createSearchHighlight({
+      onContextMenu: (el, pos) => menus.push([el, pos]),
+    });
     const el = makeEl();
     hl.update([el]);
 
     const rectEl = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
-    rectEl.oncontextmenu?.(new MouseEvent("contextmenu") as unknown as PointerEvent);
+    rectEl.oncontextmenu?.(
+      new MouseEvent("contextmenu", { clientX: 40, clientY: 60 }) as unknown as PointerEvent,
+    );
 
-    expect(html).toHaveLength(1);
-    expect(html[0]).toBe(el);
+    expect(menus).toHaveLength(1);
+    expect(menus[0]![0]).toBe(el);
+    expect(menus[0]![1]).toEqual({ x: 40, y: 60 });
     hl.destroy();
   });
 

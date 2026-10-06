@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -28,7 +29,8 @@ import {
 import type { PickResult } from "./core/types";
 import { DevPanel } from "./ui/dev-panel";
 import { SearchPopover } from "./ui/search-popover";
-import { CrosshairIcon } from "./ui/icons";
+import { ContextMenu, type ContextMenuState } from "./ui/context-menu";
+import { CopyIcon, CrosshairIcon, Html5Icon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
 
@@ -78,6 +80,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(() => loadPanelState().open);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commands, setCommands] = useState(() => loadSettings().commands);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
@@ -157,9 +160,18 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     hotkey !== undefined ? hotkey : commands.arm === "off" ? false : commands.arm;
 
   const handleCopyHtml = useCallback(
-    (html: string) => {
-      copy(formatHtml(html));
+    (el: HTMLElement) => {
+      copy(formatHtml(el.outerHTML));
       showToast("HTML copié ✓");
+    },
+    [showToast],
+  );
+
+  const handleCopyClasses = useCallback(
+    (el: HTMLElement) => {
+      const cls = el.getAttribute("class");
+      copy(cls ?? "");
+      showToast(cls ? "Classes copiées ✓" : "Aucune classe");
     },
     [showToast],
   );
@@ -170,7 +182,11 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     multi,
     onPick: handlePick,
     onPickMany: handlePickMany,
-    onCopyHtml: handleCopyHtml,
+    onContextMenu: (el, pos) => {
+      if (el instanceof HTMLElement) {
+        setContextMenu({ el, x: pos.x, y: pos.y });
+      }
+    },
     onInspect: () => {
       setPanelOpen(true);
       savePanelState({ open: true });
@@ -184,12 +200,41 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     onSelectionChange: (n) => setHasSelection(n > 0),
   });
 
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const contextMenuItems = useMemo(
+    () => [
+      {
+        label: "Copier en HTML",
+        description: "outerHTML brut, formaté",
+        icon: <Html5Icon />,
+        onClick: () => {
+          if (!contextMenu) return;
+          handleCopyHtml(contextMenu.el);
+          closeContextMenu();
+        },
+      },
+      {
+        label: "Copier les classes",
+        description: "liste des classes de l'élément",
+        icon: <CopyIcon />,
+        onClick: () => {
+          if (!contextMenu) return;
+          handleCopyClasses(contextMenu.el);
+          closeContextMenu();
+        },
+      },
+    ],
+    [contextMenu, closeContextMenu, handleCopyClasses, handleCopyHtml],
+  );
+
   // Reset au désarmement : Échap ferme aussi la recherche (popover + rects).
   useEffect(() => {
     if (!isActive) {
       setHasSelection(false);
       setSettingsOpen(false);
       setSearchOpen(false);
+      setContextMenu(null);
     }
   }, [isActive]);
 
@@ -275,9 +320,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
             copy(formatResult(enriched));
             showToast("Copié ✓");
           }}
-          onCopyHtmlElement={(el) => {
-            copy(formatHtml(el.outerHTML));
-            showToast("HTML copié ✓");
+          onContextMenuElement={(el, pos) => {
+            setContextMenu({ el, x: pos.x, y: pos.y });
           }}
         />
       )}
@@ -291,6 +335,10 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
             savePanelState({ open: false });
           }}
         />
+      )}
+
+      {contextMenu && (
+        <ContextMenu at={contextMenu} onClose={closeContextMenu} items={contextMenuItems} />
       )}
 
       {toast && (
