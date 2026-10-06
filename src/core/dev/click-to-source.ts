@@ -25,6 +25,33 @@ export function buildVscodeUri(
 
 const SWALLOWED_EVENTS = ["click", "auxclick", "pointerup", "mouseup"] as const;
 
+/** Resolver courant (init npm actif) — emploi externe (rects de recherche). */
+let vscodeOpenRef: ((el: HTMLElement, action: "source" | "usage") => void) | null = null;
+
+/**
+ * Résout l'action VS Code (source/usage) pour un état modificateurs, selon les
+ * bindings de `settings.commands` (usage prioritaire). Pur / testable.
+ */
+export function vscodeActionFor(
+  e: { ctrlKey: boolean; altKey: boolean; metaKey: boolean; shiftKey: boolean },
+  kind: ClickTrigger = "click",
+): "source" | "usage" | null {
+  const { source, usage } = loadSettings().commands;
+  if (usage.trigger === kind && modifierMatches(usage.modifier, e)) return "usage";
+  if (source.trigger === kind && modifierMatches(source.modifier, e)) return "source";
+  return null;
+}
+
+/**
+ * Ouvre l'élément dans VS Code pour l'action donnée — `false` si le resolver
+ * npm n'est pas actif (extension).
+ */
+export function vscodeOpenFor(el: HTMLElement, action: "source" | "usage"): boolean {
+  if (!vscodeOpenRef) return false;
+  vscodeOpenRef(el, action);
+  return true;
+}
+
 /**
  * Enregistre les listeners (clic / clic droit / double-clic) en capture selon les
  * liaisons `settings.commands.source` / `.usage`. Retourne une fonction d'arrêt.
@@ -70,16 +97,19 @@ export function initClickToSource(
     const target = e.target as HTMLElement | null;
     const el = target?.closest<HTMLElement>("[data-source]");
     if (!el) return;
+    openEl(el, action);
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
 
+  /** Ouvre VS Code : VS Code URI + désarmement + flash (enregistré via `resolveVscodeOpen`). */
+  function openEl(el: HTMLElement, action: "source" | "usage"): void {
     const rel =
       action === "usage"
         ? el.getAttribute("data-owner-source") ?? el.getAttribute("data-source")
         : el.getAttribute("data-source");
     const uri = buildVscodeUri(root, rel);
     if (!uri) return;
-
-    e.preventDefault();
-    e.stopImmediatePropagation();
 
     // Désarme le picker s'il est armé (notre inspecteur annule sur Escape).
     document.dispatchEvent(
@@ -104,6 +134,8 @@ export function initClickToSource(
     a.href = uri;
     a.click();
   }
+
+  vscodeOpenRef = openEl;
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;

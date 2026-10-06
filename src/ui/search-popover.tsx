@@ -7,6 +7,7 @@ import {
 } from "../core/search/element-search";
 import { makeQueryHistory } from "../core/search/query-history";
 import { createSearchHighlight } from "../core/search/highlight";
+import { vscodeOpenFor } from "../core/dev/click-to-source";
 import {
   ELEVATED_BG,
   CARD_SHADOW,
@@ -95,6 +96,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
     const highlight = createSearchHighlight({
       onPick: (el) => onPickRef.current?.(el),
       onCopyHtml: (el) => onCopyHtmlRef.current?.(el),
+      onVscode: (el, action) => vscodeOpenFor(el, action),
     });
     highlightRef.current = highlight;
     return () => {
@@ -359,18 +361,6 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
             </div>
           );
         })}
-      </div>
-
-      <div
-        style={{
-          ...rowStyle,
-          color: MUTED,
-          fontSize: 10,
-          padding: "4px 8px 2px",
-          justifyContent: "flex-start",
-        }}
-      >
-        Clic : affiner · Entrée : localiser (scroll) · Ctrl+Z/Y : historique · Échap : fermer
       </div>
     </div>
   );

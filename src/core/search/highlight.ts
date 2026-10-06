@@ -14,6 +14,7 @@ import {
 } from "../inspector/constants/theme";
 import { assign } from "../inspector/surfaces/dom";
 import { dimsText, updateTooltip } from "../inspector/surfaces/tooltip";
+import { vscodeActionFor } from "../dev/click-to-source";
 import { SEARCH_UI_ATTR } from "./element-search";
 
 /**
@@ -107,6 +108,11 @@ export interface SearchHighlightOptions {
   onPick?: (el: HTMLElement) => void;
   /** Clic droit sur un rect : copie l'`outerHTML` brut côté appelant. */
   onCopyHtml?: (el: HTMLElement) => void;
+  /**
+   * Ctrl+click / Alt+click sur un rect → même geste que picker éteint (VS Code).
+   * Retourne `true` quand l'ouverture a été prise en charge.
+   */
+  onVscode?: (el: HTMLElement, action: "source" | "usage") => boolean;
 }
 
 export function createSearchHighlight(options: SearchHighlightOptions = {}): SearchHighlight {
@@ -236,6 +242,8 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
           e.stopPropagation();
           const el = elements[i];
           if (!el) return;
+          const action = vscodeActionFor(e);
+          if (action && options.onVscode?.(el, action)) return;
           el.scrollIntoView({ behavior: "smooth", block: "center" });
           options.onPick?.(el);
         };

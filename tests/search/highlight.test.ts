@@ -138,6 +138,35 @@ describe("createSearchHighlight", () => {
     hl.destroy();
   });
 
+  it("Ctrl+Alt+clic sur rect → onVscode (source), pas de pick ; Alt → usage", () => {
+    const opens: [HTMLElement, string][] = [];
+    const picks: HTMLElement[] = [];
+    const hl = createSearchHighlight({
+      onPick: (el) => picks.push(el),
+      onVscode: (el, action) => {
+        opens.push([el, action]);
+        return true;
+      },
+    });
+    const el = makeEl();
+    hl.update([el]);
+
+    const rectEl = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
+    rectEl.onclick?.(
+      new MouseEvent("click", { ctrlKey: true }) as unknown as PointerEvent,
+    );
+    rectEl.onclick?.(
+      new MouseEvent("click", { altKey: true }) as unknown as PointerEvent,
+    );
+
+    expect(opens).toEqual([
+      [el, "usage"], // usage prioritaire (Ctrl)
+      [el, "source"],
+    ]);
+    expect(picks).toHaveLength(0);
+    hl.destroy();
+  });
+
   it("destroy : arrête la boucle rAF (plus de redraw)", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame");
     const hl = createSearchHighlight();
