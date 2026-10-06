@@ -107,9 +107,11 @@ export function toSelector(query: string): string | null {
     return q;
   }
 
-  // Mot libre : tag exact OU classe portant ce nom OU composant React.
+  // Mot libre : tag OU classe EXACTE OU composant React OU classes commençant
+  // par ce préfixe (`grou` → `group`, `grow` — borne : début de token).
+  // Classes sensibles à la casse (CSS) : pas de flag `i` ici (nwsapi le gère mal).
   const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(q) : q;
-  return `${q}, .${escaped}, [data-component="${q}" i]`;
+  return `${q}, .${escaped}, [data-component="${q}" i], [class^="${q}"], [class*=" ${q}"]`;
 }
 
 /** Résultat pické (partiel, sans React) construit depuis un élément trouvé. */

@@ -14,7 +14,7 @@ afterEach(() => {
 describe("toSelector", () => {
   it("tag simple : tag exact OU classe du même nom", () => {
     expect(toSelector("div")).toBe(
-      'div, .div, [data-component="div" i]',
+      'div, .div, [data-component="div" i], [class^="div"], [class*=" div"]',
     );
   });
 
@@ -69,6 +69,14 @@ describe("searchElements", () => {
       '<a class="card">1</a><a>2</a><b class="card">3</b>';
     const found = searchElements("card");
     expect(found).toHaveLength(2);
+  });
+
+  it("mot libre `grou` : classes commençant par le préfixe (group, grouper…)", () => {
+    document.body.innerHTML =
+      '<div class="group"></div><div class="grouper"></div>' +
+      '<div class="grow"></div><div class="bg-group"></div><span></span>';
+    const found = searchElements("grou");
+    expect(found).toHaveLength(2); // group + grouper ; grow/bg-group écartés
   });
 
   it("classe `.tag` classique", () => {
