@@ -15,7 +15,6 @@ import {
   saveSettings,
 } from "./core/settings";
 import { enrichResult } from "./core/source/enrich";
-import { pickResultFromElement } from "./core/search/element-search";
 import { startCapture } from "./core/devpanel/capture";
 import { loadPanelState, savePanelState } from "./core/devpanel/panel-state";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
@@ -257,17 +256,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         />
       )}
 
-      {searchOpen && (
-        <SearchPopover
-          onActivate={(el) => {
-            const route = pathname ?? window.location.pathname ?? "/";
-            const enriched = enrichResult(pickResultFromElement(el, route));
-            copy(formatResult(enriched));
-            showToast("Copié ✓");
-          }}
-          onClose={() => setSearchOpen(false)}
-        />
-      )}
+      {searchOpen && <SearchPopover onClose={() => setSearchOpen(false)} />}
 
       {panelOpen && (
         <DevPanel

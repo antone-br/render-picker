@@ -5,3 +5,4 @@
 | Fichier                    | Module testé                          | Couvre                                                                                     |
 | -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `element-search.test.ts`   | `src/core/search/element-search.ts`   | `toSelector` (tag/classe/CSS/invalides), `searchElements` (exclusion UI hôte, cap, ordre).   |
+| `highlight.test.ts`        | `src/core/search/highlight.ts`        | Couche highlight (rects de survol), style actif, pooling au refetch, clear/destroy + rAF.    |

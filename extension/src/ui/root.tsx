@@ -18,8 +18,6 @@ import { enrichResult } from "../../../src/core/source/enrich";
 import type { RenderPickerSettings } from "../../../src/core/settings";
 import { loadPanelState, savePanelState } from "../../../src/core/devpanel/panel-state";
 import { DevPanel } from "../../../src/ui/dev-panel";
-import { formatResult } from "../../../src/core/format";
-import { pickResultFromElement } from "../../../src/core/search/element-search";
 import { CrosshairIcon } from "../../../src/ui/icons";
 import { SettingsBar } from "../../../src/ui/settings-bar";
 import { SearchPopover } from "../../../src/ui/search-popover";
@@ -155,24 +153,7 @@ export function ExtensionRoot({
         />
       )}
 
-      {searchOpen && (
-        <SearchPopover
-          onActivate={(el) => {
-            copy(
-              formatResult(
-                enrichResult(
-                  pickResultFromElement(
-                    el,
-                    window.location.pathname ?? "/",
-                  ),
-                ),
-              ),
-            );
-            showToast("Copié ✓");
-          }}
-          onClose={() => setSearchOpen(false)}
-        />
-      )}
+      {searchOpen && <SearchPopover onClose={() => setSearchOpen(false)} />}
 
       {panelOpen && (
         <DevPanel

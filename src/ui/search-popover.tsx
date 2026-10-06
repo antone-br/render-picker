@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { searchElements } from "../core/search/element-search";
+import { createSearchHighlight } from "../core/search/highlight";
 import {
   ELEVATED_BG,
   CARD_SHADOW,
@@ -11,8 +12,6 @@ import {
 const POPOVER_ATTR = "data-rp-search-popover";
 
 export interface SearchPopoverProps {
-  /** Active le résultat (click ou Entrée) — scroll + flash + transcription via `onActivate`. */
-  onActivate: (el: HTMLElement) => void;
   /** Ferme la recherche (bouton, changement de page, clic hors du popover). */
   onClose: () => void;
 }
@@ -29,24 +28,25 @@ const rowStyle = {
 } as const;
 
 /**
- * Recherche d'éléments (tag / classe / sélecteur CSS) : panneau remontant,
- * au-dessus de la barre du bas. Entrée = activer le résultat (copie du
- * snippet enrichi côté appelant), Échap ferme. Interactive même picker armé.
+ * Recherche d'éléments (tag / classe / sélecteur CSS) : panneau remontant
+ * au-dessus de la barre du bas. Chaque résultat est **mis en avant** sur la page
+ * avec le rect de survol de l'inspecteur (suivi scroll/resize en continu) ;
+ * l'élément actif (↑/↓ ou survol de la ligne) porte le rect le plus net,
+ * Entrée le scrolle dans le viewport. Échap ferme. Interactive même picker armé.
  */
-export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
+export function SearchPopover({ onClose }: SearchPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
-  const onActivateRef = useRef(onActivate);
   onCloseRef.current = onClose;
-  onActivateRef.current = onActivate;
 
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   // Cap interne (SEARCH_MAX_RESULTS) : la liste reste lisible sur les grosses pages.
   const results = useMemo(() => searchElements(query), [query]);
+  const highlightRef = useRef<ReturnType<typeof createSearchHighlight> | null>(null);
 
-  // Autofocus à l'ouverture.
+  // Autofocus à l'ouverture + couche de highlights (détruite à la fermeture).
   useEffect(() => {
     inputRef.current?.focus();
     ref.current?.animate?.(
@@ -56,7 +56,21 @@ export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
       ],
       { duration: 120, easing: "ease-out" },
     );
+    const highlight = createSearchHighlight();
+    highlightRef.current = highlight;
+    return () => {
+      highlight.destroy();
+      highlightRef.current = null;
+    };
   }, []);
+
+  // Les rects suivent la recherche et l'élément actif.
+  useEffect(() => {
+    highlightRef.current?.update(results);
+  }, [results]);
+  useEffect(() => {
+    highlightRef.current?.setActive(index);
+  }, [index, results]);
 
   // Fermeture au clic hors du popover (composedPath → traverse aussi le shadow DOM).
   useEffect(() => {
@@ -71,15 +85,8 @@ export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
     return () => document.removeEventListener("pointerdown", onDown, true);
   }, []);
 
-  const activate = (el: HTMLElement) => {
+  const locate = (el: HTMLElement) => {
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    const prevOutline = el.style.outline;
-    el.style.outline = "2px solid #3b82f6";
-    setTimeout(() => {
-      el.style.outline = prevOutline;
-    }, 400);
-    onActivateRef.current(el);
-    onCloseRef.current();
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -97,7 +104,7 @@ export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
       e.preventDefault();
       e.stopPropagation(); // Pas de confirmation de sélection multiple côté inspecteur.
       const el = results[index] ?? results[0];
-      if (el) activate(el);
+      if (el) locate(el);
     }
     // Échap : laisse-propager → désarme aussi (sémantique « Échap désarme toujours »).
   };
@@ -159,14 +166,14 @@ export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
           }}
         />
         <span style={{ fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>
-          {results.length === results.length ? `${results.length}` : `${results.length}/${results.length}+`}
+          {results.length}
         </span>
       </div>
 
       <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}>
         {query.trim() === "" && (
           <div style={{ ...rowStyle, color: MUTED }}>
-            Rechercher par tag (`div`), classe (`.card`) ou sélecteur.
+            Rechercher par tag (div), classe (.card) ou sélecteur CSS.
           </div>
         )}
         {query.trim() !== "" && results.length === 0 && (
@@ -180,7 +187,7 @@ export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
               role="option"
               aria-selected={i === index}
               onMouseEnter={() => setIndex(i)}
-              onClick={() => activate(el)}
+              onClick={() => locate(el)}
               style={{
                 ...rowStyle,
                 cursor: "pointer",
@@ -223,7 +230,7 @@ export function SearchPopover({ onActivate, onClose }: SearchPopoverProps) {
           justifyContent: "flex-start",
         }}
       >
-        Entrée : recopier dans le presse-papiers · Échap : fermer
+        Entrée : localiser (scroll) · ↑/↓ : naviguer · Échap : fermer
       </div>
     </div>
   );
