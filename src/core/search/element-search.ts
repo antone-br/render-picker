@@ -125,10 +125,24 @@ export function pickResultFromElement(
   };
 }
 
+/**
+ * Échappe un token de classe pour un sélecteur CSS Tailwind-safe : `md:px-6`
+ * contient un `:` (pseudo-classe!) → `.md\:px-6`. L'affichage garde le brut.
+ * (CSS.escape absent de certains environnements → fallback manuel.)
+ */
+export function escapeClassToken(token: string): string {
+  if (WORD_RE.test(token)) return token;
+  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(token);
+  if (/^[0-9]/.test(token)) return `\\3${token} `;
+  return token.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
+}
+
 /** Suggestion = sélecteur (tag + premières classes) regroupant plusieurs éléments. */
 export interface SearchGroup {
-  /** Clé du groupe = sélecteur affiché/complété (`button.btn-primary`). */
+  /** Clé du groupe = affichage lisible (`div.h-full.px-4.md:px-6`). */
   key: string;
+  /** Sélecteur valide pour `querySelectorAll` (tokens échappés). */
+  selector: string;
   tag: string;
   cls: string;
   /** Nombre d'éléments du groupe. */
@@ -142,14 +156,18 @@ export function groupResults(elements: HTMLElement[]): SearchGroup[] {
   const byKey = new Map<string, SearchGroup>();
   elements.forEach((el, i) => {
     const tag = el.tagName.toLowerCase();
-    const cls =
+    const rawTokens =
       typeof el.className === "string" && el.className
-        ? `.${el.className.trim().split(/\s+/).slice(0, 3).join(".")}`
-        : "";
+        ? el.className.trim().split(/\s+/).slice(0, 3)
+        : [];
+    const cls = rawTokens.length > 0 ? `.${rawTokens.join(".")}` : "";
+    const escaped = rawTokens
+      .map((t) => `.${escapeClassToken(t)}`)
+      .join("");
     const key = `${tag}${cls}`;
     let group = byKey.get(key);
     if (!group) {
-      group = { key, tag, cls, count: 0, indices: [] };
+      group = { key, selector: `${tag}${escaped}`, tag, cls, count: 0, indices: [] };
       byKey.set(key, group);
     }
     group.count++;

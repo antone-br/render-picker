@@ -272,7 +272,7 @@ export function SearchPopover({ onClose, onPickElement, onCopyHtmlElement }: Sea
               aria-selected={i === index}
               onMouseEnter={() => setIndex(i)}
               onClick={() => {
-                commit(g.key);
+                commit(g.selector);
                 setIndex(0);
                 inputRef.current?.focus();
               }}

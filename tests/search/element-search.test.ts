@@ -166,6 +166,26 @@ describe("groupResults", () => {
   it("vide pour une liste vide", () => {
     expect(groupResults([])).toEqual([]);
   });
+
+  it("sélecteur échappé pour les tokens Tailwind (`:`) — round-trip clic→recherche", () => {
+    document.body.innerHTML =
+      '<div class="h-full px-4 md:px-6">1</div>' +
+      '<div class="h-full px-4 md:px-6">2</div>';
+    const groups = groupResults(searchElements("div"));
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.key).toBe("div.h-full.px-4.md:px-6"); // affichage brut
+    expect(groups[0]!.selector).toBe("div.h-full.px-4.md\\:px-6"); // CSS valide
+
+    const again = searchElements(groups[0]!.selector);
+    expect(again).toHaveLength(2);
+  });
+
+  it("tokens valides (h-full) : sélecteur identique au brut", () => {
+    document.body.innerHTML = '<button class="h-full">1</button>';
+    const groups = groupResults(searchElements("button"));
+    expect(groups[0]!.selector).toBe("button.h-full");
+  });
 });
 
 describe("pickResultFromElement", () => {
