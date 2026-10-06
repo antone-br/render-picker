@@ -11,6 +11,7 @@ afterEach(() => {
 function makeEl(): HTMLElement {
   const el = document.createElement("div");
   document.body.appendChild(el);
+  (el as unknown as { scrollIntoView?: unknown }).scrollIntoView = () => {};
   return el;
 }
 
@@ -74,6 +75,20 @@ describe("createSearchHighlight", () => {
       document.querySelectorAll<HTMLElement>(RECT_SELECTOR),
     );
     expect(rects.every((r) => r.style.display === "none")).toBe(true);
+    hl.destroy();
+  });
+
+  it("clic sur un rect → callback onPick (côté appelant)", () => {
+    const picks: HTMLElement[] = [];
+    const hl = createSearchHighlight({ onPick: (el) => picks.push(el) });
+    const el = makeEl();
+    hl.update([el]);
+
+    const rectEl = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
+    rectEl.onclick?.(new MouseEvent("click") as unknown as PointerEvent);
+
+    expect(picks).toHaveLength(1);
+    expect(picks[0]).toBe(el);
     hl.destroy();
   });
 

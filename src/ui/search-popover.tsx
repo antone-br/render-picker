@@ -15,6 +15,8 @@ import { ChevronIcon } from "./icons";
 export interface SearchPopoverProps {
   /** Ferme la recherche (bouton, changement de page, clic hors du popover). */
   onClose: () => void;
+  /** Clic sur un rect highlight → copie du snippet enrichi côté appelant. */
+  onPickElement?: (el: HTMLElement) => void;
 }
 
 const rowStyle = {
@@ -35,11 +37,13 @@ const rowStyle = {
  * l'élément actif (↑/↓ ou survol de la ligne) porte le rect le plus net,
  * Entrée le scrolle dans le viewport. Échap ferme. Interactive même picker armé.
  */
-export function SearchPopover({ onClose }: SearchPopoverProps) {
+export function SearchPopover({ onClose, onPickElement }: SearchPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
+  const onPickRef = useRef(onPickElement);
   onCloseRef.current = onClose;
+  onPickRef.current = onPickElement;
 
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
@@ -57,7 +61,9 @@ export function SearchPopover({ onClose }: SearchPopoverProps) {
       ],
       { duration: 120, easing: "ease-out" },
     );
-    const highlight = createSearchHighlight();
+    const highlight = createSearchHighlight({
+      onPick: (el) => onPickRef.current?.(el),
+    });
     highlightRef.current = highlight;
     return () => {
       highlight.destroy();

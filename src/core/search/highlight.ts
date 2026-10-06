@@ -100,7 +100,12 @@ function createTooltipSurface(): {
   return { tooltip, label, divider, metrics, dims };
 }
 
-export function createSearchHighlight(): SearchHighlight {
+export interface SearchHighlightOptions {
+  /** Clic sur un rect : copie le snippet enrichi côté appelant (scroll inclus). */
+  onPick?: (el: HTMLElement) => void;
+}
+
+export function createSearchHighlight(options: SearchHighlightOptions = {}): SearchHighlight {
   const root = document.createElement("div");
   root.setAttribute(IGNORE_ATTR, "");
   root.setAttribute(SEARCH_UI_ATTR, "");
@@ -209,7 +214,14 @@ export function createSearchHighlight(): SearchHighlight {
           e.preventDefault();
           e.stopPropagation();
         };
-        rect.onclick = () => elements[i]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        rect.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const el = elements[i];
+          if (!el) return;
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          options.onPick?.(el);
+        };
       });
       redraw();
     },
