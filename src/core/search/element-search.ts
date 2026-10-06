@@ -71,15 +71,18 @@ function searchPartial(
   }
   const results: HTMLElement[] = [];
   const lower = prefix.toLowerCase();
+  const anyClass = lower === "";
   for (const el of candidates) {
     if (results.length >= SEARCH_MAX_RESULTS) break;
     if (!el.isConnected) continue;
     if (el.closest(IGNORE_SELECTOR)) continue;
-    if (typeof el.className === "string") {
-      const hit = el.className
+    const raw = el.getAttribute("class"); // couvre SVG (className = objet)
+    if (!anyClass) {
+      // Préfixe demandé : pas de classe = écarté (sinon tous passeraient).
+      const hit = raw ? raw
         .trim()
         .split(/\s+/)
-        .some((cls) => (lower === "" ? cls !== "" : cls.toLowerCase().startsWith(lower)));
+        .some((cls) => cls.toLowerCase().startsWith(lower)) : false;
       if (!hit) continue;
     }
     results.push(el);
@@ -156,10 +159,8 @@ export function groupResults(elements: HTMLElement[]): SearchGroup[] {
   const byKey = new Map<string, SearchGroup>();
   elements.forEach((el, i) => {
     const tag = el.tagName.toLowerCase();
-    const rawTokens =
-      typeof el.className === "string" && el.className
-        ? el.className.trim().split(/\s+/).slice(0, 3)
-        : [];
+    const attr = el.getAttribute("class"); // couvre SVG (className = objet)
+    const rawTokens = attr && attr.trim() ? attr.trim().split(/\s+/).slice(0, 3) : [];
     const cls = rawTokens.length > 0 ? `.${rawTokens.join(".")}` : "";
     const escaped = rawTokens
       .map((t) => `.${escapeClassToken(t)}`)
