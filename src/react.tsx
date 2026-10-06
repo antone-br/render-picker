@@ -176,7 +176,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     [showToast],
   );
 
-  const { isActive, toggle, setSearchMode, disarm } = useRenderPicker({
+  const { isActive, toggle, setSearchMode, disarm, getSelection } = useRenderPicker({
     pathname,
     hotkey: effectiveHotkey,
     multi,
@@ -208,7 +208,18 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         label: "Copier en HTML",
         onClick: () => {
           if (!contextMenu) return;
-          handleCopyHtml(contextMenu.el);
+          const sel = getSelection();
+          const targets =
+            sel.length > 0 && sel.some((s) => s.contains(contextMenu.el))
+              ? sel
+              : [contextMenu.el];
+          const formatted = targets.map(
+            (el) => formatHtml((el as HTMLElement).outerHTML),
+          );
+          copy(formatted.join("\n\n"));
+          showToast(
+            targets.length > 1 ? `HTML copié ✓ · ${targets.length}` : "HTML copié ✓",
+          );
           closeContextMenu();
           disarm();
         },
@@ -217,7 +228,20 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         label: "Copier les classes",
         onClick: () => {
           if (!contextMenu) return;
-          handleCopyClasses(contextMenu.el);
+          const sel = getSelection();
+          const targets =
+            sel.length > 0 && sel.some((s) => s.contains(contextMenu.el))
+              ? sel
+              : [contextMenu.el];
+          const list = targets.map((el) => el.getAttribute("class") ?? "");
+          copy(list.join("\n\n"));
+          showToast(
+            list.some(Boolean)
+              ? targets.length > 1
+                ? `Classes copiées ✓ · ${targets.length}`
+                : "Classes copiées ✓"
+              : "Aucune classe",
+          );
           closeContextMenu();
           disarm();
         },

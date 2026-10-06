@@ -371,6 +371,11 @@ class Inspector {
     }
   };
 
+  /** Snapshot de la sélection multiple (Maj+clics). */
+  getSelection(): Element[] {
+    return [...this.selection];
+  }
+
   // Ne touche QUE les markers de sélection : l'overlay de survol est piloté par
   // `mousemove` seul. Sinon les `transitionend`/`animationend` d'une page animée
   // réinitialiseraient en boucle la transition de l'overlay → pas de glisse.
@@ -385,6 +390,8 @@ export function createInspector(callbacks: InspectorCallbacks): {
   deactivate: () => void;
   refreshDecorations: () => void;
   setSearchMode: (on: boolean) => void;
+  /** Sélection multiple courante (Maj+clics), snapshot. */
+  getSelection: () => Element[];
 } {
   const inspector = new Inspector(callbacks);
   return {
@@ -392,5 +399,6 @@ export function createInspector(callbacks: InspectorCallbacks): {
     deactivate: () => inspector.deactivate(),
     refreshDecorations: () => inspector.refreshDecorations(),
     setSearchMode: (on) => inspector.setSearchMode(on),
+    getSelection: () => inspector.getSelection(),
   };
 }

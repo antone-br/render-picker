@@ -69,7 +69,7 @@ export function ExtensionRoot({
 
   const hotkey = commands.arm === "off" ? false : commands.arm;
 
-  const { isActive, toggle, setSearchMode, disarm } = useRenderPicker({
+  const { isActive, toggle, setSearchMode, disarm, getSelection } = useRenderPicker({
     hotkey,
     commands,
     getTitle: tooltipClasses,
@@ -190,8 +190,20 @@ export function ExtensionRoot({
             {
               label: "Copier en HTML",
               onClick: () => {
-                copy(formatHtml(contextMenu.el.outerHTML));
-                showToast("HTML copié ✓");
+                const sel = getSelection();
+                const targets =
+                  sel.length > 0 && sel.some((s) => s.contains(contextMenu.el))
+                    ? sel
+                    : [contextMenu.el];
+                const formatted = targets.map(
+                  (el) => formatHtml((el as HTMLElement).outerHTML),
+                );
+                copy(formatted.join("\n\n"));
+                showToast(
+                  targets.length > 1
+                    ? `HTML copié ✓ · ${targets.length}`
+                    : "HTML copié ✓",
+                );
                 setContextMenu(null);
                 disarm();
               },
@@ -199,9 +211,20 @@ export function ExtensionRoot({
             {
               label: "Copier les classes",
               onClick: () => {
-                const cls = contextMenu.el.getAttribute("class");
-                copy(cls ?? "");
-                showToast(cls ? "Classes copiées ✓" : "Aucune classe");
+                const sel = getSelection();
+                const targets =
+                  sel.length > 0 && sel.some((s) => s.contains(contextMenu.el))
+                    ? sel
+                    : [contextMenu.el];
+                const list = targets.map((el) => el.getAttribute("class") ?? "");
+                copy(list.join("\n\n"));
+                showToast(
+                  list.some(Boolean)
+                    ? targets.length > 1
+                      ? `Classes copiées ✓ · ${targets.length}`
+                      : "Classes copiées ✓"
+                    : "Aucune classe",
+                );
                 setContextMenu(null);
                 disarm();
               },
