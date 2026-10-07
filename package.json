@@ -1,6 +1,6 @@
 {
   "name": "@antone-br/render-picker",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Dev-only Next.js toolkit: pick any element to copy its route, XPath, CSS selector, React component and source file:line (React 19 compatible, sourcemap-resolved), plus Ctrl+click to open the source in VS Code.",
   "keywords": [
     "react",
