@@ -12,6 +12,8 @@ import {
   CANCEL_KEY_OPTIONS,
   CONFIRM_KEY_OPTIONS,
   INSPECT_OPTIONS,
+  keyFromToken,
+  keyToken,
   MODIFIER_OPTIONS,
   SEARCH_KEY_OPTIONS,
   TRIGGER_OPTIONS,
@@ -107,6 +109,45 @@ export function SettingsMenu({
       />
     </div>
   );
+
+  const keyGestureRow = (
+    label: string,
+    key: "search" | "inspect",
+    keyOptions: typeof SEARCH_KEY_OPTIONS,
+  ) => {
+    const b = commands[key];
+    return (
+      <div style={rowStyle}>
+        <span style={{ whiteSpace: "nowrap" }}>{label}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Select
+            ariaLabel={`${label} — modificateur`}
+            value={b.modifier}
+            options={MODIFIER_OPTIONS}
+            onChange={(modifier) =>
+              onChangeCommands({ ...commands, [key]: { ...b, modifier } })
+            }
+            width={78}
+            highlight={b.modifier !== def[key].modifier}
+          />
+          <span style={{ opacity: 0.6 }}>+</span>
+          <Select
+            ariaLabel={`${label} — touche`}
+            value={keyToken(b)}
+            options={keyOptions}
+            onChange={(token) =>
+              onChangeCommands({
+                ...commands,
+                [key]: { ...b, ...keyFromToken(token) },
+              } as Commands)
+            }
+            width={104}
+            highlight={keyToken(b) !== keyToken(def[key])}
+          />
+        </span>
+      </div>
+    );
+  };
 
   const gestureRow = (label: string, key: GestureKey, icon?: ReactNode) => {
     const b = commands[key];
@@ -250,28 +291,8 @@ export function SettingsMenu({
           {keyRow("Valider la sélection", "confirm", CONFIRM_KEY_OPTIONS)}
           {keyRow("Annuler / désarmer", "cancel", CANCEL_KEY_OPTIONS)}
 
-          <div style={rowStyle}>
-            <span style={{ whiteSpace: "nowrap" }}>Rechercher</span>
-            <Select
-              ariaLabel="Rechercher"
-              value={commands.search}
-              options={SEARCH_KEY_OPTIONS}
-              onChange={(search) => onChangeCommands({ ...commands, search })}
-              width={100}
-              highlight={commands.search !== def.search}
-            />
-          </div>
-          <div style={rowStyle}>
-            <span style={{ whiteSpace: "nowrap" }}>Ouvrir l'inspecteur</span>
-            <Select
-              ariaLabel="Ouvrir l'inspecteur"
-              value={commands.inspect}
-              options={INSPECT_OPTIONS}
-              onChange={(inspect) => onChangeCommands({ ...commands, inspect })}
-              width={100}
-              highlight={commands.inspect !== def.inspect}
-            />
-          </div>
+          {keyGestureRow("Rechercher", "search", SEARCH_KEY_OPTIONS)}
+          {keyGestureRow("Ouvrir l'inspecteur", "inspect", INSPECT_OPTIONS)}
       </div>
     </div>
   );

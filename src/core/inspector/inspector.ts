@@ -6,6 +6,7 @@ import {
 } from "../settings";
 import type { InspectorCallbacks, PickResult } from "../types";
 import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
+import { createKeyCommandMatcher } from "./key-command";
 import { PICKING_CSS } from "./constants/picker";
 import { getCssSelector } from "./css-selector";
 import { containsPoint, resolveTarget, shouldIgnore } from "./hit-test";
@@ -36,6 +37,8 @@ class Inspector {
   private hovering = false;
   /** Mode recherche actif : pas de rect de survol (les rects de recherche prennent le relais). */
   private searchMode = false;
+  /** Matcher de la commande clavier « inspect » (modificateur + touche, simple/double-tap). */
+  private inspectMatcher = createKeyCommandMatcher();
 
   constructor(private readonly callbacks: InspectorCallbacks) {}
 
@@ -79,6 +82,7 @@ class Inspector {
     this.active = false;
     this.lastTarget = null;
     this.selection = [];
+    this.inspectMatcher.reset();
     if (typeof document !== "undefined") document.body.style.cursor = "";
 
     window.removeEventListener("mousemove", this.onMouseMove, true);
@@ -334,20 +338,19 @@ class Inspector {
   private onKeyDown = (e: KeyboardEvent): void => {
     const cmds = this.commands();
 
-    // Ctrl + touche « search » → ouvre la recherche d'éléments (sans désarmer :
-    // l'UI de recherche vit hors de la barre, comme le panneau d'inspection).
-    if (cmds.search !== "off" && e.ctrlKey && e.key.toLowerCase() === cmds.search) {
+    // Commande « inspect » (modificateur + touche, simple ou double-tap) → ouvre le
+    // panneau pour l'élément survolé, puis désarme. (La commande « search » est gérée
+    // globalement par le hook, pour marcher même picker non armé.)
+    const inspectStatus = this.callbacks.onInspect
+      ? this.inspectMatcher.status(e, cmds.inspect)
+      : null;
+    if (inspectStatus === "wait") {
       e.preventDefault();
       e.stopPropagation();
-      this.callbacks.onSearch?.();
       return;
     }
-
-    // Ctrl + touche « inspect » → ouvre le panneau pour l'élément survolé, puis désarme.
     if (
-      cmds.inspect !== "off" &&
-      e.ctrlKey &&
-      e.key.toLowerCase() === cmds.inspect &&
+      inspectStatus === "fire" &&
       this.callbacks.onInspect &&
       this.lastTarget &&
       this.lastTarget.isConnected

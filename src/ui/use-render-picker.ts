@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createHotkeyMatcher } from "../core/inspector/hotkey";
 import { createInspector } from "../core/inspector/inspector";
+import { createKeyCommandMatcher } from "../core/inspector/key-command";
 import { DEFAULT_SETTINGS, type RenderPickerSettings } from "../core/settings";
 import type { LayoutOverlays, PickResult } from "../core/types";
 
@@ -107,10 +108,25 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const matcher = createHotkeyMatcher(hotkey);
+    const searchMatcher = createKeyCommandMatcher();
     const onKeyDown = (e: KeyboardEvent) => {
       // Échap désarme toujours (chemin React fiable, indépendant de l'inspecteur).
       if (e.key === "Escape") {
         setActive(false);
+        return;
+      }
+      // Commande « search » GLOBALE : marche picker armé ou non. Le 1er tap d'un
+      // double est avalé (preventDefault) → bloque le find natif ; au 2e tap dans
+      // la fenêtre, on arme le picker ET on ouvre la recherche.
+      const search = optsRef.current.commands?.search ?? DEFAULT_SETTINGS.commands.search;
+      const status = searchMatcher.status(e, search);
+      if (status) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (status === "fire") {
+          setActive(true);
+          optsRef.current.onSearch?.();
+        }
         return;
       }
       const action = matcher.onKeyDown(e);
@@ -121,7 +137,10 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
       else setActive(true);
     };
     const onKeyUp = (e: KeyboardEvent) => matcher.onKeyUp(e);
-    const reset = () => matcher.reset();
+    const reset = () => {
+      matcher.reset();
+      searchMatcher.reset();
+    };
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("keyup", onKeyUp, true);
     window.addEventListener("pointerdown", reset, true);
@@ -159,7 +178,6 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
       getCommands: () => optsRef.current.commands ?? DEFAULT_SETTINGS.commands,
       getTitle: optsRef.current.getTitle,
       onInspect: (el) => optsRef.current.onInspect?.(el),
-      onSearch: () => optsRef.current.onSearch?.(),
       onSelectionChange: (n) => optsRef.current.onSelectionChange?.(n),
     });
     inspector.activate();

@@ -317,3 +317,34 @@ describe("createInspector — interactions", () => {
     expect(document.body.querySelector("[data-pathpicker-ignore]")).toBeNull();
   });
 });
+
+/** Dispatch un keydown avec un `timeStamp` imposé (jsdom ignore l'init timeStamp). */
+function dispatchKey(opts: KeyboardEventInit, timeStamp: number): void {
+  const e = new KeyboardEvent("keydown", { bubbles: true, ...opts });
+  Object.defineProperty(e, "timeStamp", { value: timeStamp, configurable: true });
+  window.dispatchEvent(e);
+}
+
+describe("createInspector — commande clavier inspect", () => {
+  it("inspect défaut (Ctrl + I, simple) : un appui → onInspect(el) + désarme", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onInspect = vi.fn<(el: Element) => void>();
+    const insp = createInspector({
+      onPick: () => {},
+      onCancel: () => {},
+      getRoute: () => "/",
+      onInspect,
+    });
+    insp.activate();
+
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 5, clientY: 5, bubbles: true }));
+    dispatchKey({ key: "i", ctrlKey: true }, 0);
+
+    expect(onInspect).toHaveBeenCalledTimes(1);
+    expect(onInspect.mock.calls[0]![0]).toBe(btn);
+    expect(document.body.querySelector("[data-pathpicker-ignore]")).toBeNull(); // désarmé
+  });
+});

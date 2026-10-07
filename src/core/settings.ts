@@ -29,6 +29,20 @@ export type InspectKey = "i" | "d" | "k" | "off";
 /** Touche d'ouverture de la recherche d'éléments (ou désactivé). */
 export type SearchKey = "f" | "p" | "k" | "off";
 
+/** Liaison d'une commande clavier : modificateur + touche + double-tap. */
+export interface SearchBinding {
+  modifier: ClickModifier;
+  key: SearchKey;
+  double: boolean;
+}
+
+/** Liaison clavier du panneau d'inspection : modificateur + touche + double-tap. */
+export interface InspectBinding {
+  modifier: ClickModifier;
+  key: InspectKey;
+  double: boolean;
+}
+
 export interface RenderPickerSettings {
   /** Commandes remappables (raccourcis). */
   commands: {
@@ -44,10 +58,10 @@ export interface RenderPickerSettings {
     confirm: KeyChoice;
     /** Annuler / désarmer. Défaut : Échap. */
     cancel: KeyChoice;
-    /** Ouvrir le panneau d'inspection (Composant/Console/Network). Défaut : touche « i ». */
-    inspect: InspectKey;
-    /** Ouvrir la recherche d'éléments (tag/classe/sélecteur). Défaut : touche « f ». */
-    search: SearchKey;
+    /** Ouvrir le panneau d'inspection (Composant/Console/Network). Défaut : Ctrl + I. */
+    inspect: InspectBinding;
+    /** Ouvrir la recherche d'éléments (tag/classe/sélecteur). Défaut : Ctrl + double-tap F. */
+    search: SearchBinding;
     /** Ouvrir la source exacte dans VS Code. Défaut : Alt+clic. */
     source: GestureBinding;
     /** Ouvrir le fichier d'usage dans VS Code. Défaut : Ctrl+clic. */
@@ -65,8 +79,8 @@ export const DEFAULT_SETTINGS: RenderPickerSettings = {
     multi: { modifier: "shift", trigger: "click" },
     confirm: "enter",
     cancel: "escape",
-    inspect: "i",
-    search: "f",
+    inspect: { modifier: "ctrl", key: "i", double: false },
+    search: { modifier: "ctrl", key: "f", double: true },
     source: { modifier: "alt", trigger: "click" },
     usage: { modifier: "ctrl", trigger: "click" },
   },
@@ -150,6 +164,31 @@ function sameBinding(a: GestureBinding, b: GestureBinding): boolean {
   return a.modifier === b.modifier && a.trigger === b.trigger;
 }
 
+function sameKeyBinding(
+  a: SearchBinding | InspectBinding,
+  b: SearchBinding | InspectBinding,
+): boolean {
+  return a.modifier === b.modifier && a.key === b.key && a.double === b.double;
+}
+
+/**
+ * Normalise une liaison clavier lue d'un patch : tolère le legacy (ancien champ
+ * string `"f"`/`"i"`), les objets partiels et `null`. Pur.
+ */
+export function normalizeKeyBinding<B extends SearchBinding | InspectBinding>(
+  raw: unknown,
+  def: B,
+): B {
+  if (raw == null) return def;
+  if (typeof raw === "string") return { ...def, key: raw as B["key"], double: false };
+  const o = raw as Partial<B>;
+  return {
+    modifier: o.modifier ?? def.modifier,
+    key: (o.key ?? def.key) as B["key"],
+    double: o.double ?? def.double,
+  } as B;
+}
+
 /** Diff minimal entre des settings et une base (défauts par défaut). Pur. */
 export function settingsDelta(
   settings: RenderPickerSettings,
@@ -165,8 +204,8 @@ export function settingsDelta(
   if (!sameBinding(sc.multi, bc.multi)) commands.multi = sc.multi;
   if (sc.confirm !== bc.confirm) commands.confirm = sc.confirm;
   if (sc.cancel !== bc.cancel) commands.cancel = sc.cancel;
-  if (sc.inspect !== bc.inspect) commands.inspect = sc.inspect;
-  if (sc.search !== bc.search) commands.search = sc.search;
+  if (!sameKeyBinding(sc.inspect, bc.inspect)) commands.inspect = sc.inspect;
+  if (!sameKeyBinding(sc.search, bc.search)) commands.search = sc.search;
   if (!sameBinding(sc.source, bc.source)) commands.source = sc.source;
   if (!sameBinding(sc.usage, bc.usage)) commands.usage = sc.usage;
   if (Object.keys(commands).length > 0) delta.commands = commands;
@@ -196,8 +235,8 @@ function merge(
       multi: { ...base.commands.multi, ...(patchCommands.multi ?? {}) },
       confirm: patchCommands.confirm ?? base.commands.confirm,
       cancel: patchCommands.cancel ?? base.commands.cancel,
-      inspect: patchCommands.inspect ?? base.commands.inspect,
-      search: patchCommands.search ?? base.commands.search,
+      inspect: normalizeKeyBinding(patchCommands.inspect, base.commands.inspect),
+      search: normalizeKeyBinding(patchCommands.search, base.commands.search),
       source: { ...base.commands.source, ...(patchCommands.source ?? {}) },
       usage: { ...base.commands.usage, ...(patchCommands.usage ?? {}) },
     },

@@ -408,4 +408,61 @@ describe("RenderPickerButton", () => {
 
     act(() => root.unmount());
   });
+
+  it("« Rechercher » et « Ouvrir l'inspecteur » : deux dropdowns (modificateur + touche)", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-gear]")?.click());
+
+    const byLabel = (l: string) =>
+      document.querySelector<HTMLButtonElement>(`button[aria-label="${l}"]`);
+
+    // search : défaut Ctrl + double-tap F → modificateur « Ctrl », touche « F F ».
+    expect(byLabel("Rechercher — modificateur")?.textContent).toContain("Ctrl");
+    expect(byLabel("Rechercher — touche")?.textContent).toContain("F F");
+
+    // inspect : défaut Ctrl + I (simple) → modificateur « Ctrl », touche « I ».
+    expect(byLabel("Ouvrir l'inspecteur — modificateur")?.textContent).toContain("Ctrl");
+    const inspectKey = byLabel("Ouvrir l'inspecteur — touche");
+    expect(inspectKey).not.toBeNull();
+    expect(inspectKey?.textContent).toContain("I");
+    expect(inspectKey?.textContent).not.toContain("I I");
+
+    act(() => root.unmount());
+  });
+
+  it("Ctrl + F F (double-tap) ouvre la recherche MÊME picker non armé (+ arme)", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const ctrlF = (timeStamp: number) => {
+      const e = new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true });
+      Object.defineProperty(e, "timeStamp", { value: timeStamp, configurable: true });
+      window.dispatchEvent(e);
+    };
+
+    // Non armé au départ : pas de popover de recherche.
+    expect(document.querySelector("[data-rp-search-popover]")).toBeNull();
+
+    // 1er tap avalé (pas d'ouverture), 2e tap dans la fenêtre → arme + ouvre.
+    act(() => ctrlF(0));
+    expect(document.querySelector("[data-rp-search-popover]")).toBeNull();
+    act(() => ctrlF(100));
+
+    expect(document.querySelector("[data-rp-search-popover]")).not.toBeNull();
+    // Armé : la barre du bas (engrenage) est montée.
+    expect(document.querySelector("button[data-rp-gear]")).not.toBeNull();
+
+    act(() => root.unmount());
+  });
 });

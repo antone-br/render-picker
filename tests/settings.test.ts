@@ -324,3 +324,71 @@ describe("fetchSettings", () => {
     expect(await fetchSettings()).toBeNull();
   });
 });
+
+describe("commandes search / inspect (binding clavier)", () => {
+  it("défauts : search = Ctrl + double-tap F, inspect = Ctrl + I simple", () => {
+    expect(DEFAULT_SETTINGS.commands.search).toEqual({
+      modifier: "ctrl",
+      key: "f",
+      double: true,
+    });
+    expect(DEFAULT_SETTINGS.commands.inspect).toEqual({
+      modifier: "ctrl",
+      key: "i",
+      double: false,
+    });
+  });
+
+  it("merge normalise un legacy string (`search: \"p\"` → objet, double false)", () => {
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ commands: { search: "p", inspect: "d" } }),
+    );
+    expect(loadSettings().commands.search).toEqual({
+      modifier: "ctrl",
+      key: "p",
+      double: false,
+    });
+    expect(loadSettings().commands.inspect).toEqual({
+      modifier: "ctrl",
+      key: "d",
+      double: false,
+    });
+  });
+
+  it("merge objet partiel : complète les champs manquants depuis les défauts", () => {
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ commands: { search: { modifier: "alt" } } }),
+    );
+    expect(loadSettings().commands.search).toEqual({
+      modifier: "alt",
+      key: "f",
+      double: true,
+    });
+  });
+
+  it("settingsDelta : binding search modifié (modifier/key/double)", () => {
+    const delta = settingsDelta({
+      ...DEFAULT_SETTINGS,
+      commands: {
+        ...DEFAULT_SETTINGS.commands,
+        search: { modifier: "alt", key: "p", double: false },
+      },
+    });
+    expect(delta).toEqual({
+      commands: { search: { modifier: "alt", key: "p", double: false } },
+    });
+  });
+
+  it("settingsDelta : vide si le binding égale le défaut (même double-tap)", () => {
+    const delta = settingsDelta({
+      ...DEFAULT_SETTINGS,
+      commands: {
+        ...DEFAULT_SETTINGS.commands,
+        search: { modifier: "ctrl", key: "f", double: true },
+      },
+    });
+    expect(delta).toEqual({});
+  });
+});

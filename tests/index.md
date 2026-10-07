@@ -10,8 +10,8 @@
 | ------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `client.test.ts`   | `src/client.ts`                                     | `initRenderPicker` : montage, no-op en production, cleanup des listeners/patchs.            |
 | `next.test.ts`     | `src/next.ts`                                        | `withRenderPicker` + handlers `GET`/`POST` (écriture `render-picker.config.json`, dev only). |
-| `settings.test.ts` | `src/core/settings.ts`                              | `loadSettings` / `saveSettings` : défauts, localStorage, priorité fichier racine (env).     |
-| `react.test.tsx`   | `src/react.tsx` · `src/ui/*` · `src/core/format.ts` | `formatResult` / `formatResults` (pures) + `RenderPickerButton` (rendu, hints, sélection).  |
+| `settings.test.ts` | `src/core/settings.ts`                              | `loadSettings` / `saveSettings` : défauts, localStorage, priorité fichier racine (env), bindings search/inspect (modificateur + touche + double-tap, normalisation legacy string). |
+| `react.test.tsx`   | `src/react.tsx` · `src/ui/*` · `src/core/format.ts` | `formatResult` / `formatResults` (pures) + `RenderPickerButton` (rendu, hints, sélection, menu : deux dropdowns search/inspect, search global Ctrl + F F non armé).  |
 
 ## Sous-dossiers (miroir de `src/core/`)
 

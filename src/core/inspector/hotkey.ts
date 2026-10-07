@@ -9,6 +9,8 @@
  * via des `KeyboardEvent` synthétiques (on lit `e.timeStamp`, pas d'horloge).
  */
 
+import { DOUBLE_TAP_WINDOW } from "./constants/behavior";
+
 export type HotkeyAction = "toggle" | "arm";
 
 export interface HotkeyMatcher {
@@ -16,9 +18,6 @@ export interface HotkeyMatcher {
   onKeyUp(e: KeyboardEvent): void;
   reset(): void;
 }
-
-/** Fenêtre du double-tap (ms). */
-const DOUBLE_TAP_WINDOW = 400;
 
 type Modifier = "shift" | "ctrl" | "alt" | "meta";
 

@@ -2,9 +2,7 @@ import type {
   ArmHotkey,
   ClickModifier,
   ClickTrigger,
-  InspectKey,
   KeyChoice,
-  SearchKey,
 } from "../core/settings";
 import type { SelectOption } from "./select";
 
@@ -41,16 +39,39 @@ export const CANCEL_KEY_OPTIONS: SelectOption<KeyChoice>[] = [
   { value: "space", label: "Espace" },
 ];
 
-export const INSPECT_OPTIONS: SelectOption<InspectKey>[] = [
-  { value: "i", label: "Ctrl + I" },
-  { value: "d", label: "Ctrl + D" },
-  { value: "k", label: "Ctrl + K" },
+/**
+ * Options du 2e dropdown (touche + répétition) : la valeur est un **token** —
+ * lettre simple (`"f"`) ou doublée (`"ff"` = double-tap), ou `"off"`.
+ */
+export const INSPECT_OPTIONS: SelectOption<string>[] = [
+  { value: "i", label: "I" },
+  { value: "ii", label: "I I" },
+  { value: "d", label: "D" },
+  { value: "dd", label: "D D" },
+  { value: "k", label: "K" },
+  { value: "kk", label: "K K" },
   { value: "off", label: "Désactivé" },
 ];
 
-export const SEARCH_KEY_OPTIONS: SelectOption<SearchKey>[] = [
-  { value: "f", label: "Ctrl + F" },
-  { value: "p", label: "Ctrl + P" },
-  { value: "k", label: "Ctrl + K" },
+export const SEARCH_KEY_OPTIONS: SelectOption<string>[] = [
+  { value: "f", label: "F" },
+  { value: "ff", label: "F F" },
+  { value: "p", label: "P" },
+  { value: "pp", label: "P P" },
+  { value: "k", label: "K" },
+  { value: "kk", label: "K K" },
   { value: "off", label: "Désactivé" },
 ];
+
+/** Binding clavier → token du dropdown (`{key:"f",double:true}` → `"ff"`). Pur. */
+export function keyToken(b: { key: string; double: boolean }): string {
+  if (b.key === "off") return "off";
+  return b.double ? b.key + b.key : b.key;
+}
+
+/** Token du dropdown → `{ key, double }` (`"ff"` → `{key:"f",double:true}`). Pur. */
+export function keyFromToken(t: string): { key: string; double: boolean } {
+  if (t === "off") return { key: "off", double: false };
+  const double = t.length === 2 && t[0] === t[1];
+  return { key: double ? t.charAt(0) : t, double };
+}

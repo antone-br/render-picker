@@ -1,4 +1,8 @@
-import { DEFAULT_SETTINGS, type RenderPickerSettings } from "../../src/core/settings";
+import {
+  DEFAULT_SETTINGS,
+  normalizeKeyBinding,
+  type RenderPickerSettings,
+} from "../../src/core/settings";
 
 /**
  * Persistance des réglages via `chrome.storage.sync` (remplace localStorage + la
@@ -22,8 +26,8 @@ function mergeCommands(stored: Partial<Commands> | undefined): Commands {
     multi: { ...d.multi, ...stored.multi },
     confirm: stored.confirm ?? d.confirm,
     cancel: stored.cancel ?? d.cancel,
-    inspect: stored.inspect ?? d.inspect,
-    search: stored.search ?? d.search,
+    inspect: normalizeKeyBinding(stored.inspect, d.inspect),
+    search: normalizeKeyBinding(stored.search, d.search),
     source: { ...d.source, ...stored.source },
     usage: { ...d.usage, ...stored.usage },
   };

@@ -15,6 +15,9 @@ export const MAX_DESCEND = 32;
 /** Durée d'avalage des events résiduels après un pick (ms). */
 export const SWALLOW_MS = 700;
 
+/** Fenêtre d'un double-tap (ms) : armement + commandes clavier double-tap. */
+export const DOUBLE_TAP_WINDOW = 400;
+
 /** Events souris/pointeur avalés en capture pendant l'inspection. */
 export const PRESS_EVENTS = [
   "pointerdown",
