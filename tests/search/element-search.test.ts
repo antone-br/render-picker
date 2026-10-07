@@ -54,6 +54,19 @@ describe("toSelector", () => {
   it("échappe les caractères spéciaux d'une classe en mot libre", () => {
     expect(toSelector("a-b")).toContain(".a-b");
   });
+
+  it("plusieurs classes séparées par espaces → ET exact (.a.b)", () => {
+    expect(toSelector("p-4 space-y-4")).toBe(".p-4.space-y-4");
+  });
+
+  it("multi-classes Tailwind : tokens échappés (`:` et `/`)", () => {
+    expect(toSelector("md:px-6 w-1/2")).toBe(".md\\:px-6.w-1\\/2");
+  });
+
+  it("non-régression : un vrai descendant reste du CSS brut", () => {
+    expect(toSelector("div .card")).toBe("div .card");
+    expect(toSelector("ul[role] li")).toBe("ul[role] li");
+  });
 });
 
 describe("searchElements", () => {
@@ -82,6 +95,23 @@ describe("searchElements", () => {
   it("classe `.tag` classique", () => {
     document.body.innerHTML = '<div class="btn primary"></div>';
     expect(searchElements(".btn")).toHaveLength(1);
+  });
+
+  it("plusieurs classes (espaces) : seuls les éléments ayant TOUTES les classes", () => {
+    document.body.innerHTML =
+      '<div class="p-4 space-y-4">1</div>' + // les deux → match
+      '<div class="p-4">2</div>' + // une seule → écarté
+      '<section class="space-y-4 p-4 flex">3</section>'; // les deux (+ autre) → match
+    const found = searchElements("p-4 space-y-4");
+    expect(found).toHaveLength(2);
+    expect(found.map((e) => e.textContent)).toEqual(["1", "3"]);
+  });
+
+  it("multi-classes : ignore l'UI du picker (data-pathpicker-ignore)", () => {
+    document.body.innerHTML =
+      '<main class="p-4 space-y-4"></main>' +
+      '<aside data-pathpicker-ignore=""><div class="p-4 space-y-4"></div></aside>';
+    expect(searchElements("p-4 space-y-4")).toHaveLength(1);
   });
 
   it("sélecteur CSS direct", () => {

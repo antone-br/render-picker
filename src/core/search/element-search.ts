@@ -21,6 +21,9 @@ const IGNORE_SELECTOR = "[data-pathpicker-ignore]";
 
 const WORD_RE = /^[a-zA-Z][\w-]*$/;
 
+/** Token de classe « nu » (Tailwind inclus : md:px-6, w-1/2, p-1.5). Pas de . / # en tête, ni combinateur. */
+const CLASS_TOKEN_RE = /^[A-Za-z][A-Za-z0-9_:/.-]*$/;
+
 /** Requête partielle autocomplétable : `tag?` + `.prefix?` (dot requis). */
 const PARTIAL_RE = /^([a-zA-Z][\w-]*)?\.(\w*)$/;
 
@@ -100,6 +103,14 @@ function searchPartial(
 export function toSelector(query: string): string | null {
   const q = query.trim();
   if (!q) return null;
+
+  // Plusieurs classes séparées par des espaces (copiées d'un `class="..."`, ex.
+  // `p-4 space-y-4`) → ET exact : `.p-4.space-y-4`. (Un vrai sélecteur descendant
+  // garde un `.`/`#`/`[`/`>` → ses tokens échouent CLASS_TOKEN_RE → CSS brut.)
+  const tokens = q.split(/\s+/);
+  if (tokens.length > 1 && tokens.every((t) => CLASS_TOKEN_RE.test(t))) {
+    return tokens.map((t) => `.${escapeClassToken(t)}`).join("");
+  }
 
   const isSimpleWord = WORD_RE.test(q);
   if (!isSimpleWord) {

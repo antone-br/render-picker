@@ -17,13 +17,13 @@
     "ai-coding-agent",
     "claude-code"
   ],
-  "homepage": "https://github.com/Antone-br/render-picker#readme",
+  "homepage": "https://github.com/antone-br/render-picker#readme",
   "bugs": {
-    "url": "https://github.com/Antone-br/render-picker/issues"
+    "url": "https://github.com/antone-br/render-picker/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Antone-br/render-picker.git"
+    "url": "git+https://github.com/antone-br/render-picker.git"
   },
   "license": "MIT",
   "author": "Antone Barbaud <antone.barbaud@icloud.com>",

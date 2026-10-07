@@ -14,9 +14,8 @@ import {
   CARD_SHADOW,
   MUTED,
   HOVER_BG,
-  SECONDARY_BG_HOVER,
 } from "../core/inspector/constants/theme";
-import { ChevronIcon } from "./icons";
+import { SearchNav } from "./search-nav";
 
 
 export interface SearchPopoverProps {
@@ -189,6 +188,9 @@ export function SearchPopover({
   };
 
   return (
+    // Carte centrée sur le viewport = alignée avec la barre du bas (elle aussi
+    // `left:50% translateX(-50%)`). La nav est un enfant `absolute` → elle ne
+    // décale pas le centrage de la carte.
     <div
       ref={ref}
       data-pathpicker-ignore=""
@@ -236,59 +238,6 @@ export function SearchPopover({
             minWidth: 0,
           }}
         />
-        <span style={{ fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>
-          {groups[index] && groups[index]!.count > 0
-            ? `${((member % groups[index]!.count) + groups[index]!.count) % groups[index]!.count + 1}/${groups[index]!.count}`
-            : String(results.length)}
-        </span>
-        {[
-          {
-            dir: "left" as const,
-            disabled: groups.length === 0,
-            onClick: () => {
-              stepTo(member - 1);
-            },
-            label: "Occurrence précédente",
-          },
-          {
-            dir: "right" as const,
-            disabled: groups.length === 0,
-            onClick: () => {
-              stepTo(member + 1);
-            },
-            label: "Occurrence suivante",
-          },
-        ].map(({ dir, disabled, onClick, label }) => (
-          <button
-            key={dir}
-            type="button"
-            aria-label={label}
-            disabled={disabled}
-            onClick={onClick}
-            onMouseEnter={(e) => {
-              if (!disabled) e.currentTarget.style.background = SECONDARY_BG_HOVER;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 20,
-              height: 20,
-              borderRadius: 4,
-              cursor: disabled ? "default" : "pointer",
-              background: "transparent",
-              border: "none",
-              opacity: disabled ? 0.4 : 1,
-              color: MUTED,
-              padding: 0,
-            }}
-          >
-            <ChevronIcon dir={dir} color={MUTED} />
-          </button>
-        ))}
       </div>
 
       <div
@@ -371,6 +320,27 @@ export function SearchPopover({
             </div>
           );
         })}
+      </div>
+
+      {/* Nav en enfant `absolute`, collée à droite et alignée en haut sur la ligne input
+          (top:0 = bord du padding = haut de l'input). */}
+      <div
+        style={{
+          position: "absolute",
+          left: "calc(100% + 8px)",
+          top: 0,
+        }}
+      >
+        <SearchNav
+          counter={
+            groups[index] && groups[index]!.count > 0
+              ? `${((member % groups[index]!.count) + groups[index]!.count) % groups[index]!.count + 1}/${groups[index]!.count}`
+              : String(results.length)
+          }
+          disabled={groups.length === 0}
+          onPrev={() => stepTo(member - 1)}
+          onNext={() => stepTo(member + 1)}
+        />
       </div>
     </div>
   );

@@ -465,4 +465,42 @@ describe("RenderPickerButton", () => {
 
     act(() => root.unmount());
   });
+
+  it("la nav (1/1 + flèches) est une boîte séparée ; cliquer dedans ne ferme pas", () => {
+    window.localStorage.clear();
+    document.body.innerHTML = "";
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    const ctrlF = (timeStamp: number) => {
+      const e = new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true });
+      Object.defineProperty(e, "timeStamp", { value: timeStamp, configurable: true });
+      window.dispatchEvent(e);
+    };
+    act(() => ctrlF(0));
+    act(() => ctrlF(100));
+
+    // Boîte nav distincte de la carte popover, avec les deux flèches.
+    const prev = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Occurrence précédente"]',
+    );
+    const next = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Occurrence suivante"]',
+    );
+    expect(prev).not.toBeNull();
+    expect(next).not.toBeNull();
+    // La nav est une boîte distincte (hors de la ligne input et de la liste de résultats).
+    expect(prev!.closest("[role='searchbox']")).toBeNull();
+
+    // Cliquer dans la nav ne ferme pas le popover (porte data-rp-search-ui).
+    act(() => {
+      prev!.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      prev!.click();
+    });
+    expect(document.querySelector("[data-rp-search-popover]")).not.toBeNull();
+
+    act(() => root.unmount());
+  });
 });
