@@ -5,7 +5,7 @@
 
 export interface PanelState {
   open: boolean;
-  tab: "console" | "network";
+  tab: "console" | "network" | "html";
   width: number;
   height: number;
   x: number;

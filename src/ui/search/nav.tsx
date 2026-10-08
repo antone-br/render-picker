@@ -8,8 +8,8 @@ import {
   SECONDARY_BORDER,
   SECONDARY_SURFACE,
   TOOLTIP_SHADOW,
-} from "../core/inspector/constants/theme";
-import { ChevronIcon } from "./icons";
+} from "../../core/inspector/constants/theme";
+import { ChevronIcon } from "../icons";
 
 /** Props de `SearchNav` (boîte flottante compteur + navigation). */
 export interface SearchNavProps {

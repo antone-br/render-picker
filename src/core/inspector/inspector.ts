@@ -4,6 +4,7 @@ import {
   keyMatches,
   type ClickTrigger,
 } from "../settings";
+import { isTreeSelectMode, requestSelect } from "../devpanel/inspected";
 import type { InspectorCallbacks, PickResult } from "../types";
 import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
 import { createKeyCommandMatcher } from "./key-command";
@@ -266,6 +267,7 @@ class Inspector {
     }
     if (target === this.lastTarget) return;
     this.lastTarget = target;
+    this.callbacks.onHover?.(target);
     this.syncObserver();
     const rect = target.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
@@ -321,6 +323,12 @@ class Inspector {
     }
 
     if (isCopy) {
+      // Mode HTML (arbre monté) : clic → sélectionne l'élément dans l'arbre (pas de copie).
+      if (isTreeSelectMode()) {
+        this.swallowTrailingPress();
+        requestSelect(target);
+        return;
+      }
       const result = this.buildResult(target);
       this.deactivate();
       this.swallowTrailingPress();
@@ -339,8 +347,9 @@ class Inspector {
     const cmds = this.commands();
 
     // Commande « inspect » (modificateur + touche, simple ou double-tap) → ouvre le
-    // panneau pour l'élément survolé, puis désarme. (La commande « search » est gérée
-    // globalement par le hook, pour marcher même picker non armé.)
+    // panneau pour l'élément survolé ET reste armé : le survol continue de piloter
+    // l'arbre HTML (on descend dans les divs enfants). Échap désarme. (La commande
+    // « search » est gérée globalement par le hook, pour marcher même picker non armé.)
     const inspectStatus = this.callbacks.onInspect
       ? this.inspectMatcher.status(e, cmds.inspect)
       : null;
@@ -357,9 +366,7 @@ class Inspector {
     ) {
       e.preventDefault();
       e.stopPropagation();
-      const el = this.lastTarget;
-      this.deactivate();
-      this.callbacks.onInspect(el);
+      this.callbacks.onInspect(this.lastTarget);
       return;
     }
 

@@ -19,6 +19,7 @@ import { enrichResult } from "./core/source/enrich";
 import { pickResultFromElement } from "./core/search/element-search";
 import { startCapture } from "./core/devpanel/capture";
 import { loadPanelState, savePanelState } from "./core/devpanel/panel-state";
+import { setInspected } from "./core/devpanel/inspected";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
@@ -27,8 +28,8 @@ import {
   TOOLTIP_SHADOW,
 } from "./core/inspector/constants/theme";
 import type { PickResult } from "./core/types";
-import { DevPanel } from "./ui/dev-panel";
-import { SearchPopover } from "./ui/search-popover";
+import { DevPanel } from "./ui/dev-panel/dev-panel";
+import { SearchPopover } from "./ui/search/popover";
 import { ContextMenu, type ContextMenuState } from "./ui/context-menu";
 import { CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
@@ -187,9 +188,10 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         setContextMenu({ el, x: pos.x, y: pos.y });
       }
     },
-    onInspect: () => {
+    onInspect: (el) => {
+      setInspected(el); // verrouille la cible du reveal (le picker se désarme → plus de survol)
+      savePanelState({ open: true, tab: "html" }); // écrit avant le montage → DevPanel démarre sur HTML
       setPanelOpen(true);
-      savePanelState({ open: true });
     },
     onSearch: () => setSearchOpen((o) => !o),
     // Overlays layout toujours actifs (plus de toggle).

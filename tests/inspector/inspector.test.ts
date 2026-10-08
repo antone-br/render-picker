@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInspector } from "../../src/core/inspector/inspector";
 import { CONTEXT_MENU_OPEN } from "../../src/core/inspector/constants/behavior";
+import {
+  onSelectRequest,
+  setTreeSelectMode,
+} from "../../src/core/devpanel/inspected";
 import { DEFAULT_SETTINGS } from "../../src/core/settings";
 import type { PickResult } from "../../src/core/types";
 
@@ -326,7 +330,7 @@ function dispatchKey(opts: KeyboardEventInit, timeStamp: number): void {
 }
 
 describe("createInspector — commande clavier inspect", () => {
-  it("inspect défaut (Ctrl + I, simple) : un appui → onInspect(el) + désarme", () => {
+  it("inspect défaut (Ctrl + I, simple) : un appui → onInspect(el), reste armé (drill au survol)", () => {
     document.body.innerHTML = `<main><button id="b">x</button></main>`;
     const btn = document.getElementById("b")!;
     stubElementFromPoint(btn);
@@ -345,6 +349,32 @@ describe("createInspector — commande clavier inspect", () => {
 
     expect(onInspect).toHaveBeenCalledTimes(1);
     expect(onInspect.mock.calls[0]![0]).toBe(btn);
-    expect(document.body.querySelector("[data-pathpicker-ignore]")).toBeNull(); // désarmé
+    // Reste armé : l'overlay/UI de l'inspecteur est toujours monté (le survol continue de piloter l'arbre).
+    expect(document.body.querySelector("[data-pathpicker-ignore]")).not.toBeNull();
+
+    insp.deactivate();
+  });
+
+  it("mode select-in-tree : clic page → pas de pick/copie, demande de sélection", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onPick = vi.fn<(r: PickResult) => void>();
+    const selected = vi.fn<(el: Element) => void>();
+    const insp = createInspector({ onPick, onCancel: () => {}, getRoute: () => "/" });
+    insp.activate();
+    setTreeSelectMode(true);
+    const unsub = onSelectRequest(selected);
+
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+
+    expect(onPick).not.toHaveBeenCalled(); // pas de copie
+    expect(selected).toHaveBeenCalledWith(btn); // sélection dans l'arbre
+    expect(document.body.querySelector("[data-pathpicker-ignore]")).not.toBeNull(); // reste armé
+
+    unsub();
+    setTreeSelectMode(false);
+    insp.deactivate();
   });
 });

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createHotkeyMatcher } from "../core/inspector/hotkey";
 import { createInspector } from "../core/inspector/inspector";
 import { createKeyCommandMatcher } from "../core/inspector/key-command";
+import { onDisarmRequest, setInspected } from "../core/devpanel/inspected";
 import { DEFAULT_SETTINGS, type RenderPickerSettings } from "../core/settings";
 import type { LayoutOverlays, PickResult } from "../core/types";
 
@@ -104,6 +105,10 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
     inspectorRef.current?.setSearchMode(on);
   }, []);
 
+  // Désarmement sur demande (clic sur une ligne de l'arbre HTML → fige la sélection,
+  // stoppe l'inspect-au-survol).
+  useEffect(() => onDisarmRequest(() => setActive(false)), []);
+
   // Raccourci clavier d'armement.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -170,6 +175,7 @@ export function useRenderPicker(options: UseRenderPickerOptions): {
         optsRef.current.onPickMany?.(rs);
       },
       onContextMenu: (el, pos) => optsRef.current.onContextMenu?.(el, pos),
+      onHover: (el) => setInspected(el),
       onCancel: () => setActive(false),
       getRoute: () => optsRef.current.pathname ?? window.location.pathname ?? "/",
       multi: optsRef.current.multi,

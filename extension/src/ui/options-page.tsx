@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { DEFAULT_SETTINGS, type RenderPickerSettings } from "../../../src/core/settings";
-import { SettingsMenu } from "../../../src/ui/settings-menu";
+import { SettingsMenu } from "../../../src/ui/settings-menu/settings-menu";
 import { saveCommands } from "../storage";
 
 type Commands = RenderPickerSettings["commands"];

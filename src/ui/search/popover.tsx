@@ -5,18 +5,14 @@ import {
   groupResults,
   searchElements,
   SEARCH_UI_ATTR,
-} from "../core/search/element-search";
-import { makeQueryHistory } from "../core/search/query-history";
-import { createSearchHighlight } from "../core/search/highlight";
-import { vscodeOpenFor } from "../core/dev/click-to-source";
-import {
-  ELEVATED_BG,
-  CARD_SHADOW,
-  MUTED,
-  HOVER_BG,
-} from "../core/inspector/constants/theme";
-import { SearchNav } from "./search-nav";
-
+} from "../../core/search/element-search";
+import { makeQueryHistory } from "../../core/search/query-history";
+import { createSearchHighlight } from "../../core/search/highlight";
+import { vscodeOpenFor } from "../../core/dev/click-to-source";
+import { ELEVATED_BG, CARD_SHADOW } from "../../core/inspector/constants/theme";
+import { useOutsideClose } from "../use-outside-close";
+import { ResultList } from "./results";
+import { SearchNav } from "./nav";
 
 export interface SearchPopoverProps {
   /** Ferme la recherche (bouton, changement de page, clic hors du popover). */
@@ -27,23 +23,10 @@ export interface SearchPopoverProps {
   onContextMenuElement?: (el: HTMLElement, pos: { x: number; y: number }) => void;
 }
 
-const rowStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 10,
-  padding: "4px 8px",
-  fontSize: 11,
-  color: "#fff",
-  fontFamily: "system-ui, sans-serif",
-} as const;
-
 /**
- * Recherche d'éléments (tag / classe / sélecteur CSS) : panneau remontant
- * au-dessus de la barre du bas. Chaque résultat est **mis en avant** sur la page
- * avec le rect de survol de l'inspecteur (suivi scroll/resize en continu) ;
- * l'élément actif (↑/↓ ou survol de la ligne) porte le rect le plus net,
- * Entrée le scrolle dans le viewport. Échap ferme. Interactive même picker armé.
+ * Recherche d'éléments (tag / classe / sélecteur CSS) : carte remontant au-dessus
+ * de la barre du bas. Les résultats sont surlignés sur la page (couche highlight) ;
+ * la liste groupée vit dans `./results`, la navigation dans `./nav`. Échap ferme.
  */
 export function SearchPopover({
   onClose,
@@ -52,10 +35,8 @@ export function SearchPopover({
 }: SearchPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const onCloseRef = useRef(onClose);
   const onPickRef = useRef(onPickElement);
   const onContextMenuRef = useRef(onContextMenuElement);
-  onCloseRef.current = onClose;
   onPickRef.current = onPickElement;
   onContextMenuRef.current = onContextMenuElement;
 
@@ -125,23 +106,11 @@ export function SearchPopover({
         ? group.indices[((member % group.indices.length) + group.indices.length) % group.indices.length]!
         : -1;
     highlight.setActive(currentFlat === -1 ? [] : [currentFlat]);
-    highlight.setFilter(
-      rowHover === -1 ? null : (groups[rowHover]?.indices ?? null),
-    );
+    highlight.setFilter(rowHover === -1 ? null : (groups[rowHover]?.indices ?? null));
   }, [index, groups, rowHover, member]);
 
-  // Fermeture au clic hors du popover (composedPath → traverse aussi le shadow DOM).
-  useEffect(() => {
-    const onDown = (e: Event) => {
-      const path = e.composedPath?.() ?? [];
-      const inside = path.some(
-        (n) => n instanceof Element && n.hasAttribute?.(SEARCH_UI_ATTR),
-      );
-      if (!inside) onCloseRef.current();
-    };
-    document.addEventListener("pointerdown", onDown, true);
-    return () => document.removeEventListener("pointerdown", onDown, true);
-  }, []);
+  // Fermeture au clic hors du popover (toute surface `data-rp-search-ui`).
+  useOutsideClose(SEARCH_UI_ATTR, onClose);
 
   const locate = (el: HTMLElement) => {
     el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -240,97 +209,26 @@ export function SearchPopover({
         />
       </div>
 
-      <div
-        style={{ overflowY: "auto", display: "flex", flexDirection: "column", paddingTop: 4 }}
-        onMouseLeave={() => setRowHover(-1)}
-      >
-        {query.trim() === "" && (
-          <div style={{ ...rowStyle, color: MUTED }}>
-            Rechercher par tag (div), classe (.card) ou sélecteur CSS.
-          </div>
-        )}
-        {query.trim() !== "" && groups.length === 0 && (
-          <div style={{ ...rowStyle, color: MUTED }}>Aucun résultat</div>
-        )}
-        {groups.map((g, i) => {
-          const first = results[g.indices[0]!]!;
-          const component =
-            first.closest("[data-component]")?.getAttribute("data-component") ?? null;
-          return (
-            <div
-              key={g.key}
-              role="option"
-              aria-selected={i === index}
-              onMouseEnter={() => {
-                setIndex(i);
-                setRowHover(i);
-              }}
-              onClick={() => {
-                commit(g.selector);
-                setIndex(0);
-                setMember(0);
-                inputRef.current?.focus();
-              }}
-              style={{
-                ...rowStyle,
-                cursor: "pointer",
-                background: i === index ? HOVER_BG : "transparent",
-                borderRadius: 6,
-              }}
-            >
-              <span
-                style={{
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  minWidth: 0,
-                }}
-              >
-                <b style={{ fontWeight: 600 }}>{g.tag}</b>
-                <span style={{ opacity: 0.7 }}>{g.cls}</span>
-              </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span
-                  style={{
-                    color: "#93c5fd",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    maxWidth: 110,
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                >
-                  {component}
-                </span>
-                <span
-                  style={{
-                    color: "#60a5fa",
-                    background: "rgba(59,130,246,0.15)",
-                    border: "1px solid rgba(59,130,246,0.3)",
-                    borderRadius: 4,
-                    padding: "0 5px",
-                    font: "600 10px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  ×{g.count}
-                </span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Nav en enfant `absolute`, collée à droite et alignée en haut sur la ligne input
-          (top:0 = bord du padding = haut de l'input). */}
-      <div
-        style={{
-          position: "absolute",
-          left: "calc(100% + 8px)",
-          top: 0,
+      <ResultList
+        query={query}
+        results={results}
+        groups={groups}
+        index={index}
+        onHoverRow={(i) => {
+          setIndex(i);
+          setRowHover(i);
         }}
-      >
+        onLeave={() => setRowHover(-1)}
+        onPick={(selector) => {
+          commit(selector);
+          setIndex(0);
+          setMember(0);
+          inputRef.current?.focus();
+        }}
+      />
+
+      {/* Nav en enfant `absolute`, collée à droite et alignée en haut sur la ligne input. */}
+      <div style={{ position: "absolute", left: "calc(100% + 8px)", top: 0 }}>
         <SearchNav
           counter={
             groups[index] && groups[index]!.count > 0

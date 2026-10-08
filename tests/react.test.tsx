@@ -27,6 +27,7 @@ import {
 } from "../src/react";
 import type { PickResult } from "../src/core/types";
 import { addRequest, clearLogs, clearRequests } from "../src/core/devpanel/store";
+import { resetSettingsRouteCache } from "../src/core/settings";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -45,6 +46,7 @@ afterEach(() => {
   document.body.innerHTML = "";
   captured = null;
   window.localStorage.clear();
+  resetSettingsRouteCache();
   clearLogs();
   clearRequests();
   vi.restoreAllMocks();
@@ -310,6 +312,213 @@ describe("RenderPickerButton", () => {
     expect(loadPanelState().open).toBe(false);
 
     act(() => root.unmount());
+  });
+
+  it("prompt REPL de la console évalue l'expression (écho + résultat)", () => {
+    window.localStorage.clear();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+    // Onglet Console actif (bouton dont le texte commence par « Console »).
+    const consoleTab = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent?.startsWith("Console"));
+    act(() => consoleTab?.click());
+
+    const input = document.querySelector<HTMLInputElement>(
+      'input[aria-label="Console REPL"]',
+    )!;
+    expect(input).not.toBeNull();
+
+    // Saisie contrôlée : setter natif + event input, puis Entrée.
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!;
+    act(() => {
+      setValue.call(input, "2 + 3");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+
+    expect(logSpy).toHaveBeenCalledWith("› 2 + 3");
+    expect(logSpy).toHaveBeenCalledWith(5);
+    expect(input.value).toBe(""); // vidé après exécution
+
+    logSpy.mockRestore();
+    act(() => root.unmount());
+  });
+
+  it("onglet HTML affiche l'arbre DOM depuis <body>", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+    const htmlTab = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent === "HTML");
+    act(() => htmlTab?.click());
+
+    // La racine <body> apparaît dans l'arbre (span tag « body »).
+    const bodyTag = Array.from(document.querySelectorAll("span")).some(
+      (s) => s.textContent === "body",
+    );
+    expect(bodyTag).toBe(true);
+
+    act(() => root.unmount());
+  });
+
+  it("onglet HTML : survol inspecteur révèle le nœud (déplie ancêtres + la div visée)", () => {
+    window.localStorage.clear();
+    const nested = document.createElement("section");
+    nested.innerHTML = '<article><b>x</b></article>';
+    document.body.appendChild(nested);
+    const deep = nested.querySelector("article")!;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+    act(() =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+        .find((b) => b.textContent === "HTML")
+        ?.click(),
+    );
+
+    const tagShown = (t: string) =>
+      Array.from(document.querySelectorAll("span")).some((s) => s.textContent === t);
+
+    // Replié par défaut (section non dépliée) → article invisible.
+    expect(tagShown("article")).toBe(false);
+
+    // L'inspecteur survole `article` → reveal : ancêtres + la div visée dépliés
+    // → `article` ET son enfant `b` sont visibles.
+    act(() => captured?.onHover?.(deep));
+    expect(tagShown("article")).toBe(true);
+    expect(tagShown("b")).toBe(true);
+
+    act(() => root.unmount());
+    nested.remove();
+  });
+
+  it("quitter l'onglet HTML efface la sélection (pas de re-sélection au retour)", () => {
+    window.localStorage.clear();
+    const nested = document.createElement("section");
+    nested.innerHTML = "<article><b>x</b></article>";
+    document.body.appendChild(nested);
+    const deep = nested.querySelector("article")!;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+    const tab = (label: string) =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+        (b) => b.textContent === label || b.textContent?.startsWith(`${label} (`),
+      );
+    act(() => tab("HTML")?.click());
+
+    const articleShown = () =>
+      Array.from(document.querySelectorAll("span")).some((s) => s.textContent === "article");
+
+    act(() => captured?.onHover?.(deep));
+    expect(articleShown()).toBe(true); // révélé
+
+    // Quitter HTML → revenir : la div n'est plus auto-sélectionnée/révélée.
+    act(() => tab("Console")?.click());
+    act(() => tab("HTML")?.click());
+    expect(articleShown()).toBe(false);
+
+    act(() => root.unmount());
+    nested.remove();
+  });
+
+  it("arbre HTML : clic sélectionne une ligne, clic ailleurs désélectionne", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+    act(() =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+        .find((b) => b.textContent === "HTML")
+        ?.click(),
+    );
+
+    const row = document.querySelector<HTMLElement>("[data-rp-tree-row]")!;
+    expect(row).not.toBeNull();
+
+    // Clic sur la ligne → sélection (fond bleu, non transparent) + désarme le picker
+    // (stoppe l'inspect-au-survol → la barre du bas disparaît).
+    act(() => row.click());
+    expect(row.style.background).not.toBe("transparent");
+    expect(row.style.background).not.toBe("");
+    expect(document.querySelector("button[data-rp-gear]")).toBeNull(); // désarmé
+
+    // Clic ailleurs (hors ligne) → désélection.
+    act(() => document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
+    expect(row.style.background).toBe("transparent");
+
+    act(() => root.unmount());
+  });
+
+  it("Ctrl+I (inspect) panneau fermé → ouvre l'onglet HTML et révèle la div", () => {
+    window.localStorage.clear();
+    const nested = document.createElement("section");
+    nested.innerHTML = '<article>art</article>';
+    document.body.appendChild(nested);
+    const deep = nested.querySelector("article")!;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    const articleShown = () =>
+      Array.from(document.querySelectorAll("span")).some((s) => s.textContent === "article");
+
+    // Panneau HTML fermé → l'arbre n'est pas monté, `article` invisible.
+    expect(articleShown()).toBe(false);
+
+    // Inspecter `article` (Ctrl+I) → ouvre le panneau sur HTML + révèle la div.
+    act(() => captured?.onInspect?.(deep));
+    expect(articleShown()).toBe(true); // ancêtres dépliés → div révélée
+
+    act(() => root.unmount());
+    nested.remove();
   });
 
   it("copie multi sur onPickMany", () => {

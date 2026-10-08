@@ -9,7 +9,7 @@ import {
 } from "../core/inspector/constants/theme";
 import type { RenderPickerSettings } from "../core/settings";
 import { GearIcon, PanelIcon, SearchIcon } from "./icons";
-import { SettingsMenu } from "./settings-menu";
+import { SettingsMenu } from "./settings-menu/settings-menu";
 
 type Commands = RenderPickerSettings["commands"];
 

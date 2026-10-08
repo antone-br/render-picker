@@ -17,13 +17,13 @@ import { tooltipClasses } from "../../../src/core/inspector/surfaces/tooltip";
 import { enrichResult } from "../../../src/core/source/enrich";
 import type { RenderPickerSettings } from "../../../src/core/settings";
 import { loadPanelState, savePanelState } from "../../../src/core/devpanel/panel-state";
-import { DevPanel } from "../../../src/ui/dev-panel";
+import { DevPanel } from "../../../src/ui/dev-panel/dev-panel";
 import { formatResult } from "../../../src/core/format";
 import { pickResultFromElement } from "../../../src/core/search/element-search";
 import { ContextMenu, type ContextMenuState } from "../../../src/ui/context-menu";
 import { CrosshairIcon } from "../../../src/ui/icons";
 import { SettingsBar } from "../../../src/ui/settings-bar";
-import { SearchPopover } from "../../../src/ui/search-popover";
+import { SearchPopover } from "../../../src/ui/search/popover";
 import { useRenderPicker } from "../../../src/ui/use-render-picker";
 import { getCommandsSync, onCommandsChange, saveCommands } from "../storage";
 

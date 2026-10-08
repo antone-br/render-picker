@@ -50,6 +50,8 @@ export interface InspectorCallbacks {
   onInspect?: (el: Element) => void;
   /** Ouvre le menu contextuel (remappable `copyHtml` : copier HTML / classes). */
   onContextMenu?: (el: Element, pos: { x: number; y: number }) => void;
+  /** Élément survolé par le picker (nouveau survol) — pour révéler dans l'arbre HTML. */
+  onHover?: (el: Element) => void;
   /** Notifié à chaque changement du nombre d'éléments sélectionnés. */
   onSelectionChange?: (count: number) => void;
 }
