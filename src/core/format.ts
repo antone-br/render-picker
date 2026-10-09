@@ -52,6 +52,10 @@ function printNode(node: Node, depth: number, indent: string): string {
     const text = (node.textContent ?? "").trim();
     return text ? pad + text : "";
   }
+  if (node.nodeType === 8) {
+    // Nœud commentaire — préservé (annotations « classe → CSS » de la copie reproductible).
+    return `${pad}<!--${node.textContent ?? ""}-->`;
+  }
   if (node.nodeType !== 1) return "";
 
   const el = node as Element;
@@ -60,10 +64,11 @@ function printNode(node: Node, depth: number, indent: string): string {
   if (VOID_ELEMENTS.has(tag)) return pad + open;
 
   const children = Array.from(el.childNodes);
-  const hasElementChild = children.some((c) => c.nodeType === 1);
+  // Élément OU commentaire → rendu multi-ligne (le commentaire passe sous la balise).
+  const hasBlockChild = children.some((c) => c.nodeType === 1 || c.nodeType === 8);
 
-  // Pas d'enfant élément : inline (ou balise vide).
-  if (!hasElementChild) {
+  // Pas d'enfant bloc : inline (ou balise vide).
+  if (!hasBlockChild) {
     const text = (el.textContent ?? "").trim();
     return text ? `${pad}${open}${text}</${tag}>` : `${pad}${open}</${tag}>`;
   }

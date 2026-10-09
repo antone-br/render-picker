@@ -42,4 +42,22 @@ describe("getXPath", () => {
     const el = document.querySelector("div")!;
     expect(getXPath(el)).toBe("/html/body/div");
   });
+
+  it("ignore un id auto-généré sur la cible (chemin positionnel)", () => {
+    document.body.innerHTML = `<main><button id="headlessui-dialog-panel-_r_3b_"></button></main>`;
+    const btn = document.querySelector("button")!;
+    expect(getXPath(btn)).toBe("/html/body/main/button");
+  });
+
+  it("ignore un id auto-généré sur un ancêtre", () => {
+    document.body.innerHTML = `<div id="headlessui-dialog-panel-_r_3b_"><button><svg></svg></button></div>`;
+    const svg = document.querySelector("svg")!;
+    expect(getXPath(svg)).toBe("/html/body/div/button/svg");
+  });
+
+  it("ignore les ids React useId (`:r3:`)", () => {
+    document.body.innerHTML = `<section id=":r3:"><span></span></section>`;
+    const span = document.querySelector("span")!;
+    expect(getXPath(span)).toBe("/html/body/section/span");
+  });
 });

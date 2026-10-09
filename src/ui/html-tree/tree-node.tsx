@@ -1,4 +1,4 @@
-import type { FC, RefObject } from "react";
+import type { FC, MouseEvent as ReactMouseEvent, RefObject } from "react";
 
 import { SELECTED_BG } from "../../core/inspector/constants/picker";
 import { MUTED } from "../../core/inspector/constants/theme";
@@ -43,6 +43,7 @@ export interface TreeNodeProps {
   focusEl: Element | null;
   onSelect: (el: Element) => void;
   onHover: (el: Element | null) => void;
+  onContextMenu: (e: ReactMouseEvent, el: Element) => void;
   selectedRowRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -56,6 +57,7 @@ export const TreeNode: FC<TreeNodeProps> = ({
   focusEl,
   onSelect,
   onHover,
+  onContextMenu,
   selectedRowRef,
 }) => {
   const children = visibleChildren(el);
@@ -78,6 +80,11 @@ export const TreeNode: FC<TreeNodeProps> = ({
         onClick={(e) => {
           e.stopPropagation();
           onSelect(el);
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu(e, el);
         }}
         style={{
           display: "flex",
@@ -121,6 +128,7 @@ export const TreeNode: FC<TreeNodeProps> = ({
             focusEl={focusEl}
             onSelect={onSelect}
             onHover={onHover}
+            onContextMenu={onContextMenu}
             selectedRowRef={selectedRowRef}
           />
         ))}

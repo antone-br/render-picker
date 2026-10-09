@@ -116,6 +116,10 @@ export interface SearchHighlightOptions {
 }
 
 export function createSearchHighlight(options: SearchHighlightOptions = {}): SearchHighlight {
+  // Rects cliquables seulement si un consommateur fournit un callback (recherche).
+  // Sans callback (arbre HTML), les rects sont `pointer-events:none` pour ne pas
+  // bloquer le clic sur l'élément surligné (sinon clic droit / re-clic avalés).
+  const interactive = !!(options.onPick || options.onContextMenu || options.onVscode);
   const root = document.createElement("div");
   root.setAttribute(IGNORE_ATTR, "");
   root.setAttribute(SEARCH_UI_ATTR, "");
@@ -147,8 +151,8 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
       border: HIGHLIGHT_BORDER,
       borderRadius: OVERLAY_RADIUS,
       boxSizing: "border-box",
-      pointerEvents: "auto",
-      cursor: "crosshair",
+      pointerEvents: interactive ? "auto" : "none",
+      cursor: interactive ? "crosshair" : "default",
       display: "none",
     });
     root.appendChild(rect);

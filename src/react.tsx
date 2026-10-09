@@ -21,6 +21,8 @@ import { startCapture } from "./core/devpanel/capture";
 import { loadPanelState, savePanelState } from "./core/devpanel/panel-state";
 import { setInspected } from "./core/devpanel/inspected";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
+import { getXPath } from "./core/inspector/xpath";
+import { serializeWithComputedStyles } from "./core/computed-html";
 import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
   PANEL_BORDER,
@@ -31,7 +33,7 @@ import type { PickResult } from "./core/types";
 import { DevPanel } from "./ui/dev-panel/dev-panel";
 import { SearchPopover } from "./ui/search/popover";
 import { ContextMenu, type ContextMenuState } from "./ui/context-menu";
-import { CrosshairIcon } from "./ui/icons";
+import { CopyIcon, CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
 
@@ -170,8 +172,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
 
   const handleCopyClasses = useCallback(
     (el: HTMLElement) => {
-      const cls = el.getAttribute("class");
-      copy(cls ?? "");
+      const cls = (el.getAttribute("class") ?? "").trim().replace(/\s+/g, " ");
+      copy(cls);
       showToast(cls ? "Classes copiées ✓" : "Aucune classe");
     },
     [showToast],
@@ -227,6 +229,18 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
         },
       },
       {
+        label: "Copier le rendu",
+        icon: <CopyIcon />,
+        info: "HTML autoportant : styles inline + classes/variables en commentaire. Se colle partout sans le CSS de la page.",
+        onClick: () => {
+          if (!contextMenu) return;
+          copy(serializeWithComputedStyles(contextMenu.el));
+          showToast("HTML reproductible copié ✓");
+          closeContextMenu();
+          disarm();
+        },
+      },
+      {
         label: "Copier les classes",
         onClick: () => {
           if (!contextMenu) return;
@@ -244,6 +258,16 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
                 : "Classes copiées ✓"
               : "Aucune classe",
           );
+          closeContextMenu();
+          disarm();
+        },
+      },
+      {
+        label: "Copier le XPath",
+        onClick: () => {
+          if (!contextMenu) return;
+          copy(getXPath(contextMenu.el));
+          showToast("XPath copié ✓");
           closeContextMenu();
           disarm();
         },

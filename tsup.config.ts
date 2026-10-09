@@ -5,7 +5,7 @@ const shared: Options = {
   dts: true,
   sourcemap: true,
   target: "es2020",
-  external: ["react", "next"],
+  external: ["react", "react-dom", "next"],
 };
 
 export default defineConfig([

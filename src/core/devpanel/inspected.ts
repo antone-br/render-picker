@@ -50,6 +50,21 @@ export function onSelectRequest(fn: (el: Element) => void): () => void {
   return () => selectListeners.delete(fn);
 }
 
+const ctxListeners = new Set<(el: Element, x: number, y: number) => void>();
+
+/** Demande d'ouvrir le menu contextuel de l'arbre pour un élément (clic droit page en mode HTML). */
+export function requestContextMenu(el: Element, x: number, y: number): void {
+  for (const fn of ctxListeners) fn(el, x, y);
+}
+
+/** S'abonne aux demandes de menu contextuel. Retourne une fonction de désabonnement. */
+export function onContextMenuRequest(
+  fn: (el: Element, x: number, y: number) => void,
+): () => void {
+  ctxListeners.add(fn);
+  return () => ctxListeners.delete(fn);
+}
+
 const disarmListeners = new Set<() => void>();
 
 /** Demande de désarmer le picker (ex. clic sur une ligne de l'arbre HTML → fige la sélection). */

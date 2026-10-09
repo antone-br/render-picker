@@ -8,6 +8,8 @@ import {
   HOVER_BG,
   MUTED,
 } from "../core/inspector/constants/theme";
+import { InfoIcon } from "./icons";
+import { Tooltip } from "./tooltip";
 
 export interface ContextMenuItem {
   /** Label FR affiché. */
@@ -15,7 +17,11 @@ export interface ContextMenuItem {
   /** Description secondaire (10px, sous le label). */
   description?: string;
   icon?: ReactNode;
+  /** Contenu du tooltip affiché par l'icône info (ⓘ) en fin de ligne. */
+  info?: ReactNode;
   danger?: boolean;
+  /** Ligne inerte (grisée) : pas de clic ni de survol. */
+  disabled?: boolean;
   onClick: () => void;
 }
 
@@ -117,11 +123,12 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
         <button
           key={i}
           type="button"
+          disabled={item.disabled}
           onClick={() => {
-            item.onClick();
+            if (!item.disabled) item.onClick();
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = HOVER_BG;
+            if (!item.disabled) e.currentTarget.style.background = HOVER_BG;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
@@ -133,12 +140,13 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
             width: "100%",
             padding: "5px 8px",
             borderRadius: 6,
-            cursor: "pointer",
+            cursor: item.disabled ? "default" : "pointer",
             color: item.danger ? "#f87171" : "#fff",
             background: "transparent",
             border: "none",
             textAlign: "left",
             fontFamily: "system-ui, sans-serif",
+            opacity: item.disabled ? 0.4 : 1,
           }}
         >
           {item.icon && <span style={{ flexShrink: 0, display: "block" }}>{item.icon}</span>}
@@ -150,6 +158,18 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
               <span style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>{item.description}</span>
             )}
           </span>
+          {item.info && (
+            <span
+              style={{ marginLeft: "auto", alignSelf: "center", display: "flex" }}
+              // L'ⓘ n'est qu'informatif : ne pas déclencher le onClick de la ligne.
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Tooltip content={item.info}>
+                <InfoIcon />
+              </Tooltip>
+            </span>
+          )}
         </button>
       ))}
     </div>

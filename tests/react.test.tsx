@@ -478,16 +478,60 @@ describe("RenderPickerButton", () => {
     const row = document.querySelector<HTMLElement>("[data-rp-tree-row]")!;
     expect(row).not.toBeNull();
 
-    // Clic sur la ligne → sélection (fond bleu, non transparent) + désarme le picker
-    // (stoppe l'inspect-au-survol → la barre du bas disparaît).
+    // Clic sur la ligne → sélection (fond bleu, non transparent). Le mode inspect reste actif.
     act(() => row.click());
     expect(row.style.background).not.toBe("transparent");
     expect(row.style.background).not.toBe("");
-    expect(document.querySelector("button[data-rp-gear]")).toBeNull(); // désarmé
+    expect(document.querySelector("button[data-rp-gear]")).not.toBeNull(); // reste armé
 
     // Clic ailleurs (hors ligne) → désélection.
     act(() => document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
     expect(row.style.background).toBe("transparent");
+
+    act(() => root.unmount());
+  });
+
+  it("arbre HTML : clic droit sur une ligne → menu copier HTML/classes/XPath", () => {
+    window.localStorage.clear();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    document.body.innerHTML = `<main id="app"><button class="b c">x</button></main>`;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-panel]")?.click());
+    act(() =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+        .find((b) => b.textContent === "HTML")
+        ?.click(),
+    );
+
+    const row = document.querySelector<HTMLElement>("[data-rp-tree-row]")!;
+    act(() => row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true })));
+
+    const cm = document.querySelector("[data-rp-contextmenu]");
+    expect(cm).not.toBeNull();
+    const labels = Array.from(cm!.querySelectorAll("button")).map((b) => b.textContent);
+    expect(labels).toEqual([
+      "Copier le HTML",
+      "Copier le rendu",
+      "Copier les classes",
+      "Copier le XPath",
+    ]);
+
+    const xpathBtn = Array.from(cm!.querySelectorAll("button")).find(
+      (b) => b.textContent === "Copier le XPath",
+    )!;
+    act(() => xpathBtn.click());
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(typeof writeText.mock.calls[0]![0]).toBe("string");
+    expect(document.querySelector("[data-rp-contextmenu]")).toBeNull(); // menu fermé
 
     act(() => root.unmount());
   });
@@ -709,6 +753,44 @@ describe("RenderPickerButton", () => {
       prev!.click();
     });
     expect(document.querySelector("[data-rp-search-popover]")).not.toBeNull();
+
+    act(() => root.unmount());
+  });
+});
+
+describe("Tooltip", () => {
+  it("affiche le contenu au survol (portal), le masque à la sortie", async () => {
+    const { Tooltip } = await import("../src/ui/tooltip");
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    act(() => {
+      root.render(
+        <Tooltip content="Aide reproductible">
+          <button type="button">i</button>
+        </Tooltip>,
+      );
+    });
+
+    // Monté : le contenu est dans le portal (document.body), opacité 0 au repos.
+    const portal = document.querySelector<HTMLElement>("[data-pathpicker-ignore]");
+    expect(portal).not.toBeNull();
+    expect(portal!.textContent).toContain("Aide reproductible");
+    expect(portal!.style.opacity).toBe("0");
+
+    // Survol du trigger → visible (React dérive onMouseEnter de mouseover).
+    const trigger = host.querySelector("span")!;
+    act(() => {
+      trigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    });
+    expect(portal!.style.opacity).toBe("1");
+
+    // Sortie → masqué (onMouseLeave dérivé de mouseout).
+    act(() => {
+      trigger.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+    });
+    expect(portal!.style.opacity).toBe("0");
 
     act(() => root.unmount());
   });

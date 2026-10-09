@@ -26,6 +26,22 @@ describe("createSearchHighlight", () => {
     expect(document.querySelector("[data-pathpicker-ignore]")).toBeNull();
   });
 
+  it("sans callback : rects non-interactifs (pointer-events none)", () => {
+    const hl = createSearchHighlight();
+    hl.update([makeEl()]);
+    const rect = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
+    expect(rect.style.pointerEvents).toBe("none");
+    hl.destroy();
+  });
+
+  it("avec callback : rects cliquables (pointer-events auto)", () => {
+    const hl = createSearchHighlight({ onPick: () => {} });
+    hl.update([makeEl()]);
+    const rect = document.querySelector<HTMLElement>(RECT_SELECTOR)!;
+    expect(rect.style.pointerEvents).toBe("auto");
+    hl.destroy();
+  });
+
   it("update : un rect par résultat, style de survol (fond translucide)", () => {
     const hl = createSearchHighlight();
     hl.update([makeEl(), makeEl()]);

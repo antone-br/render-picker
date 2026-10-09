@@ -4,7 +4,7 @@ import {
   keyMatches,
   type ClickTrigger,
 } from "../settings";
-import { isTreeSelectMode, requestSelect } from "../devpanel/inspected";
+import { isTreeSelectMode, requestContextMenu, requestSelect } from "../devpanel/inspected";
 import type { InspectorCallbacks, PickResult } from "../types";
 import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
 import { createKeyCommandMatcher } from "./key-command";
@@ -285,6 +285,8 @@ class Inspector {
   /** Type de clic de cet event (ou `null` : avalé mais sans action). */
   private kindOf(e: Event, me: MouseEvent): ClickTrigger | null {
     if (e.type === DOWN_TYPE && me.button === 0) return "click";
+    // Clic droit sur l'événement `contextmenu` : `onPress` l'avale (preventDefault)
+    // avant d'ouvrir notre menu → le menu natif du navigateur est supprimé.
     if (e.type === "contextmenu") return "rightclick";
     if (e.type === "dblclick") return "dblclick";
     return null;
@@ -336,10 +338,14 @@ class Inspector {
       return;
     }
 
-    // Menu contextuel (clic droit par défaut) — plus de copie directe ;
-    // l'inspecteur reste armé, le menu vit indépendamment.
-    if (isCopyHtml && this.callbacks.onContextMenu) {
-      this.callbacks.onContextMenu(target, { x: me.clientX, y: me.clientY });
+    // Menu contextuel (clic droit par défaut) — l'inspecteur reste armé.
+    if (isCopyHtml) {
+      // Mode HTML : clic droit page → menu de l'arbre (3 options, tout élément, svg inclus).
+      if (isTreeSelectMode()) {
+        requestContextMenu(target, me.clientX, me.clientY);
+        return;
+      }
+      this.callbacks.onContextMenu?.(target, { x: me.clientX, y: me.clientY });
     }
   };
 

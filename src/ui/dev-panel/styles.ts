@@ -1,7 +1,8 @@
 import {
+  BTN_SHADOW,
+  ELEVATED_BG,
+  MUTED,
   SECONDARY_BORDER,
-  SECONDARY_SURFACE,
-  TOOLTIP_SHADOW,
 } from "../../core/inspector/constants/theme";
 import type { LogEntry } from "../../core/devpanel/store";
 
@@ -20,32 +21,25 @@ export const GUTTER = 12;
 /** Fond discret permanent des poignées (visibles au repos). */
 export const HANDLE_BG = "rgba(255,255,255,0.05)";
 
-/** Boutons Copier / Vider : bouton simple. */
+/**
+ * Boutons d'en-tête (Copier / Vider / Fermer) : variante « floating » (reprise du
+ * Button renderflow). Hauteur fixe 22 → la croix carrée (`width: 22`) a la même taille.
+ */
 export const plainBtn = {
-  padding: "3px 8px",
-  fontSize: 10,
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
-  color: "#fff",
-  background: "rgba(255,255,255,0.08)",
-  fontFamily: "system-ui, sans-serif",
-} as const;
-
-/** Boutons d'en-tête : même UI/hauteur que la croix (style tooltip). */
-export const headerBtn = {
   height: 22,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0 8px",
-  fontSize: 11,
-  fontWeight: 600,
+  padding: "0 10px",
+  fontSize: 10,
+  fontWeight: 500,
   borderRadius: 6,
   cursor: "pointer",
-  color: "#fff",
-  background: SECONDARY_SURFACE,
+  color: MUTED,
+  background: ELEVATED_BG,
   border: SECONDARY_BORDER,
-  boxShadow: TOOLTIP_SHADOW,
+  boxShadow: BTN_SHADOW,
+  backdropFilter: "blur(4px)",
   fontFamily: "system-ui, sans-serif",
+  transition: "background-color 150ms, color 150ms, box-shadow 150ms",
 } as const;

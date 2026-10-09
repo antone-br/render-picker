@@ -4,14 +4,23 @@ import { IGNORE_ATTR } from "../../core/inspector/constants/behavior";
 import { ancestorsUpTo, isElementSkippable } from "../../core/devpanel/dom-tree";
 import {
   getInspected,
+  onContextMenuRequest,
   onSelectRequest,
-  requestDisarm,
   setInspected,
   setTreeSelectMode,
   subscribeInspected,
 } from "../../core/devpanel/inspected";
 import { createSearchHighlight, type SearchHighlight } from "../../core/search/highlight";
+import { formatHtml } from "../../core/format";
+import { serializeWithComputedStyles } from "../../core/computed-html";
+import { getXPath } from "../../core/inspector/xpath";
+import { ContextMenu } from "../context-menu";
+import { CopyIcon } from "../icons";
 import { TreeNode } from "./tree-node";
+
+const writeClip = (t: string) => {
+  navigator.clipboard?.writeText(t).catch(() => {});
+};
 
 /**
  * Arbre DOM live (onglet HTML du panneau, façon DevTools Elements) : repliable
@@ -25,6 +34,7 @@ export const HtmlTree: FC = () => {
   );
   const [selected, setSelected] = useState<Element | null>(null); // sélection = clic uniquement (ligne bleue)
   const [revealed, setRevealed] = useState<Element | null>(null); // cible inspect/survol : déplie + scroll, SANS sélectionner
+  const [menu, setMenu] = useState<{ el: Element; x: number; y: number } | null>(null);
   const highlightRef = useRef<SearchHighlight | null>(null);
   const selectedRef = useRef<Element | null>(null);
   selectedRef.current = selected;
@@ -99,11 +109,16 @@ export const HtmlTree: FC = () => {
   // Clic hors d'une ligne de l'arbre → désélectionne (la sélection bleue = clic sur ligne).
   useEffect(() => {
     const onDown = (e: Event) => {
+      // Le clic droit (ouverture d'un menu contextuel) ne désélectionne jamais.
+      if ("button" in e && (e as MouseEvent).button !== 0) return;
       const path = e.composedPath?.() ?? [];
-      const onRow = path.some(
-        (n) => n instanceof Element && n.hasAttribute?.("data-rp-tree-row"),
+      // Garde la sélection si le clic est sur une ligne OU dans le menu contextuel.
+      const keep = path.some(
+        (n) =>
+          n instanceof Element &&
+          (n.hasAttribute?.("data-rp-tree-row") || n.hasAttribute?.("data-rp-contextmenu")),
       );
-      if (onRow) return;
+      if (keep) return;
       setSelected(null);
       setRevealed(null);
       highlightRef.current?.clear();
@@ -129,9 +144,17 @@ export const HtmlTree: FC = () => {
   const onHover = useCallback((el: Element | null) => {
     const h = highlightRef.current;
     if (!h) return;
-    const target = el ?? selectedRef.current;
-    if (target) {
-      h.update([target as HTMLElement]);
+    const sel = selectedRef.current;
+    if (el && sel && el !== sel) {
+      // Garde le rect sélectionné (net, foncé) + ajoute un rect plus clair sur le survolé.
+      h.update([sel as HTMLElement, el as HTMLElement]);
+      h.setActive([0]);
+    } else if (el) {
+      h.update([el as HTMLElement]);
+      h.setActive([0]);
+    } else if (sel) {
+      // Sortie du survol : on ne retire pas le rect sélectionné.
+      h.update([sel as HTMLElement]);
       h.setActive([0]);
     } else {
       h.clear();
@@ -140,8 +163,7 @@ export const HtmlTree: FC = () => {
 
   const onSelect = useCallback((el: Element) => {
     setSelected(el);
-    setRevealed(null); // le clic prend la main sur le focus (ligne bleue)
-    requestDisarm(); // fige la sélection : stoppe l'inspect-au-survol du picker
+    setRevealed(null); // le clic prend la main sur le focus (ligne bleue) ; le mode inspect reste actif
     const h = highlightRef.current;
     if (h) {
       h.update([el as HTMLElement]);
@@ -150,7 +172,7 @@ export const HtmlTree: FC = () => {
   }, []);
 
   // Sélection depuis un clic sur la page (mode HTML) : déplie jusqu'à l'élément,
-  // le sélectionne (bleu) + le surligne, sans désarmer (on peut cliquer d'autres).
+  // le sélectionne (bleu) + le surligne, puis désarme (stoppe l'inspect-au-survol).
   const selectEl = useCallback((el: Element) => {
     if (!document.body || !document.body.contains(el) || isElementSkippable(el)) return;
     setExpanded((prev) => {
@@ -172,10 +194,16 @@ export const HtmlTree: FC = () => {
   // des clics page → sélection.
   useEffect(() => {
     setTreeSelectMode(true);
-    const unsub = onSelectRequest(selectEl);
+    const unsubSel = onSelectRequest(selectEl);
+    // Clic droit sur la page (mode HTML) → ouvre le menu de l'arbre au curseur.
+    const unsubCtx = onContextMenuRequest((el, x, y) => {
+      if (!document.body?.contains(el) || isElementSkippable(el)) return;
+      setMenu({ el, x, y });
+    });
     return () => {
       setTreeSelectMode(false);
-      unsub();
+      unsubSel();
+      unsubCtx();
     };
   }, [selectEl]);
 
@@ -195,10 +223,53 @@ export const HtmlTree: FC = () => {
         focusEl={revealed ?? selected}
         onSelect={onSelect}
         onHover={onHover}
+        onContextMenu={(e, el) => setMenu({ el, x: e.clientX, y: e.clientY })}
         selectedRowRef={selectedRowRef}
       />
       {/* Espace permanent en bas : le nœud révélé ne colle jamais au bord bas. */}
       <div aria-hidden style={{ height: 120 }} />
+
+      <ContextMenu
+        at={menu ? { el: menu.el as HTMLElement, x: menu.x, y: menu.y } : null}
+        onClose={() => setMenu(null)}
+        items={
+          menu
+            ? [
+                {
+                  label: "Copier le HTML",
+                  onClick: () => {
+                    writeClip(formatHtml((menu.el as HTMLElement).outerHTML));
+                    setMenu(null);
+                  },
+                },
+                {
+                  label: "Copier le rendu",
+                  icon: <CopyIcon />,
+                  info: "HTML autoportant : styles inline + classes/variables en commentaire. Se colle partout sans le CSS de la page.",
+                  onClick: () => {
+                    writeClip(serializeWithComputedStyles(menu.el));
+                    setMenu(null);
+                  },
+                },
+                {
+                  label: "Copier les classes",
+                  disabled: (menu.el.getAttribute("class") ?? "").trim() === "",
+                  onClick: () => {
+                    writeClip((menu.el.getAttribute("class") ?? "").trim().replace(/\s+/g, " "));
+                    setMenu(null);
+                  },
+                },
+                {
+                  label: "Copier le XPath",
+                  onClick: () => {
+                    writeClip(getXPath(menu.el));
+                    setMenu(null);
+                  },
+                },
+              ]
+            : []
+        }
+      />
     </div>
   );
 };

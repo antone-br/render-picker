@@ -4,6 +4,7 @@ import { UI_Z } from "../../core/inspector/constants/picker";
 import {
   CARD_SHADOW,
   ELEVATED_BG,
+  HOVER_BG,
   MUTED,
   SECONDARY_BORDER,
   SECONDARY_SURFACE,
@@ -15,7 +16,7 @@ import { loadPanelState, savePanelState } from "../../core/devpanel/panel-state"
 import { HtmlTree } from "../html-tree/html-tree";
 import { ConsoleTab } from "./console-tab";
 import { NetworkTab } from "./network-tab";
-import { ACCENT_CORNER, GUTTER, HANDLE_BG, headerBtn, plainBtn } from "./styles";
+import { ACCENT_CORNER, GUTTER, HANDLE_BG, plainBtn } from "./styles";
 import { useDragResize } from "./use-drag-resize";
 
 type Tab = "console" | "network" | "html";
@@ -127,17 +128,38 @@ export function DevPanel({ onClose, size, onSizeChange }: DevPanelProps) {
           borderBottom: SECONDARY_BORDER,
         }}
       >
+        {tabBtn("html", "HTML")}
         {tabBtn("console", `Console${logs.length ? ` (${logs.length})` : ""}`)}
         {tabBtn("network", `Network${requests.length ? ` (${requests.length})` : ""}`)}
-        {tabBtn("html", "HTML")}
         <span style={{ marginLeft: "auto" }} />
-        <button type="button" aria-label="Copier" onClick={copyAll} style={plainBtn}>
+        <button
+          type="button"
+          aria-label="Copier"
+          onClick={copyAll}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = HOVER_BG;
+            e.currentTarget.style.color = "#fff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = ELEVATED_BG;
+            e.currentTarget.style.color = MUTED;
+          }}
+          style={plainBtn}
+        >
           Copier
         </button>
         <button
           type="button"
           aria-label="Vider"
           onClick={tab === "console" ? clearLogs : clearRequests}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = HOVER_BG;
+            e.currentTarget.style.color = "#fff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = ELEVATED_BG;
+            e.currentTarget.style.color = MUTED;
+          }}
           style={plainBtn}
         >
           Vider
@@ -146,7 +168,15 @@ export function DevPanel({ onClose, size, onSizeChange }: DevPanelProps) {
           type="button"
           aria-label="Fermer"
           onClick={onClose}
-          style={{ ...headerBtn, width: 22, padding: 0, fontSize: 14 }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = HOVER_BG;
+            e.currentTarget.style.color = "#fff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = ELEVATED_BG;
+            e.currentTarget.style.color = MUTED;
+          }}
+          style={{ ...plainBtn, width: 22, padding: 0, fontSize: 14 }}
         >
           ×
         </button>

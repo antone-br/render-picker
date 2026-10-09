@@ -1,4 +1,4 @@
-import { CHECKBOX_CHECK } from "../core/inspector/constants/theme";
+import { CHECKBOX_CHECK, MUTED } from "../core/inspector/constants/theme";
 
 /**
  * Icônes SVG internes de l'UI render-picker (regroupées — triviales, non
@@ -187,6 +187,27 @@ export function VsCodeIcon({ size = 13 }: { size?: number }) {
       style={{ flexShrink: 0, display: "block" }}
     >
       <path d="M70.912 99.317a6.223 6.223 0 0 0 4.96-.19l20.589-9.907A6.25 6.25 0 0 0 100 83.587V16.413a6.25 6.25 0 0 0-3.539-5.633L75.872.873a6.223 6.223 0 0 0-7.104 1.21L29.355 38.04 12.187 25.01a4.162 4.162 0 0 0-5.318.236l-5.506 5.009a4.168 4.168 0 0 0-.004 6.162L16.247 50 1.359 63.583a4.168 4.168 0 0 0 .004 6.162l5.506 5.009a4.162 4.162 0 0 0 5.318.236l17.168-13.03 39.413 35.958a6.218 6.218 0 0 0 2.144 1.4zM75.015 27.3 45.11 50l29.905 22.7V27.3z" />
+    </svg>
+  );
+}
+
+export function InfoIcon({ color = MUTED }: { color?: string }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: "block" }}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="11" x2="12" y2="16" />
+      <circle cx="12" cy="8" r="0.5" fill={color} stroke={color} />
     </svg>
   );
 }
