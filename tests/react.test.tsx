@@ -100,6 +100,16 @@ describe("formatHtml", () => {
     );
   });
 
+  it("préserve la casse des éléments SVG (camelCase)", () => {
+    const out = formatHtml(
+      '<svg><defs><linearGradient id="g"></linearGradient></defs><clipPath id="c"></clipPath></svg>',
+    );
+    expect(out).toContain("<linearGradient");
+    expect(out).toContain("<clipPath");
+    expect(out).not.toContain("<lineargradient");
+    expect(out).not.toContain("<clippath");
+  });
+
   it("ignore le texte whitespace-only entre balises", () => {
     const out = formatHtml(`<ul>\n  <li>a</li>\n  <li>b</li>\n</ul>`);
     expect(out).toBe(
@@ -791,6 +801,87 @@ describe("Tooltip", () => {
       trigger.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
     });
     expect(portal!.style.opacity).toBe("0");
+
+    act(() => root.unmount());
+  });
+});
+
+describe("ContextMenu", () => {
+  it("rend les items (label + icône), déclenche onClick de la ligne", async () => {
+    const { ContextMenu } = await import("../src/ui/context-menu");
+    const { CopyIcon } = await import("../src/ui/icons");
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    const onA = vi.fn();
+    const onB = vi.fn();
+    const el = document.createElement("div");
+
+    act(() => {
+      root.render(
+        <ContextMenu
+          at={{ el, x: 10, y: 10 }}
+          onClose={() => {}}
+          items={[
+            { label: "Copier le rendu", icon: <CopyIcon />, info: "Aide rendu", onClick: onA },
+            { label: "Copier le XPath", onClick: onB },
+          ]}
+        />,
+      );
+    });
+
+    const panel = document.querySelector("[data-rp-contextmenu]")!;
+    const buttons = Array.from(panel.querySelectorAll("button"));
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      "Copier le rendu",
+      "Copier le XPath",
+    ]);
+    // L'item « rendu » porte une icône (svg) ; l'ⓘ ajoute une 2e svg (info).
+    expect(buttons[0]!.querySelectorAll("svg").length).toBe(2);
+    expect(buttons[1]!.querySelectorAll("svg").length).toBe(0);
+
+    // Clic sur la ligne → onClick de l'item.
+    act(() => buttons[1]!.click());
+    expect(onB).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+  });
+
+  it("le tooltip ⓘ s'affiche au survol et son clic ne déclenche pas la copie", async () => {
+    const { ContextMenu } = await import("../src/ui/context-menu");
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    const onA = vi.fn();
+    const el = document.createElement("div");
+
+    act(() => {
+      root.render(
+        <ContextMenu
+          at={{ el, x: 0, y: 0 }}
+          onClose={() => {}}
+          items={[{ label: "Copier le rendu", info: "Aide rendu autoportant", onClick: onA }]}
+        />,
+      );
+    });
+
+    // Contenu du tooltip présent dans un portal, masqué au repos.
+    const tip = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-pathpicker-ignore]"),
+    ).find((n) => n.textContent?.includes("Aide rendu autoportant"))!;
+    expect(tip).toBeTruthy();
+    expect(tip.style.opacity).toBe("0");
+
+    // L'ⓘ (svg du bouton) : survol → tooltip visible.
+    const infoSvg = document.querySelector("[data-rp-contextmenu] button svg")!;
+    act(() => infoSvg.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(tip.style.opacity).toBe("1");
+
+    // Clic sur l'ⓘ : stopPropagation → la copie (onClick ligne) ne part pas.
+    act(() => infoSvg.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(onA).not.toHaveBeenCalled();
 
     act(() => root.unmount());
   });

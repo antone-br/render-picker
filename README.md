@@ -73,6 +73,41 @@ export function DevRenderPicker() {
 | `Alt`+click (picker off) | Open the element's source in VS Code |
 | `Ctrl`+click (picker off) | Jump to the usage site |
 
+### Right-click menu — "Copier le rendu" (self-contained HTML)
+
+Right-click a picked element (on the page or in the HTML tree) → **Copier le rendu** copies a
+**self-contained** HTML snippet: every node carries its **computed styles inline** (filtered to
+values ≠ the UA default, inherited props deduplicated against the parent, CSS custom props `--*`
+excluded). Below each tag, a comment maps its **own** classes to their CSS; classes shared by
+several tags move to a **global** block, and the `var(--x)` they reference are **resolved** at the
+bottom. Element **states** (`:hover`, `:focus`, `:active`…) are emitted in a trailing `<style>`
+block with their `var()` resolved and `!important` added (to beat the inline `style=`), so the
+pasted snippet **reproduces interactions**. Paste it anywhere and it renders — and reacts — almost
+identically, without the page's CSS.
+
+```html
+<p class="text-lg font-medium text-white" style="color: rgb(255, 255, 255); font-size: 18px; font-weight: 500; line-height: 28px; margin: 0px">
+  <!-- .text-lg { font-size: var(--text-lg); line-height: var(--text-lg--line-height) } -->
+  Collaboration en temps réel
+</p>
+
+<!-- Classes globales (utilisées sur plusieurs balises)
+  .font-medium { font-weight: var(--font-weight-medium) }
+  .text-white { color: var(--color-white) }
+-->
+
+<!-- Variables CSS
+  --text-lg: 1.125rem
+  --font-weight-medium: 500
+  --color-white: #fff
+-->
+
+<style>
+  .btn:hover { background-color: #1e293b !important }
+  .btn:focus-visible { outline: 2px solid #3b82f6 !important }
+</style>
+```
+
 ## API
 
 ### `initRenderPicker(options?) => dispose`
@@ -166,8 +201,9 @@ Without the route, changes stay in `localStorage` (no crash). The handlers are n
 
 ## Limitations
 
-- Next.js dev builds only: source resolution reads `/_next/static/chunks/*._.js` frames and their
-  sourcemaps.
+- Next.js dev builds only: source resolution reads the React `_debugStack` — **Turbopack** frames
+  (`/_next/static/chunks/*._.js` + their sourcemaps) and **Webpack** dev frames
+  (`webpack-internal:///…/src/….tsx:line`, source path read directly).
 - Never ships the project path to production: both `withRenderPicker` and `initRenderPicker` are
   no-ops when `NODE_ENV === "production"`.
 

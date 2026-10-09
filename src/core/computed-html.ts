@@ -4,8 +4,14 @@
  * But : coller le snippet n'importe où et retrouver un rendu quasi identique, sans
  * dépendre des classes/CSS de la page. Pur (DOM), sans React, no-op en SSR.
  *
- * Limites : pas de pseudo-éléments (`::before/::after`), pas d'inline des assets
- * (les `url(...)` restent des références).
+ * Les **états** (`:hover`/`:focus`/`:active`…) sont émis dans un `<style>` final
+ * (vars résolues + `!important` pour battre le `style=` inline) → le collage reproduit
+ * les interactions.
+ *
+ * Limites : pas de pseudo-éléments (`::before/::after`) ; pas d'inline des assets
+ * (les `url(...)` restent des références) ; les états responsifs (`sm:hover`, dans un
+ * `@media`) sont captés hors de leur media-query ; les sélecteurs combinés
+ * (`.btn:hover .icon`) sont ignorés.
  */
 
 import { IGNORE_ATTR } from "./inspector/constants/behavior";
@@ -123,7 +129,8 @@ function inlineStyles(
  * de style de la page (règle `.<classe>`). Ordre de première apparition. Les feuilles
  * cross-origin (accès `.cssRules` qui lève) sont ignorées.
  */
-function collectClassRules(root: Element): Map<string, string> {
+/** Classes du sous-arbre (`root` + descendants), ordre de première apparition. */
+function subtreeClasses(root: Element): string[] {
   const classes: string[] = [];
   const seen = new Set<string>();
   const addClasses = (el: Element) => {
@@ -139,17 +146,24 @@ function collectClassRules(root: Element): Map<string, string> {
     for (const kid of el.children) addClasses(kid);
   };
   addClasses(root);
+  return classes;
+}
+
+/** Échappe une classe pour un sélecteur CSS (fallback si `CSS.escape` indispo). */
+function escClass(s: string): string {
+  return typeof CSS !== "undefined" && CSS.escape
+    ? CSS.escape(s)
+    : s.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
+function collectClassRules(root: Element): Map<string, string> {
+  const classes = subtreeClasses(root);
 
   const out = new Map<string, string>();
   if (classes.length === 0 || typeof document === "undefined") return out;
 
-  const esc = (s: string) =>
-    typeof CSS !== "undefined" && CSS.escape
-      ? CSS.escape(s)
-      : s.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
-
   const wanted = new Map<string, string>(); // selectorText → classe
-  for (const c of classes) wanted.set(`.${esc(c)}`, c);
+  for (const c of classes) wanted.set(`.${escClass(c)}`, c);
 
   // Scanne récursivement : les règles de style vivent souvent dans des blocs
   // groupants (@layer utilities, @media, @supports) — ex. Tailwind v4.
@@ -187,6 +201,99 @@ function collectClassRules(root: Element): Map<string, string> {
     if (d) ordered.set(c, d);
   }
   return ordered;
+}
+
+/**
+ * Collecte les règles d'**état** des classes du sous-arbre : sélecteurs
+ * `.<classe>:hover` / `:focus` / `:active`… (une ou plusieurs pseudo-classes, sans
+ * combinateur ni pseudo-élément). Couvre les utilitaires Tailwind `hover:*`
+ * (sélecteur `.hover\:x:hover`). Retour `Map<selecteur, déclarations>`, ordre d'apparition.
+ */
+function collectStateRules(root: Element): Map<string, string> {
+  const out = new Map<string, string>();
+  const classes = subtreeClasses(root);
+  if (classes.length === 0 || typeof document === "undefined") return out;
+
+  // base (`.cls` échappé) → index d'apparition (pour l'ordre).
+  const bases: { base: string; order: number }[] = classes.map((c, i) => ({
+    base: `.${escClass(c)}`,
+    order: i,
+  }));
+
+  // selecteur → { decl, order } (ordre = plus petit index de classe concernée).
+  const hits = new Map<string, { decl: string; order: number }>();
+
+  const consider = (selector: string, decl: string): void => {
+    for (const { base, order } of bases) {
+      if (!selector.startsWith(base)) continue;
+      const rest = selector.slice(base.length);
+      // Une+ pseudo-classes, pas de combinateur, pas de pseudo-élément (::).
+      if (rest.startsWith("::") || !/^(:[^\s>+~,:]+(\([^)]*\))?)+$/.test(rest)) continue;
+      const prev = hits.get(selector);
+      if (prev) prev.decl = prev.decl ? `${prev.decl}; ${decl}` : decl;
+      else hits.set(selector, { decl, order });
+      return; // une base suffit
+    }
+  };
+
+  const scan = (rules: CSSRuleList): void => {
+    for (const rule of Array.from(rules)) {
+      const r = rule as CSSStyleRule & { cssRules?: CSSRuleList };
+      if (typeof r.selectorText === "string" && r.style) {
+        if (!r.selectorText.includes(":")) continue; // pas un état
+        const decl = r.style.cssText.trim().replace(/;\s*$/, "");
+        if (!decl) continue;
+        for (const part of r.selectorText.split(",")) consider(part.trim(), decl);
+      } else if (r.cssRules) {
+        scan(r.cssRules);
+      }
+    }
+  };
+
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      scan(sheet.cssRules);
+    } catch {
+      continue; // feuille cross-origin
+    }
+  }
+
+  for (const [selector] of [...hits].sort((a, b) => a[1].order - b[1].order)) {
+    out.set(selector, hits.get(selector)!.decl);
+  }
+  return out;
+}
+
+/**
+ * Remplace les `var(--x[, fallback])` d'une déclaration par leur valeur résolue au
+ * niveau de `root` (transitif, borné). Nécessaire pour les états : l'état n'étant pas
+ * actif, pas de computed dispo → on résout à la main.
+ */
+function resolveVarsIn(text: string, root: Element): string {
+  if (typeof getComputedStyle === "undefined" || !text.includes("var(")) return text;
+  const rootCs = getComputedStyle(root);
+  const re = /var\(\s*(--[A-Za-z0-9_-]+)\s*(?:,([^()]*(?:\([^()]*\)[^()]*)*))?\)/;
+  let out = text;
+  for (let i = 0; i < 20 && out.includes("var("); i++) {
+    const next = out.replace(re, (_m, name: string, fallback?: string) => {
+      const val = rootCs.getPropertyValue(name).trim();
+      if (val) return val;
+      return fallback !== undefined ? fallback.trim() : "";
+    });
+    if (next === out) break; // plus rien à résoudre (var() non définie sans fallback)
+    out = next;
+  }
+  return out;
+}
+
+/** Ajoute ` !important` à chaque propriété d'une déclaration (sans doubler). */
+function withImportant(decl: string): string {
+  return decl
+    .split(";")
+    .map((d) => d.trim())
+    .filter(Boolean)
+    .map((d) => (d.includes("!important") ? d : `${d} !important`))
+    .join("; ");
 }
 
 /**
@@ -307,8 +414,22 @@ export function serializeWithComputedStyles(root: Element): string {
       out += `\n\n<!-- Classes globales (utilisées sur plusieurs balises)\n${globalLines.join("\n")}\n-->`;
     }
 
-    // Bloc final : valeurs des variables CSS (var(--x)) référencées dans les classes.
-    const defs = collectVarDefs(classToCss.values(), root);
+    // Règles d'état (hover/focus/active…) : var() résolus + !important (bat l'inline).
+    const stateRules = collectStateRules(root);
+    if (stateRules.size > 0) {
+      const styleLines = Array.from(
+        stateRules,
+        ([selector, decl]) => `  ${selector} { ${withImportant(resolveVarsIn(decl, root))} }`,
+      );
+      out += `\n\n<style>\n${styleLines.join("\n")}\n</style>`;
+    }
+
+    // Bloc final : valeurs des variables CSS (var(--x)) référencées dans les classes
+    // (base + états), pour information.
+    const defs = collectVarDefs(
+      [...classToCss.values(), ...stateRules.values()],
+      root,
+    );
     if (defs.size > 0) {
       const varLines = Array.from(defs, ([name, val]) => `  ${name}: ${val}`);
       out += `\n\n<!-- Variables CSS\n${varLines.join("\n")}\n-->`;

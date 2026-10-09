@@ -15,7 +15,6 @@ import { formatHtml } from "../../core/format";
 import { serializeWithComputedStyles } from "../../core/computed-html";
 import { getXPath } from "../../core/inspector/xpath";
 import { ContextMenu } from "../context-menu";
-import { CopyIcon } from "../icons";
 import { TreeNode } from "./tree-node";
 
 const writeClip = (t: string) => {
@@ -244,7 +243,6 @@ export const HtmlTree: FC = () => {
                 },
                 {
                   label: "Copier le rendu",
-                  icon: <CopyIcon />,
                   info: "HTML autoportant : styles inline + classes/variables en commentaire. Se colle partout sans le CSS de la page.",
                   onClick: () => {
                     writeClip(serializeWithComputedStyles(menu.el));

@@ -33,7 +33,7 @@ import type { PickResult } from "./core/types";
 import { DevPanel } from "./ui/dev-panel/dev-panel";
 import { SearchPopover } from "./ui/search/popover";
 import { ContextMenu, type ContextMenuState } from "./ui/context-menu";
-import { CopyIcon, CrosshairIcon } from "./ui/icons";
+import { CrosshairIcon } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
 
@@ -230,7 +230,6 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       },
       {
         label: "Copier le rendu",
-        icon: <CopyIcon />,
         info: "HTML autoportant : styles inline + classes/variables en commentaire. Se colle partout sans le CSS de la page.",
         onClick: () => {
           if (!contextMenu) return;

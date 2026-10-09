@@ -59,7 +59,9 @@ function printNode(node: Node, depth: number, indent: string): string {
   if (node.nodeType !== 1) return "";
 
   const el = node as Element;
-  const tag = el.tagName.toLowerCase();
+  // `localName` : minuscule pour HTML (`div`), casse préservée pour SVG
+  // (`linearGradient`, `clipPath`) — SVG est sensible à la casse.
+  const tag = el.localName;
   const open = `<${tag}${serializeAttrs(el)}>`;
   if (VOID_ELEMENTS.has(tag)) return pad + open;
 

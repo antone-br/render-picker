@@ -5,6 +5,6 @@
 
 | Fichier                        | Module testé                             | Couvre                                                                                           |
 | ------------------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `component-annotate.test.ts`   | `src/core/source/component-annotate.ts`  | `annotate` : `data-source` (élément) + `data-owner-source` (usage via `_debugOwner`, frames nommés ET anonymes). |
+| `component-annotate.test.ts`   | `src/core/source/component-annotate.ts`  | `annotate` : `data-source` (élément) + `data-owner-source` (usage via `_debugOwner`, frames nommés ET anonymes) ; `extractDirectSources` (frames Webpack dev : webpack-internal, backslashes/crochets, skip node_modules, ordre) + `data-source` Webpack sans sourcemap. |
 | `enrich.test.ts`               | `src/core/source/enrich.ts`              | `findPickedElement` + `enrichResult` : complétion depuis `data-source` / `data-component`.       |
 | `source-map-resolver.test.ts`  | `src/core/source/source-map-resolver.ts` | `normalizeSourcePath` + `resolvePosition` : décodage VLQ (maps plain + index Turbopack).         |

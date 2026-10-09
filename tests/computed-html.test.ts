@@ -47,6 +47,18 @@ describe("serializeWithComputedStyles", () => {
     expect(out).toContain("color");
   });
 
+  it("préserve la casse des éléments SVG (linearGradient / clipPath)", () => {
+    document.body.innerHTML =
+      `<svg id="s"><defs><linearGradient id="g"></linearGradient></defs>` +
+      `<clipPath id="c"><rect></rect></clipPath><path fill="url(#g)"></path></svg>`;
+    const out = serializeWithComputedStyles(document.getElementById("s")!);
+    expect(out).toContain("<linearGradient");
+    expect(out).toContain("<clipPath");
+    expect(out).not.toContain("<lineargradient");
+    expect(out).not.toContain("<clippath");
+    document.body.innerHTML = "";
+  });
+
   it("annote chaque balise avec le CSS de ses classes (commentaire sous la balise)", () => {
     document.head.innerHTML = `<style>.foo{font-weight:500}</style>`;
     document.body.innerHTML = `<div class="foo bar">x</div>`;
@@ -82,6 +94,34 @@ describe("serializeWithComputedStyles", () => {
     const out = serializeWithComputedStyles(document.querySelector(".foo")!);
     expect(out).toContain("Variables CSS");
     expect(out).toContain("--text-lg: 1.125rem");
+    document.head.innerHTML = "";
+  });
+
+  it("émet les règles d'état (:hover) dans un <style> avec !important", () => {
+    document.head.innerHTML = `<style>.btn{color:red}.btn:hover{color:blue}</style>`;
+    document.body.innerHTML = `<button class="btn">x</button>`;
+    const out = serializeWithComputedStyles(document.querySelector(".btn")!);
+    expect(out).toContain("<style>");
+    expect(out).toContain(".btn:hover");
+    expect(out).toContain("color: blue !important");
+    document.head.innerHTML = "";
+  });
+
+  it("résout les var() des règles d'état dans le <style>", () => {
+    document.head.innerHTML = `<style>.btn:hover{color:var(--accent)}</style>`;
+    document.body.innerHTML = `<button class="btn" style="--accent: #3b82f6">x</button>`;
+    const out = serializeWithComputedStyles(document.querySelector(".btn")!);
+    expect(out).toContain(".btn:hover");
+    expect(out).toContain("#3b82f6 !important");
+    expect(out).not.toContain("var(--accent)");
+    document.head.innerHTML = "";
+  });
+
+  it("pas de <style> quand aucune règle d'état", () => {
+    document.head.innerHTML = `<style>.btn{color:red}</style>`;
+    document.body.innerHTML = `<button class="btn">x</button>`;
+    const out = serializeWithComputedStyles(document.querySelector(".btn")!);
+    expect(out).not.toContain("<style>");
     document.head.innerHTML = "";
   });
 

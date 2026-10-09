@@ -18,7 +18,7 @@ vi.mock("../../src/core/source/source-map-resolver", () => ({
   resolvePosition: async (url: string) => MAP[url] ?? null,
 }));
 
-import { annotate } from "../../src/core/source/component-annotate";
+import { annotate, extractDirectSources } from "../../src/core/source/component-annotate";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -107,5 +107,67 @@ describe("annotate — data-source / data-owner-source", () => {
         "src/features/comments/card.tsx:56",
       );
     });
+  });
+
+  it("Webpack dev : data-source depuis la frame (sans sourcemap)", async () => {
+    // Pas de chunk `._.js` → le resolver sourcemap (mocké) ne sert pas ;
+    // le chemin source vient directement de la frame webpack-internal.
+    const el = document.createElement("button");
+    const host = {
+      type: "button",
+      return: null,
+      _debugOwner: { type: function Comp() {}, return: null, _debugOwner: null },
+      _debugStack: {
+        stack:
+          "    at Comp (webpack-internal:///(app-pages-browser)/./src/components/x.tsx:12:5)",
+      },
+    };
+    (el as unknown as Record<string, unknown>)["__reactFiber$test"] = host;
+    document.body.appendChild(el);
+    annotate(el);
+
+    await vi.waitFor(() => {
+      expect(el.getAttribute("data-source")).toBe("src/components/x.tsx:12");
+    });
+  });
+});
+
+describe("extractDirectSources (frames Webpack dev)", () => {
+  it("extrait source + ligne d'une frame webpack-internal", () => {
+    const out = extractDirectSources(
+      "at Comp (webpack-internal:///(app-pages-browser)/./src/components/x.tsx:12:5)",
+    );
+    expect(out).toEqual([{ source: "src/components/x.tsx", line: 12 }]);
+  });
+
+  it("frame serveur RSC : route group (parenthèses) + query ?id", () => {
+    const out = extractDirectSources(
+      "at HtmlToWebflow (about://React/Server/webpack-internal:///(rsc)/./src/features/(marketing)/components/sections/html-to-webflow.tsx?855:32:87)",
+    );
+    expect(out).toEqual([
+      { source: "src/features/(marketing)/components/sections/html-to-webflow.tsx", line: 32 },
+    ]);
+  });
+
+  it("normalise les backslashes et les chemins à crochets", () => {
+    const out = extractDirectSources("at LocaleLayout (src\\app\\[locale]\\layout.tsx:83:11)");
+    expect(out).toEqual([{ source: "src/app/[locale]/layout.tsx", line: 83 }]);
+  });
+
+  it("ignore les frames node_modules (pas de préfixe src/ ou app/)", () => {
+    const out = extractDirectSources(
+      "at X (webpack-internal:///(app-pages-browser)/./node_modules/@antone-br/render-picker/dist/chunk.js:1:1)",
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("préserve l'ordre (1re frame source = site de création)", () => {
+    const out = extractDirectSources(
+      [
+        "at a (webpack-internal:///(app-pages-browser)/./src/a.tsx:1:1)",
+        "at b (webpack-internal:///(app-pages-browser)/./src/b.tsx:2:2)",
+      ].join("\n"),
+    );
+    expect(out.map((f) => f.source)).toEqual(["src/a.tsx", "src/b.tsx"]);
   });
 });

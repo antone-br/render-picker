@@ -18,7 +18,8 @@ import { enrichResult } from "../../../src/core/source/enrich";
 import type { RenderPickerSettings } from "../../../src/core/settings";
 import { loadPanelState, savePanelState } from "../../../src/core/devpanel/panel-state";
 import { DevPanel } from "../../../src/ui/dev-panel/dev-panel";
-import { formatResult } from "../../../src/core/format";
+import { serializeWithComputedStyles } from "../../../src/core/computed-html";
+import { getXPath } from "../../../src/core/inspector/xpath";
 import { pickResultFromElement } from "../../../src/core/search/element-search";
 import { ContextMenu, type ContextMenuState } from "../../../src/ui/context-menu";
 import { CrosshairIcon } from "../../../src/ui/icons";
@@ -209,6 +210,16 @@ export function ExtensionRoot({
               },
             },
             {
+              label: "Copier le rendu",
+              info: "HTML autoportant : styles inline + classes/variables en commentaire. Se colle partout sans le CSS de la page.",
+              onClick: () => {
+                copy(serializeWithComputedStyles(contextMenu.el));
+                showToast("HTML reproductible copié ✓");
+                setContextMenu(null);
+                disarm();
+              },
+            },
+            {
               label: "Copier les classes",
               onClick: () => {
                 const sel = getSelection();
@@ -225,6 +236,15 @@ export function ExtensionRoot({
                       : "Classes copiées ✓"
                     : "Aucune classe",
                 );
+                setContextMenu(null);
+                disarm();
+              },
+            },
+            {
+              label: "Copier le XPath",
+              onClick: () => {
+                copy(getXPath(contextMenu.el));
+                showToast("XPath copié ✓");
                 setContextMenu(null);
                 disarm();
               },

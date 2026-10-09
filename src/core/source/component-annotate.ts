@@ -2,9 +2,13 @@ import { resolvePosition } from "./source-map-resolver";
 
 /**
  * Annote chaque élément DOM rendu par React avec `data-component` (nom du
- * composant le plus proche) et `data-source` (`src/.../file.tsx:118`, résolu
- * via la sourcemap du chunk depuis `_debugStack`). Nécessaire depuis React 19
- * qui a supprimé `_debugSource`. Dev only.
+ * composant le plus proche) et `data-source` (`src/.../file.tsx:118`), depuis
+ * `_debugStack`. Deux formats de frame supportés :
+ * - **Turbopack** dev : frame chunk `…/_next/static/chunks/*._.js:l:c` → décodée
+ *   via la sourcemap du chunk.
+ * - **Webpack** dev : frame `webpack-internal:///(app-pages-browser)/./src/….tsx:l:c`
+ *   → le chemin source original est déjà dans la frame (pas de sourcemap).
+ * Nécessaire depuis React 19 qui a supprimé `_debugSource`. Dev only.
  */
 
 type DebugInfoEntry = {
@@ -70,6 +74,34 @@ function fiberName(fiber: Fiber): string | null {
     }
 
   return null;
+}
+
+// Frame Webpack dev : le chemin source original est déjà présent dans le stack.
+// - client : `webpack-internal:///(app-pages-browser)/./src/x.tsx:l:c`
+// - serveur (RSC) : `about://React/Server/webpack-internal:///(rsc)/./src/(group)/x.tsx?855:l:c`
+// - legacy : `src\app\[locale]\layout.tsx:l:c`
+// Le chemin peut contenir des parenthèses (route groups `(marketing)`) et des crochets
+// (`[locale]`), et être suivi d'une query `?<id>` (RSC) avant `:ligne:col`. Démarrage
+// ancré sur une frontière (`/`, `(`, espace, début) pour éviter `node_modules` et `mysrc`.
+const DIRECT_SOURCE_RE =
+  /(?:^|[\s(/])((?:src|app)\/.+?\.(?:tsx?|jsx?))(?:\?[^\s:)]*)?:(\d+):(\d+)/g;
+
+/**
+ * Frames Webpack dev du stack contenant **directement** le chemin source
+ * (`src/….tsx:ligne`), ordre d'apparition. Pur / testable. Les frames
+ * `node_modules/…` (dont render-picker) ne commencent pas par `src/`|`app/` → ignorées.
+ */
+export function extractDirectSources(
+  stackText: string,
+): { source: string; line: number }[] {
+  const text = stackText.replace(/\\/g, "/");
+  const out: { source: string; line: number }[] = [];
+  const re = new RegExp(DIRECT_SOURCE_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    out.push({ source: m[1]!, line: Number(m[2]) });
+  }
+  return out;
 }
 
 /** Frames `_next/static/chunks/*.js` du stack jsxDEV — premiers candidats. */
@@ -140,6 +172,11 @@ function fileOf(source: string | null): string | null {
 async function resolveFirstSource(stack: {
   stack?: string;
 }): Promise<string | null> {
+  // Webpack dev : chemin source déjà dans la frame (pas de sourcemap).
+  for (const f of extractDirectSources(stack.stack ?? "")) {
+    if (SOURCE_RE.test(f.source)) return `${f.source}:${f.line}`;
+  }
+  // Turbopack : frame chunk → sourcemap.
   for (const frame of stackCandidates(stack)) {
     const resolved = await resolvePosition(frame.url, frame.line, frame.col);
     if (resolved && SOURCE_RE.test(resolved.source)) {
