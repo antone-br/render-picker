@@ -48,7 +48,7 @@ export interface InspectorCallbacks {
   getTitle?: (el: Element, selection: Element[]) => string;
   /** Ouvre le panneau d'inspection pour l'élément (touche `inspect`). */
   onInspect?: (el: Element) => void;
-  /** Ouvre le menu contextuel (remappable `copyHtml` : copier HTML / classes). */
+  /** Ouvre le menu contextuel (geste `copyHtml`, clic droit : HTML / rendu / classes / XPath). */
   onContextMenu?: (el: Element, pos: { x: number; y: number }) => void;
   /** Élément survolé par le picker (nouveau survol) — pour révéler dans l'arbre HTML. */
   onHover?: (el: Element) => void;

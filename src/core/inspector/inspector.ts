@@ -36,6 +36,14 @@ class Inspector {
   private selection: Element[] = [];
   private observer: ResizeObserver | null = null;
   private hovering = false;
+  /**
+   * Dernier rect affiché par l'overlay. `refreshHover` ne repositionne que s'il a
+   * bougé : la notification initiale d'un `ResizeObserver` (à chaque `observe()`
+   * d'une nouvelle cible) couperait sinon la glisse en cours.
+   */
+  private hoverRect: Pick<DOMRect, "top" | "left" | "width" | "height"> | null = null;
+  /** rAF en attente du repositionnement du survol (scroll/resize coalescés par frame). */
+  private frame = 0;
   /** Mode recherche actif : pas de rect de survol (les rects de recherche prennent le relais). */
   private searchMode = false;
   /** Matcher de la commande clavier « inspect » (modificateur + touche, simple/double-tap). */
@@ -68,13 +76,13 @@ class Inspector {
       window.addEventListener(type, this.onPress, true);
     }
     window.addEventListener("keydown", this.onKeyDown, true);
-    window.addEventListener("scroll", this.refreshAll, true);
-    window.addEventListener("resize", this.refreshAll);
+    window.addEventListener("scroll", this.onViewportChange, true);
+    window.addEventListener("resize", this.onViewportChange);
     window.addEventListener("transitionend", this.refreshAll, true);
     window.addEventListener("animationend", this.refreshAll, true);
 
     if (typeof ResizeObserver !== "undefined") {
-      this.observer = new ResizeObserver(() => this.refreshAll());
+      this.observer = new ResizeObserver(() => this.onViewportChange());
     }
   }
 
@@ -82,6 +90,7 @@ class Inspector {
     if (!this.active) return;
     this.active = false;
     this.lastTarget = null;
+    this.hoverRect = null;
     this.selection = [];
     this.inspectMatcher.reset();
     if (typeof document !== "undefined") document.body.style.cursor = "";
@@ -91,11 +100,15 @@ class Inspector {
       window.removeEventListener(type, this.onPress, true);
     }
     window.removeEventListener("keydown", this.onKeyDown, true);
-    window.removeEventListener("scroll", this.refreshAll, true);
-    window.removeEventListener("resize", this.refreshAll);
+    window.removeEventListener("scroll", this.onViewportChange, true);
+    window.removeEventListener("resize", this.onViewportChange);
     window.removeEventListener("transitionend", this.refreshAll, true);
     window.removeEventListener("animationend", this.refreshAll, true);
 
+    if (this.frame && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this.frame);
+    }
+    this.frame = 0;
     this.observer?.disconnect();
     this.observer = null;
     this.styleEl?.remove();
@@ -108,6 +121,7 @@ class Inspector {
 
   private hideHover(): void {
     this.hovering = false;
+    this.hoverRect = null;
     if (!this.surfaces) return;
     hideHover(this.surfaces.overlay, this.surfaces.tooltip);
     clearDecorations(this.surfaces.decorLayer);
@@ -129,6 +143,7 @@ class Inspector {
     );
     this.renderDecor(el, rect);
     this.hovering = true;
+    this.hoverRect = { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
   }
 
   /** Dessine (ou efface) les décorations layout selon `getOverlays`. */
@@ -259,6 +274,9 @@ class Inspector {
       this.hideHover();
       return;
     }
+    // Menu contextuel ouvert : survol figé sur l'élément du menu (le curseur
+    // peut aller sur le menu sans perdre le rect ; le scroll le recolle).
+    if (CONTEXT_MENU_OPEN.value) return;
     const target = resolveTarget(e.clientX, e.clientY);
     if (!target || shouldIgnore(target)) {
       this.lastTarget = null;
@@ -268,14 +286,16 @@ class Inspector {
     if (target === this.lastTarget) return;
     this.lastTarget = target;
     this.callbacks.onHover?.(target);
-    this.syncObserver();
     const rect = target.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       this.hideHover();
-      return;
+    } else {
+      // Instantané à la (ré)apparition, glisse tant que le survol continue.
+      this.showHover(target, rect, this.hovering);
     }
-    // Instantané à la (ré)apparition, glisse tant que le survol continue.
-    this.showHover(target, rect, this.hovering);
+    // Observé APRÈS l'affichage : la notification initiale du ResizeObserver
+    // retrouve le rect mémorisé (`hoverRect`) → no-op, la glisse continue.
+    this.syncObserver();
   };
 
   private commands(): typeof DEFAULT_SETTINGS.commands {
@@ -345,6 +365,12 @@ class Inspector {
         requestContextMenu(target, me.clientX, me.clientY);
         return;
       }
+      // Le rect figé pendant le menu doit être sur l'élément du menu.
+      if (target !== this.lastTarget) {
+        this.lastTarget = target;
+        this.showHover(target, target.getBoundingClientRect(), false);
+        this.syncObserver();
+      }
       this.callbacks.onContextMenu?.(target, { x: me.clientX, y: me.clientY });
     }
   };
@@ -395,13 +421,61 @@ class Inspector {
     return [...this.selection];
   }
 
-  // Ne touche QUE les markers de sélection : l'overlay de survol est piloté par
-  // `mousemove` seul. Sinon les `transitionend`/`animationend` d'une page animée
-  // réinitialiseraient en boucle la transition de l'overlay → pas de glisse.
+  // Ne touche QUE les markers de sélection : les `transitionend`/`animationend`
+  // d'une page animée réinitialiseraient en boucle la transition de l'overlay
+  // → pas de glisse. Le survol suit scroll/resize via `onViewportChange`.
   private refreshAll = (): void => {
     if (!this.active) return;
     this.renderSelection();
   };
+
+  /** Scroll (fenêtre ou sous-conteneur, capture) / resize : markers + survol recollé à l'élément. */
+  private onViewportChange = (): void => {
+    if (!this.active) return;
+    this.refreshAll();
+    this.scheduleHover();
+  };
+
+  /** Coalesce les repositionnements du survol à une fois par frame. */
+  private scheduleHover(): void {
+    if (typeof requestAnimationFrame !== "function") {
+      this.refreshHover();
+      return;
+    }
+    if (this.frame) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
+      this.refreshHover();
+    });
+  }
+
+  /** Repositionne instantanément (sans glisse) le survol sur `lastTarget`. */
+  private refreshHover(): void {
+    if (!this.active || !this.hovering || this.searchMode || !this.lastTarget) return;
+    if (!this.lastTarget.isConnected) {
+      this.lastTarget = null;
+      this.hideHover();
+      return;
+    }
+    const rect = this.lastTarget.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      this.hideHover();
+      return;
+    }
+    const prev = this.hoverRect;
+    if (
+      prev &&
+      prev.top === rect.top &&
+      prev.left === rect.left &&
+      prev.width === rect.width &&
+      prev.height === rect.height
+    ) {
+      // Rien n'a bougé (ex. notification initiale du ResizeObserver) : ne pas
+      // toucher l'overlay, sinon la glisse en cours est coupée.
+      return;
+    }
+    this.showHover(this.lastTarget, rect, false);
+  }
 }
 
 export function createInspector(callbacks: InspectorCallbacks): {

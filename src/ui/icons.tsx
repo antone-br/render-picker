@@ -67,29 +67,6 @@ export function CopyIcon({ color = "#d4d4d8" }: { color?: string }) {
   );
 }
 
-export function Html5Icon({ size = 13 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 512 512"
-      aria-hidden="true"
-      style={{ flexShrink: 0, display: "block" }}
-    >
-      <path fill="#E44D26" d="M71 460L30 0h451l-41 460-185 52z" />
-      <path fill="#F16529" d="M256 472l149-41 35-394H256z" />
-      <path
-        fill="#EBEBEB"
-        d="M256 208h-75l-5-58h80V94H114l15 171h127zm0 147l-63-17-4-45h-56l7 89 116 32z"
-      />
-      <path
-        fill="#fff"
-        d="M255 208v57h70l-7 74-63 17v59l116-32 16-175zm0-114v56h137l5-56z"
-      />
-    </svg>
-  );
-}
-
 export function PanelIcon({ color }: { color: string }) {
   return (
     <svg

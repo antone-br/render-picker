@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type FC, type ReactNode } from "react";
 
 import {
   MUTED,
@@ -7,6 +7,8 @@ import {
   TOOLTIP_SHADOW,
 } from "../../core/inspector/constants/theme";
 import type { NetEntry } from "../../core/devpanel/store";
+
+import { THIN_SCROLLBAR } from "./styles";
 
 /** Couleur du statut d'une requête (vert ok / jaune non-2xx / rouge erreur). */
 export const statusColor = (r: NetEntry): string =>
@@ -44,7 +46,7 @@ function headerList(h?: Record<string, string>) {
 type DetailTab = "headers" | "payload" | "response" | "initiator";
 
 /** Détail déplié d'une requête réseau, en sous-onglets (type DevTools). */
-export function NetDetail({ r }: { r: NetEntry }) {
+export const NetDetail: FC<{ r: NetEntry }> = ({ r }) => {
   const reqH = headerList(r.reqHeaders);
   const resH = headerList(r.resHeaders);
 
@@ -108,10 +110,12 @@ export function NetDetail({ r }: { r: NetEntry }) {
       )}
       {active === "response" && r.resBody && (
         <Section title="Response">
-          <div style={{ maxHeight: 160, overflow: "auto" }}>{prettyMaybeJson(r.resBody)}</div>
+          <div style={{ maxHeight: 160, overflow: "auto", ...THIN_SCROLLBAR }}>
+            {prettyMaybeJson(r.resBody)}
+          </div>
         </Section>
       )}
       {active === "initiator" && r.initiator && <Section title="Initiator">{r.initiator}</Section>}
     </div>
   );
-}
+};

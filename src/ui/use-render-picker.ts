@@ -19,7 +19,7 @@ export interface UseRenderPickerOptions {
   onPick?: (result: PickResult) => void;
   /** Confirmation d'une sélection multiple (Entrée). */
   onPickMany?: (results: PickResult[]) => void;
-  /** Ouvre le menu contextuel (geste `copyHtml` : copier HTML / classes). */
+  /** Ouvre le menu contextuel (geste `copyHtml`, clic droit : HTML / rendu / classes / XPath). */
   onContextMenu?: (el: Element, pos: { x: number; y: number }) => void;
   /** Visualisations layout au survol (padding/gap/margin). Lu en direct. */
   overlays?: LayoutOverlays;

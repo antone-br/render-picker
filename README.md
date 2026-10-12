@@ -69,6 +69,9 @@ export function DevRenderPicker() {
 | Double-tap `Shift` or click the aim icon | Arm the picker |
 | Click | Copy one element and close |
 | `Shift`+click, then `Enter` | Copy several elements at once |
+| Right-click | Context menu: copy the HTML, the rendering, the classes or the XPath |
+| `Ctrl`+`F` `F` | Search elements (works even when the picker is off) |
+| `Ctrl`+`I` | Open the inspection panel on the HTML tab, at the hovered element |
 | `Esc` | Cancel |
 | `Alt`+click (picker off) | Open the element's source in VS Code |
 | `Ctrl`+click (picker off) | Jump to the usage site |
@@ -141,12 +144,13 @@ function. If a `render-picker.config.json` exists at the project root, it is als
 Layout overlays (padding / gap / margin) are **always on** when hovering while armed — no toggle.
 
 The settings dropdown (gear) holds a **Commands** accordion to remap every shortcut: the arm hotkey
-(default double `Shift`), the mouse gestures — **Copy** (default click), **Copy raw HTML**
-(default right-click, copies `outerHTML`), **Multi-select** (default `Shift`+click), **Open source**
-(default `Alt`+click), **Open usage** (default `Ctrl`+click), each a *modifier* + *click type*
-(click / right-click / double-click) — and the keyboard keys **Confirm** (default `Enter`) and
-**Cancel** (default `Esc`), plus **Search** (default `Ctrl`+`F`, armed only) and **Inspector**
-(default `Ctrl`+`I`). Search opens an element finder: type a tag (`div`), a class (`.card`), a
+(default double `Shift`), the mouse gestures — **Copy** (default click), **Multi-select**
+(default `Shift`+click), **Open source** (default `Alt`+click), **Open usage** (default
+`Ctrl`+click), each a *modifier* + *click type* (click / right-click / double-click) — and the
+keyboard keys **Confirm** (default `Enter`) and **Cancel** (default `Esc`), plus **Search**
+(default `Ctrl` + double-tap `F`, global — works even when the picker is off) and **Inspector**
+(default `Ctrl`+`I`). The right-click context menu (`copyHtml` gesture) is no longer listed in
+the dropdown; it stays configurable in `render-picker.config.json`. Search opens an element finder: type a tag (`div`), a class (`.card`), a
 CSS selector or a React component name (`Button`, only where the npm annotator runs); partial
 typing autocompletes (`div.` lists the divs, `div.car` matches classes starting with `car`) and
 `Ctrl+Z`/`Ctrl+Y` walk the query history. Results
@@ -157,7 +161,7 @@ elements on the page (scroll at each step), the suggestion line itself only chan
 hover — live rects (follows scroll/resize); the
 inspector's own hover rect is paused while searching. Hovering a search rect then shows the element
 tooltip (component, metrics, dimensions), clicking one copies the enriched snippet (pick),
-right-clicking one copies the raw `outerHTML`; the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the
+right-clicking one opens the context menu; the ‹ › arrow buttons (or ↑/↓, or hovering a row) switch the
 active element, clicking a row refines the query (tag + classes back into the input), `Enter`
 scrolls to it. The
 SettingsBar also hosts a magnifier icon next to the gear (npm package and Chrome extension).
@@ -180,10 +184,12 @@ export { GET, POST } from "@antone-br/render-picker/next";
   "commands": {
     "arm": "shift shift",
     "copy": { "modifier": "none", "trigger": "click" },
-    "copyHtml": { "modifier": "none", "trigger": "rightclick" },
+    "copyHtml": { "modifier": "none", "trigger": "rightclick" }, // opens the context menu
     "multi": { "modifier": "shift", "trigger": "click" },
     "confirm": "enter",
     "cancel": "escape",
+    "inspect": { "modifier": "ctrl", "key": "i", "double": false },
+    "search": { "modifier": "ctrl", "key": "f", "double": true },
     "source": { "modifier": "alt", "trigger": "click" },
     "usage": { "modifier": "ctrl", "trigger": "click" }
   },

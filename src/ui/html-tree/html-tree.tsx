@@ -38,6 +38,8 @@ export const HtmlTree: FC = () => {
   const selectedRef = useRef<Element | null>(null);
   selectedRef.current = selected;
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
+  /** Prochain scroll de la ligne focus : centré (clic page) plutôt qu'au plus près. */
+  const centerNextRef = useRef(false);
 
   // Couche de highlight (créée au montage, détruite au démontage).
   useEffect(() => {
@@ -80,13 +82,15 @@ export const HtmlTree: FC = () => {
   }, []);
 
   // Révèle dans l'arbre l'élément survolé/piqué par l'inspecteur (déplie les
-  // ancêtres + sélectionne) — comme DevTools. Le highlight page est déjà dessiné
-  // par l'overlay de l'inspecteur, donc pas de rect ici.
+  // ancêtres + scroll) — comme DevTools — sauf si une ligne est sélectionnée :
+  // la sélection fige l'arbre (le survol de la page ne le déplace plus). Le
+  // highlight page est déjà dessiné par l'overlay de l'inspecteur, pas de rect ici.
   useEffect(() => {
     const reveal = (el: Element | null) => {
       if (!el || !document.body || !document.body.contains(el) || isElementSkippable(el)) {
         return;
       }
+      if (selectedRef.current) return;
       setExpanded((prev) => {
         const next = new Set(prev);
         for (const a of ancestorsUpTo(el, document.body)) next.add(a);
@@ -105,17 +109,20 @@ export const HtmlTree: FC = () => {
     };
   }, []);
 
-  // Clic hors d'une ligne de l'arbre → désélectionne (la sélection bleue = clic sur ligne).
+  // Clic hors du panneau → désélectionne (la sélection bleue = clic sur ligne ou page).
   useEffect(() => {
     const onDown = (e: Event) => {
       // Le clic droit (ouverture d'un menu contextuel) ne désélectionne jamais.
       if ("button" in e && (e as MouseEvent).button !== 0) return;
       const path = e.composedPath?.() ?? [];
-      // Garde la sélection si le clic est sur une ligne OU dans le menu contextuel.
+      // Garde la sélection si le clic est dans le panneau (ligne, en-tête/drag,
+      // onglets, resize, scrollbar) OU dans le menu contextuel.
       const keep = path.some(
         (n) =>
           n instanceof Element &&
-          (n.hasAttribute?.("data-rp-tree-row") || n.hasAttribute?.("data-rp-contextmenu")),
+          (n.hasAttribute?.("data-rp-tree-row") ||
+            n.hasAttribute?.("data-rp-devpanel") ||
+            n.hasAttribute?.("data-rp-contextmenu")),
       );
       if (keep) return;
       setSelected(null);
@@ -126,9 +133,14 @@ export const HtmlTree: FC = () => {
     return () => document.removeEventListener("pointerdown", onDown, true);
   }, []);
 
-  // Scrolle la ligne « focus » (révélée par inspect, sinon sélectionnée) dans la vue.
+  // Scrolle la ligne « focus » (révélée par inspect, sinon sélectionnée) dans la vue :
+  // centrée après un clic sur la page (l'œil cherche la ligne), au plus près sinon
+  // (survol, clic sur une ligne déjà sous le curseur → pas de saut).
   useEffect(() => {
-    if (revealed || selected) selectedRowRef.current?.scrollIntoView?.({ block: "nearest" });
+    if (!revealed && !selected) return;
+    const block = centerNextRef.current ? "center" : "nearest";
+    centerNextRef.current = false;
+    selectedRowRef.current?.scrollIntoView?.({ block });
   }, [revealed, selected]);
 
   const toggle = useCallback((el: Element) => {
@@ -180,6 +192,12 @@ export const HtmlTree: FC = () => {
       next.add(el);
       return next;
     });
+    if (el === selectedRef.current) {
+      // Déjà sélectionné : pas de changement d'état → l'effet de scroll ne rejoue pas.
+      selectedRowRef.current?.scrollIntoView?.({ block: "center" });
+    } else {
+      centerNextRef.current = true;
+    }
     setRevealed(null);
     setSelected(el);
     const h = highlightRef.current;

@@ -378,3 +378,201 @@ describe("createInspector — commande clavier inspect", () => {
     insp.deactivate();
   });
 });
+
+describe("createInspector — suivi scroll", () => {
+  const rectAt = (top: number): DOMRect =>
+    ({ top, left: 10, width: 100, height: 40, right: 110, bottom: top + 40, x: 10, y: top, toJSON: () => ({}) }) as DOMRect;
+
+  /** Overlay de survol : 3ᵉ enfant du conteneur (decorLayer, markerLayer, overlay). */
+  const overlay = (): HTMLElement =>
+    document.body.querySelector("div[data-pathpicker-ignore]")!.children[2] as HTMLElement;
+
+  /** Arme l'inspecteur et survole un bouton dont le rect est piloté par `setTop`. */
+  function hoverButton() {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    let top = 50;
+    vi.spyOn(btn, "getBoundingClientRect").mockImplementation(() => rectAt(top));
+    stubElementFromPoint(btn);
+    const insp = createInspector({ onPick: () => {}, onCancel: () => {}, getRoute: () => "/" });
+    insp.activate();
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 20, clientY: 60 }));
+    return { btn, insp, setTop: (v: number) => (top = v) };
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      cb(0);
+      return 0; // synchrone : aucune frame en attente
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Espionne la lecture `offsetWidth` (reflow forcé ⇔ repositionnement sans glisse). */
+  function spyReflow(el: HTMLElement) {
+    const reflow = vi.fn(() => 0);
+    Object.defineProperty(el, "offsetWidth", { get: reflow, configurable: true });
+    return reflow;
+  }
+
+  it("survol A → B : la notification initiale du ResizeObserver ne coupe pas la glisse", () => {
+    // Faux RO : comme un vrai, il notifie dès `observe()`.
+    class FakeResizeObserver {
+      private readonly cb: () => void;
+      constructor(cb: () => void) {
+        this.cb = cb;
+      }
+      observe(): void {
+        this.cb();
+      }
+      disconnect(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+    document.body.innerHTML = `<main><button id="a">a</button><button id="b">b</button></main>`;
+    const a = document.getElementById("a")!;
+    const b = document.getElementById("b")!;
+    vi.spyOn(a, "getBoundingClientRect").mockImplementation(() => rectAt(50));
+    vi.spyOn(b, "getBoundingClientRect").mockImplementation(() => rectAt(200));
+    const insp = createInspector({ onPick: () => {}, onCancel: () => {}, getRoute: () => "/" });
+    insp.activate();
+
+    stubElementFromPoint(a);
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 20, clientY: 60 }));
+    const reflow = spyReflow(overlay());
+
+    stubElementFromPoint(b);
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 20, clientY: 210 }));
+
+    expect(overlay().style.top).toBe("200px");
+    expect(reflow).not.toHaveBeenCalled(); // pas de repositionnement instantané
+    expect(overlay().style.transition).not.toBe("none");
+    insp.deactivate();
+  });
+
+  it("scroll sans déplacement → no-op ; avec déplacement → recollé sans glisse", () => {
+    const { insp, setTop } = hoverButton();
+    const reflow = spyReflow(overlay());
+
+    window.dispatchEvent(new Event("scroll"));
+    expect(reflow).not.toHaveBeenCalled();
+
+    setTop(10);
+    window.dispatchEvent(new Event("scroll"));
+    expect(reflow).toHaveBeenCalled();
+    expect(overlay().style.top).toBe("10px");
+    insp.deactivate();
+  });
+
+  it("scroll → l'overlay suit l'élément survolé", () => {
+    const { insp, setTop } = hoverButton();
+    expect(overlay().style.top).toBe("50px");
+
+    setTop(-120);
+    window.dispatchEvent(new Event("scroll"));
+
+    expect(overlay().style.top).toBe("-120px");
+    expect(overlay().style.opacity).toBe("1");
+    insp.deactivate();
+  });
+
+  it("resize → l'overlay suit l'élément survolé", () => {
+    const { insp, setTop } = hoverButton();
+
+    setTop(200);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(overlay().style.top).toBe("200px");
+    insp.deactivate();
+  });
+
+  it("transitionend ne repositionne pas l'overlay (glisse préservée)", () => {
+    const { insp, setTop } = hoverButton();
+
+    setTop(300);
+    window.dispatchEvent(new Event("transitionend"));
+
+    expect(overlay().style.top).toBe("50px");
+    insp.deactivate();
+  });
+
+  it("scroll sans survol ou en mode recherche → overlay reste masqué", () => {
+    const insp = createInspector({ onPick: () => {}, onCancel: () => {}, getRoute: () => "/" });
+    insp.activate();
+    window.dispatchEvent(new Event("scroll"));
+    expect(overlay().style.opacity).toBe("0");
+    insp.deactivate();
+
+    const hovered = hoverButton();
+    hovered.insp.setSearchMode(true);
+    window.dispatchEvent(new Event("scroll"));
+    expect(overlay().style.opacity).toBe("0");
+    hovered.insp.deactivate();
+  });
+
+  describe("menu contextuel ouvert", () => {
+    /** Simule le curseur sur le menu (élément ignoré par l'inspecteur). */
+    function pointOnMenu(): void {
+      const menu = document.createElement("div");
+      menu.setAttribute("data-pathpicker-ignore", "");
+      document.body.appendChild(menu);
+      stubElementFromPoint(menu);
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 400, clientY: 400 }));
+    }
+
+    afterEach(() => {
+      CONTEXT_MENU_OPEN.value = false;
+    });
+
+    it("curseur hors de l'élément → le rect reste visible sur l'élément", () => {
+      const { insp } = hoverButton();
+      CONTEXT_MENU_OPEN.value = true;
+
+      pointOnMenu();
+
+      expect(overlay().style.opacity).toBe("1");
+      expect(overlay().style.top).toBe("50px");
+      insp.deactivate();
+    });
+
+    it("scroll pendant que le menu est ouvert → le rect suit l'élément", () => {
+      const { insp, setTop } = hoverButton();
+      CONTEXT_MENU_OPEN.value = true;
+      pointOnMenu();
+
+      setTop(-80);
+      window.dispatchEvent(new Event("scroll"));
+
+      expect(overlay().style.opacity).toBe("1");
+      expect(overlay().style.top).toBe("-80px");
+      insp.deactivate();
+    });
+
+    it("menu fermé → le survol reprend normalement", () => {
+      const { insp } = hoverButton();
+      CONTEXT_MENU_OPEN.value = true;
+      pointOnMenu();
+      CONTEXT_MENU_OPEN.value = false;
+
+      pointOnMenu();
+
+      expect(overlay().style.opacity).toBe("0");
+      insp.deactivate();
+    });
+  });
+
+  it("élément retiré du DOM puis scroll → survol masqué", () => {
+    const { btn, insp } = hoverButton();
+    expect(overlay().style.opacity).toBe("1");
+
+    btn.remove();
+    window.dispatchEvent(new Event("scroll"));
+
+    expect(overlay().style.opacity).toBe("0");
+    insp.deactivate();
+  });
+});

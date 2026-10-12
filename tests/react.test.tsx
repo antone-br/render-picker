@@ -245,8 +245,10 @@ describe("RenderPickerButton", () => {
 
     expect(document.body.textContent).toContain("Commandes");
     expect(document.body.textContent).toContain("Armer le picker");
-    expect(document.body.textContent).toContain("Copier le HTML");
+    expect(document.body.textContent).toContain("Copier l'élément");
     expect(document.body.textContent).toContain("Ouvrir le composant");
+    // Le clic droit ouvre le menu contextuel : plus de ligne « Copier le HTML ».
+    expect(document.body.textContent).not.toContain("Copier le HTML");
     // Les anciens toggles overlay ont disparu.
     expect(document.body.textContent).not.toContain("Afficher le padding");
 
@@ -806,6 +808,117 @@ describe("Tooltip", () => {
   });
 });
 
+describe("HtmlTree", () => {
+  /** Page (a + section repliée contenant « zzdeep ») + arbre monté dans un hôte ignoré. */
+  async function mountTree() {
+    const { HtmlTree } = await import("../src/ui/html-tree/html-tree");
+    const inspected = await import("../src/core/devpanel/inspected");
+    inspected.setInspected(null);
+    document.body.innerHTML = `<p id="a">aa</p><section id="c"><div><b id="deep">zzdeep</b></div></section>`;
+    const host = document.createElement("div");
+    host.setAttribute("data-pathpicker-ignore", "");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => root.render(<HtmlTree />));
+    const a = document.getElementById("a")!;
+    const deep = document.getElementById("deep")!;
+    const shows = (text: string) =>
+      Array.from(host.querySelectorAll("[data-rp-tree-row]")).some((r) =>
+        r.textContent?.includes(text),
+      );
+    const cleanup = () => {
+      act(() => root.unmount());
+      document.body.innerHTML = "";
+    };
+    return { inspected, a, deep, shows, cleanup };
+  }
+
+  it("sans sélection : le survol de la page révèle l'élément dans l'arbre", async () => {
+    const { inspected, deep, shows, cleanup } = await mountTree();
+    expect(shows("zzdeep")).toBe(false);
+
+    act(() => inspected.setInspected(deep));
+    expect(shows("zzdeep")).toBe(true);
+    cleanup();
+  });
+
+  it("avec une sélection : le survol de la page ne pilote plus l'arbre", async () => {
+    const { inspected, a, deep, shows, cleanup } = await mountTree();
+
+    act(() => inspected.requestSelect(a));
+    act(() => inspected.setInspected(deep));
+    expect(shows("zzdeep")).toBe(false);
+    cleanup();
+  });
+
+  it("clic page → la ligne sélectionnée est centrée ; survol → au plus près", async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    const { inspected, deep, shows, cleanup } = await mountTree();
+
+    act(() => inspected.setInspected(deep));
+    expect(scroll).toHaveBeenLastCalledWith({ block: "nearest" });
+
+    act(() => inspected.requestSelect(deep));
+    expect(shows("zzdeep")).toBe(true);
+    expect(scroll).toHaveBeenLastCalledWith({ block: "center" });
+
+    cleanup();
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it("clic dans le panneau hors d'une ligne (en-tête, drag) → la sélection est gardée", async () => {
+    const { inspected, a, deep, shows, cleanup } = await mountTree();
+    const panel = document.createElement("div");
+    panel.setAttribute("data-rp-devpanel", "");
+    const header = document.createElement("div");
+    panel.appendChild(header);
+    document.body.appendChild(panel);
+
+    act(() => inspected.requestSelect(a));
+    act(() => {
+      header.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+    });
+    // Toujours sélectionné → le survol de la page ne pilote pas l'arbre.
+    act(() => inspected.setInspected(deep));
+    expect(shows("zzdeep")).toBe(false);
+    cleanup();
+  });
+
+  it("après désélection (clic hors de l'arbre) : le survol pilote de nouveau l'arbre", async () => {
+    const { inspected, a, deep, shows, cleanup } = await mountTree();
+
+    act(() => inspected.requestSelect(a));
+    act(() => {
+      document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+    });
+    act(() => inspected.setInspected(deep));
+    expect(shows("zzdeep")).toBe(true);
+    cleanup();
+  });
+});
+
+describe("DevPanel", () => {
+  it("corps scrollable : scrollbars fines et sombres (piste transparente)", async () => {
+    const { DevPanel } = await import("../src/ui/dev-panel/dev-panel");
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    act(() => root.render(<DevPanel onClose={() => {}} />));
+
+    const body = Array.from(host.querySelectorAll<HTMLElement>("div")).find(
+      (d) => d.style.overflow === "auto",
+    )!;
+    expect(body).toBeTruthy();
+    expect(body.style.scrollbarWidth).toBe("thin");
+    expect(body.style.scrollbarColor).toContain("transparent");
+
+    act(() => root.unmount());
+    host.remove();
+  });
+});
+
 describe("ContextMenu", () => {
   it("rend les items (label + icône), déclenche onClick de la ligne", async () => {
     const { ContextMenu } = await import("../src/ui/context-menu");
@@ -884,5 +997,47 @@ describe("ContextMenu", () => {
     expect(onA).not.toHaveBeenCalled();
 
     act(() => root.unmount());
+  });
+
+  it("scroll / resize → le menu suit l'élément (décalage du clic conservé)", async () => {
+    const { ContextMenu } = await import("../src/ui/context-menu");
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      cb(0);
+      return 0; // synchrone : aucune frame en attente
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    let top = 150;
+    vi.spyOn(el, "getBoundingClientRect").mockImplementation(
+      () => ({ top, left: 40, width: 100, height: 40, right: 140, bottom: top + 40, x: 40, y: top, toJSON: () => ({}) }) as DOMRect,
+    );
+
+    act(() => {
+      root.render(
+        <ContextMenu at={{ el, x: 100, y: 200 }} onClose={() => {}} items={[{ label: "A", onClick: () => {} }]} />,
+      );
+    });
+    const panel = document.querySelector<HTMLElement>("[data-rp-contextmenu]")!;
+    expect(panel.style.top).toBe("200px");
+    expect(panel.style.left).toBe("100px");
+
+    // L'élément remonte de 60px au scroll → le menu aussi.
+    top = 90;
+    act(() => window.dispatchEvent(new Event("scroll")));
+    expect(panel.style.top).toBe("140px");
+    expect(panel.style.left).toBe("100px");
+
+    top = 300;
+    act(() => window.dispatchEvent(new Event("resize")));
+    expect(panel.style.top).toBe("350px");
+
+    act(() => root.unmount());
+    el.remove();
+    vi.unstubAllGlobals();
   });
 });

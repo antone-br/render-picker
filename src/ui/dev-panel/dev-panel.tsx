@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, type FC } from "react";
 
 import { UI_Z } from "../../core/inspector/constants/picker";
 import {
@@ -16,7 +16,7 @@ import { loadPanelState, savePanelState } from "../../core/devpanel/panel-state"
 import { HtmlTree } from "../html-tree/html-tree";
 import { ConsoleTab } from "./console-tab";
 import { NetworkTab } from "./network-tab";
-import { ACCENT_CORNER, GUTTER, HANDLE_BG, plainBtn } from "./styles";
+import { ACCENT_CORNER, GUTTER, HANDLE_BG, plainBtn, THIN_SCROLLBAR } from "./styles";
 import { useDragResize } from "./use-drag-resize";
 
 type Tab = "console" | "network" | "html";
@@ -30,7 +30,7 @@ export interface DevPanelProps {
 }
 
 /** Panneau d'inspection flottant déplaçable + redimensionnable : Console / Network / HTML. */
-export function DevPanel({ onClose, size, onSizeChange }: DevPanelProps) {
+export const DevPanel: FC<DevPanelProps> = ({ onClose, size, onSizeChange }) => {
   const init = loadPanelState();
   const [tab, setTab] = useState<Tab>(init.tab);
   const { pos, width, height, beginResize, onHeaderPointerDown } = useDragResize(
@@ -95,6 +95,8 @@ export function DevPanel({ onClose, size, onSizeChange }: DevPanelProps) {
   return (
     <div
       data-pathpicker-ignore=""
+      // Racine du panneau : un clic dedans (drag, onglets, resize) ne désélectionne pas l'arbre HTML.
+      data-rp-devpanel=""
       style={{
         position: "fixed",
         top: pos.y,
@@ -193,6 +195,7 @@ export function DevPanel({ onClose, size, onSizeChange }: DevPanelProps) {
           flex: 1,
           minHeight: 0,
           overflow: "auto",
+          ...THIN_SCROLLBAR,
           padding: "8px 10px",
           marginRight: GUTTER,
           marginBottom: GUTTER,
@@ -255,4 +258,4 @@ export function DevPanel({ onClose, size, onSizeChange }: DevPanelProps) {
       />
     </div>
   );
-}
+};

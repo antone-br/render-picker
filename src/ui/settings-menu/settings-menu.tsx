@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type FC } from "react";
 
 import { CARD_SHADOW, ELEVATED_BG } from "../../core/inspector/constants/theme";
 import { DEFAULT_SETTINGS, type RenderPickerSettings } from "../../core/settings";
@@ -9,7 +9,7 @@ import {
   INSPECT_OPTIONS,
   SEARCH_KEY_OPTIONS,
 } from "../commands";
-import { CopyIcon, CrosshairIcon, Html5Icon, MultiIcon, VsCodeIcon } from "../icons";
+import { CopyIcon, CrosshairIcon, MultiIcon, VsCodeIcon } from "../icons";
 import { Select } from "../select";
 import { useOutsideClose } from "../use-outside-close";
 import { GestureRow, KeyGestureRow, KeyRow, rowStyle } from "./rows";
@@ -30,12 +30,12 @@ export interface SettingsMenuProps {
  * (armement, gestes souris, touches) + bouton Réinitialiser. Les lignes vivent
  * dans `./rows` ; la fermeture au clic-hors via `useOutsideClose`.
  */
-export function SettingsMenu({
+export const SettingsMenu: FC<SettingsMenuProps> = ({
   commands,
   onChangeCommands,
   onClose,
   showVsCode = true,
-}: SettingsMenuProps) {
+}) => {
   const ref = useRef<HTMLDivElement>(null);
 
   // Animation d'entrée : une seule fois au montage (sinon rejoue à chaque render).
@@ -140,7 +140,8 @@ export function SettingsMenu({
         </div>
 
         <GestureRow label="Copier l'élément" cmdKey="copy" icon={<CopyIcon />} commands={commands} onChange={onChangeCommands} />
-        <GestureRow label="Copier le HTML" cmdKey="copyHtml" icon={<Html5Icon />} commands={commands} onChange={onChangeCommands} />
+        {/* `copyHtml` (clic droit) n'est plus affiché : il ouvre le menu contextuel
+            (Copier le HTML / le rendu / les classes / le XPath). Toujours lu depuis la config. */}
         <GestureRow label="Sélection multiple" cmdKey="multi" icon={<MultiIcon />} commands={commands} onChange={onChangeCommands} />
         {showVsCode && (
           <GestureRow label="Ouvrir le composant (global)" cmdKey="source" icon={<VsCodeIcon />} commands={commands} onChange={onChangeCommands} />
@@ -158,4 +159,4 @@ export function SettingsMenu({
       </div>
     </div>
   );
-}
+};

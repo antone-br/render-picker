@@ -6,14 +6,16 @@ sans l'installer dans le projet. Réutilise le moteur maison de `../src`.
 ## Fonctions
 
 - Survol → overlay + tooltip (**classes CSS** de l'élément) ; clic → copie **route + XPath + CSS + composant React + `fichier:ligne`**.
-- Clic droit → copie l'**HTML brut** (`outerHTML`).
+- Clic droit → **menu contextuel** : copier le HTML, le rendu (HTML autoportant), les classes ou le XPath.
 - Maj+clic → sélection multiple, Entrée valide.
 - Barre de paramètres : commandes remappables (persistées via `chrome.storage.sync`).
 - `Maj Maj` ou l'**icône de la barre d'outils** arme/désarme le picker.
 - Pas d'ouverture VS Code dans l'extension (feature réservée au package npm).
-- **Ctrl + i** (sur l'élément survolé) → **panneau d'inspection** flottant (déplaçable/redimensionnable) :
-  onglets Console / Network, capturés en MAIN world, streamés au content via `postMessage`. Chaque
-  requête Network est **dépliable** (headers / payload / response / initiator ; corps texte capé ~10k).
+- **Ctrl + F F** → recherche d'éléments (tag, classe, sélecteur), même picker désarmé.
+- **Ctrl + i** (sur l'élément survolé) → **panneau d'inspection** flottant (déplaçable/redimensionnable),
+  ouvert sur l'onglet **HTML** (arbre DOM live, élément révélé). Onglets Console / Network capturés
+  en MAIN world, streamés au content via `postMessage`. Chaque requête Network est **dépliable**
+  (headers / payload / response / initiator ; corps texte capé ~10k).
 
 ## Installation (dev, non empaquetée)
 

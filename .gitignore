@@ -3,8 +3,13 @@ dist/
 *.tgz
 .vitest
 
-# Claude Code (local uniquement)
-.claude/
+# Claude Code (local uniquement, sauf les rules versionnées)
+.claude/*
+!.claude/rules/*
 
 # local test artifact
 render-picker.config.json
+
+# Extension empaquetée par Chrome (« Empaqueter l'extension ») : paquet + clé privée
+*.crx
+*.pem

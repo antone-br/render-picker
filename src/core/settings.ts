@@ -50,7 +50,10 @@ export interface RenderPickerSettings {
     arm: ArmHotkey;
     /** Copier l'élément. Défaut : clic simple. */
     copy: GestureBinding;
-    /** Copier l'HTML brut (`outerHTML`). Défaut : clic droit. */
+    /**
+     * Ouvre le menu contextuel (Copier le HTML / le rendu / les classes / le XPath).
+     * Défaut : clic droit. Plus affiché dans le menu paramètres, toujours lu depuis la config.
+     */
     copyHtml: GestureBinding;
     /** Sélection multiple (accumulation). Défaut : Maj+clic. */
     multi: GestureBinding;
@@ -58,7 +61,7 @@ export interface RenderPickerSettings {
     confirm: KeyChoice;
     /** Annuler / désarmer. Défaut : Échap. */
     cancel: KeyChoice;
-    /** Ouvrir le panneau d'inspection (Composant/Console/Network). Défaut : Ctrl + I. */
+    /** Ouvrir le panneau d'inspection sur l'onglet HTML (élément survolé révélé). Défaut : Ctrl + I. */
     inspect: InspectBinding;
     /** Ouvrir la recherche d'éléments (tag/classe/sélecteur). Défaut : Ctrl + double-tap F. */
     search: SearchBinding;

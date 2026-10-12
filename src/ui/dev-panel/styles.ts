@@ -22,6 +22,17 @@ export const GUTTER = 12;
 export const HANDLE_BG = "rgba(255,255,255,0.05)";
 
 /**
+ * Scrollbars fines et sombres des zones scrollables du panneau (corps, détail
+ * réseau). Propriétés CSS standard : seules utilisables en inline-style (pas de
+ * `::-webkit-scrollbar` sans feuille CSS). Piste transparente → plus de carré
+ * clair au coin quand les deux axes défilent.
+ */
+export const THIN_SCROLLBAR = {
+  scrollbarWidth: "thin",
+  scrollbarColor: "rgba(255,255,255,0.18) transparent",
+} as const;
+
+/**
  * Boutons d'en-tête (Copier / Vider / Fermer) : variante « floating » (reprise du
  * Button renderflow). Hauteur fixe 22 → la croix carrée (`width: 22`) a la même taille.
  */

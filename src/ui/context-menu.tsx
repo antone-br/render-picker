@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FC, type ReactNode } from "react";
 
 import { CONTEXT_MENU_OPEN } from "../core/inspector/constants/behavior";
 import { UI_Z } from "../core/inspector/constants/picker";
@@ -40,16 +40,50 @@ export interface ContextMenuProps {
 
 const PANEL_W = 200;
 
+/** Déplacement de l'élément ancre depuis l'ouverture du menu `at`. */
+interface AnchorShift {
+  at: ContextMenuState;
+  dx: number;
+  dy: number;
+}
+
 /**
  * Menu contextuel (clic droit sur un élément) — port du `DropdownButton`
  * renderflow (panel elevated, rows ghost, hors-viewport corrigé) en
- * inline-styles, sans dépendances. Positionné au curseur, clamp viewport.
- * Clic hors / Échap = fermer (le reste de l'app continue de vivre).
+ * inline-styles, sans dépendances. Positionné au curseur, clamp viewport,
+ * puis ancré à `at.el` : au scroll / resize il suit l'élément (comme le rect
+ * de survol). Clic hors / Échap = fermer (le reste de l'app continue de vivre).
  */
-export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
+export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const [shift, setShift] = useState<AnchorShift | null>(null);
+
+  // Suivi de l'élément ancre : delta de son rect depuis l'ouverture, une fois
+  // par frame (scroll capture → fenêtre ET sous-conteneurs).
+  useEffect(() => {
+    if (!at) return;
+    const origin = at.el.getBoundingClientRect();
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (!at.el.isConnected) return;
+      const r = at.el.getBoundingClientRect();
+      setShift({ at, dx: r.left - origin.left, dy: r.top - origin.top });
+    };
+    const onChange = () => {
+      if (typeof requestAnimationFrame !== "function") return update();
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", onChange, true);
+    window.addEventListener("resize", onChange);
+    return () => {
+      window.removeEventListener("scroll", onChange, true);
+      window.removeEventListener("resize", onChange);
+      if (frame && typeof cancelAnimationFrame === "function") cancelAnimationFrame(frame);
+    };
+  }, [at]);
 
   useEffect(() => {
     if (!at) return;
@@ -95,8 +129,11 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const left = Math.max(8, Math.min(at.x, vw - PANEL_W - 8));
-  const top = Math.max(8, Math.min(at.y, vh - 120));
+  // Clamp viewport sur la position d'ouverture seulement : ensuite le menu
+  // suit l'élément, même s'il sort de l'écran avec lui.
+  const { dx, dy } = shift?.at === at ? shift : { dx: 0, dy: 0 };
+  const left = Math.max(8, Math.min(at.x, vw - PANEL_W - 8)) + dx;
+  const top = Math.max(8, Math.min(at.y, vh - 120)) + dy;
 
   return (
     <div
@@ -174,4 +211,4 @@ export function ContextMenu({ at, onClose, items }: ContextMenuProps) {
       ))}
     </div>
   );
-}
+};
