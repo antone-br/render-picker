@@ -259,6 +259,36 @@ describe("RenderPickerButton", () => {
     act(() => root.unmount());
   });
 
+  it("paramètres : dropdown « Éditeur » (10 IDE), choix persisté", () => {
+    window.localStorage.clear();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<RenderPickerButton pathname="/" />));
+
+    act(() =>
+      document.querySelector<HTMLButtonElement>("button[aria-label^='renderPicker']")?.click(),
+    );
+    act(() => document.querySelector<HTMLButtonElement>("button[data-rp-gear]")?.click());
+
+    const editorBtn = document.querySelector<HTMLButtonElement>("button[aria-label='Éditeur']")!;
+    expect(editorBtn).not.toBeNull();
+    expect(editorBtn.textContent).toContain("VS Code");
+
+    act(() => editorBtn.click());
+    const options = Array.from(document.querySelectorAll<HTMLButtonElement>("[role='option']"));
+    expect(options).toHaveLength(10);
+
+    act(() => options.find((o) => o.textContent === "WebStorm")!.click());
+    expect(editorBtn.textContent).toContain("WebStorm");
+    expect(JSON.parse(window.localStorage.getItem("render-picker:settings")!)).toEqual({
+      commands: { editor: "webstorm" },
+    });
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it("la loupe s'ouvre puis se referme au re-clic (toggle, pas de race pointerdown)", () => {
     window.localStorage.clear();
     const container = document.createElement("div");

@@ -5,6 +5,8 @@
  * figé au démarrage du serveur) > `localStorage` > défauts. Sans React.
  */
 
+import { DEFAULT_EDITOR, isEditorId, type EditorId } from "./dev/editors";
+
 /** Modificateur d'un geste souris remappable. */
 export type ClickModifier = "none" | "ctrl" | "alt" | "meta" | "shift";
 
@@ -69,6 +71,8 @@ export interface RenderPickerSettings {
     source: GestureBinding;
     /** Ouvrir le fichier d'usage dans VS Code. Défaut : Ctrl+clic. */
     usage: GestureBinding;
+    /** Éditeur ouvert par `source` / `usage` (VS Code, Cursor, WebStorm…). Défaut : VS Code. */
+    editor: EditorId;
   };
   /** Panneau d'inspection : taille (px) persistée via le fichier de config. */
   panel: { width: number; height: number };
@@ -86,6 +90,7 @@ export const DEFAULT_SETTINGS: RenderPickerSettings = {
     search: { modifier: "ctrl", key: "f", double: true },
     source: { modifier: "alt", trigger: "click" },
     usage: { modifier: "ctrl", trigger: "click" },
+    editor: DEFAULT_EDITOR,
   },
   panel: { width: 420, height: 320 },
 };
@@ -138,7 +143,9 @@ export function keyMatches(choice: KeyChoice, key: string): boolean {
 const STORAGE_KEY = "render-picker:settings";
 
 /** Route API dev (handlers `GET`/`POST` de `@antone-br/render-picker/next`). */
-const ENDPOINT = "/api/render-picker";
+/** Route dev du package (config + ouverture dans l'IDE) : `app/api/render-picker/route.ts`. */
+export const ROUTE_ENDPOINT = "/api/render-picker";
+const ENDPOINT = ROUTE_ENDPOINT;
 
 /** Patch partiel de settings : sous-ensembles de `commands` et `panel`. */
 export type SettingsPatch = {
@@ -211,6 +218,7 @@ export function settingsDelta(
   if (!sameKeyBinding(sc.search, bc.search)) commands.search = sc.search;
   if (!sameBinding(sc.source, bc.source)) commands.source = sc.source;
   if (!sameBinding(sc.usage, bc.usage)) commands.usage = sc.usage;
+  if (sc.editor !== bc.editor) commands.editor = sc.editor;
   if (Object.keys(commands).length > 0) delta.commands = commands;
   if (
     settings.panel.width !== base.panel.width ||
@@ -242,6 +250,8 @@ function merge(
       search: normalizeKeyBinding(patchCommands.search, base.commands.search),
       source: { ...base.commands.source, ...(patchCommands.source ?? {}) },
       usage: { ...base.commands.usage, ...(patchCommands.usage ?? {}) },
+      // Valeur inconnue (config éditée à la main) → éditeur de base.
+      editor: isEditorId(patchCommands.editor) ? patchCommands.editor : base.commands.editor,
     },
     panel: { ...base.panel, ...(patch.panel ?? {}) },
   };

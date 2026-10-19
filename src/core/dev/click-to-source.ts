@@ -1,8 +1,10 @@
-import { loadSettings, modifierMatches } from "../settings";
+import { loadSettings, modifierMatches, ROUTE_ENDPOINT } from "../settings";
 import type { ClickTrigger, RenderPickerSettings } from "../settings";
+import { buildEditorUri, type EditorId } from "./editors";
 
 /**
- * Clic (modificateur configurable) sur un élément annoté → ouvre dans VS Code sa
+ * Clic (modificateur configurable) sur un élément annoté → ouvre dans l'éditeur
+ * choisi (`commands.editor` : VS Code, Cursor, WebStorm… — voir `./editors`) sa
  * source exacte (`data-source`) ou son fichier d'**usage** (`data-owner-source`, là
  * où le composant est écrit, pas sa définition partagée). Défauts : Alt+clic →
  * source, Ctrl+clic → usage. Les liaisons viennent de `settings.commands`. Dev only.
@@ -10,20 +12,51 @@ import type { ClickTrigger, RenderPickerSettings } from "../settings";
 
 /**
  * Construit l'URI VS Code à partir de la racine projet absolue et du `data-source`
- * relatif (`src/.../file.tsx:118`). Pur / testable.
+ * relatif (`src/.../file.tsx:118`). Pur / testable. Conservé pour l'API publique :
+ * `buildEditorUri` (`./editors`) couvre les autres éditeurs.
  */
 export function buildVscodeUri(
   root: string | undefined | null,
   source: string | null,
 ): string | null {
-  if (!root || !source) return null;
-  const normalizedRoot = root.replace(/\\/g, "/").replace(/\/+$/, "");
-  if (!normalizedRoot) return null;
-  const rel = source.replace(/^\/+/, "");
-  return `vscode://file/${normalizedRoot}/${rel}`;
+  return buildEditorUri("vscode", root, source);
 }
 
 const SWALLOWED_EVENTS = ["click", "auxclick", "pointerup", "mouseup"] as const;
+
+/** Délai max de la route dev (la recherche du process IDE sous Windows prend ~0,5-1 s). */
+const ROUTE_TIMEOUT_MS = 3000;
+
+/**
+ * Demande au serveur dev d'ouvrir `source` dans l'IDE (aucune config système :
+ * pas de schéma d'URL à enregistrer). `false` si la route est absente, refuse ou
+ * échoue → l'appelant retombe sur le lien d'URL.
+ */
+async function openViaRoute(editor: EditorId, source: string): Promise<boolean> {
+  if (typeof fetch === "undefined") return false;
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), ROUTE_TIMEOUT_MS) : null;
+  try {
+    const res = await fetch(ROUTE_ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ open: { editor, source } }),
+      signal: ctrl?.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Ouvre un lien d'URL d'éditeur (`vscode://…`, `webstorm://…`) — repli sans route. */
+function followUri(uri: string): void {
+  const a = document.createElement("a");
+  a.href = uri;
+  a.click();
+}
 
 /** Resolver courant (init npm actif) — emploi externe (rects de recherche). */
 let vscodeOpenRef: ((el: HTMLElement, action: "source" | "usage") => void) | null = null;
@@ -63,7 +96,7 @@ export function initClickToSource(
 ): () => void {
   if (!root) {
     console.warn(
-      "[render-picker] projectRoot absent (NEXT_PUBLIC_PROJECT_ROOT non injecté ?) — ouverture VS Code désactivée.",
+      "[render-picker] projectRoot absent (NEXT_PUBLIC_PROJECT_ROOT non injecté ?) — ouverture dans l'éditeur désactivée.",
     );
     return () => {};
   }
@@ -102,14 +135,19 @@ export function initClickToSource(
     e.stopImmediatePropagation();
   }
 
-  /** Ouvre VS Code : VS Code URI + désarmement + flash (enregistré via `resolveVscodeOpen`). */
+  /**
+   * Ouvre l'éditeur choisi : d'abord via la route dev (le serveur lance l'IDE, sans
+   * config système), sinon via le lien d'URL. + désarmement + flash. Enregistré
+   * pour `vscodeOpenFor`.
+   */
   function openEl(el: HTMLElement, action: "source" | "usage"): void {
     const rel =
       action === "usage"
         ? el.getAttribute("data-owner-source") ?? el.getAttribute("data-source")
         : el.getAttribute("data-source");
-    const uri = buildVscodeUri(root, rel);
-    if (!uri) return;
+    const editor = getCommands().editor;
+    const uri = buildEditorUri(editor, root, rel);
+    if (!uri || !rel) return;
 
     // Désarme le picker s'il est armé (notre inspecteur annule sur Escape).
     document.dispatchEvent(
@@ -130,9 +168,9 @@ export function initClickToSource(
       el.style.outline = prevOutline;
     }, 400);
 
-    const a = document.createElement("a");
-    a.href = uri;
-    a.click();
+    void openViaRoute(editor, rel).then((ok) => {
+      if (!ok) followUri(uri);
+    });
   }
 
   vscodeOpenRef = openEl;

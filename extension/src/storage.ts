@@ -1,3 +1,4 @@
+import { isEditorId } from "../../src/core/dev/editors";
 import {
   DEFAULT_SETTINGS,
   normalizeKeyBinding,
@@ -30,6 +31,7 @@ function mergeCommands(stored: Partial<Commands> | undefined): Commands {
     search: normalizeKeyBinding(stored.search, d.search),
     source: { ...d.source, ...stored.source },
     usage: { ...d.usage, ...stored.usage },
+    editor: isEditorId(stored.editor) ? stored.editor : d.editor,
   };
 }
 

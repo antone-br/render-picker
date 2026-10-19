@@ -6,6 +6,7 @@ import {
   ARM_OPTIONS,
   CANCEL_KEY_OPTIONS,
   CONFIRM_KEY_OPTIONS,
+  EDITOR_OPTIONS,
   INSPECT_OPTIONS,
   SEARCH_KEY_OPTIONS,
 } from "../commands";
@@ -143,6 +144,29 @@ export const SettingsMenu: FC<SettingsMenuProps> = ({
         {/* `copyHtml` (clic droit) n'est plus affiché : il ouvre le menu contextuel
             (Copier le HTML / le rendu / les classes / le XPath). Toujours lu depuis la config. */}
         <GestureRow label="Sélection multiple" cmdKey="multi" icon={<MultiIcon />} commands={commands} onChange={onChangeCommands} />
+        {showVsCode && (
+          <div style={rowStyle}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <VsCodeIcon />
+              Éditeur
+            </span>
+            <Select
+              ariaLabel="Éditeur"
+              value={commands.editor}
+              options={EDITOR_OPTIONS}
+              onChange={(editor) => onChangeCommands({ ...commands, editor })}
+              width={124}
+              highlight={commands.editor !== def.editor}
+            />
+          </div>
+        )}
         {showVsCode && (
           <GestureRow label="Ouvrir le composant (global)" cmdKey="source" icon={<VsCodeIcon />} commands={commands} onChange={onChangeCommands} />
         )}

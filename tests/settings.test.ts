@@ -392,3 +392,32 @@ describe("commandes search / inspect (binding clavier)", () => {
     expect(delta).toEqual({});
   });
 });
+
+describe("éditeur (commands.editor)", () => {
+  it("défaut vscode, absent du delta tant qu'il n'est pas changé", () => {
+    expect(DEFAULT_SETTINGS.commands.editor).toBe("vscode");
+    expect(settingsDelta(DEFAULT_SETTINGS)).toEqual({});
+  });
+
+  it("changé → présent dans le delta et relu par loadSettings", () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      commands: { ...DEFAULT_SETTINGS.commands, editor: "webstorm" as const },
+    };
+    expect(settingsDelta(settings)).toEqual({ commands: { editor: "webstorm" } });
+
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ commands: { editor: "phpstorm" } }),
+    );
+    expect(loadSettings().commands.editor).toBe("phpstorm");
+  });
+
+  it("valeur inconnue dans la config → retombe sur vscode", () => {
+    window.localStorage.setItem(
+      "render-picker:settings",
+      JSON.stringify({ commands: { editor: "notepad" } }),
+    );
+    expect(loadSettings().commands.editor).toBe("vscode");
+  });
+});

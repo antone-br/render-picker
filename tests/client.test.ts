@@ -31,7 +31,8 @@ describe("initRenderPicker", () => {
     expect(console.log).toBe(spy);
   });
 
-  it("Ctrl+clic sur [data-source] ouvre l'URI VS Code", () => {
+  it("Ctrl+clic sur [data-source] ouvre l'URI VS Code (route dev absente → lien)", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("no route"))));
     document.body.innerHTML = `<div data-source="src/a.tsx:3"><span>x</span></div>`;
     const clicks: string[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
@@ -49,13 +50,16 @@ describe("initRenderPicker", () => {
     span.dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, ctrlKey: true, button: 0 }),
     );
+    await new Promise((r) => setTimeout(r, 0));
     expect(clicks).toEqual(["vscode://file/C:/proj/src/a.tsx:3"]);
 
     dispose();
     span.dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, ctrlKey: true, button: 0 }),
     );
+    await new Promise((r) => setTimeout(r, 0));
     expect(clicks).toHaveLength(1);
+    vi.unstubAllGlobals();
   });
 
   it("pose le marqueur data-render-picker, retiré au dispose", () => {

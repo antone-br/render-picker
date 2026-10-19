@@ -1,3 +1,4 @@
+import { EDITORS, type EditorId } from "../core/dev/editors";
 import type {
   ArmHotkey,
   ClickModifier,
@@ -28,6 +29,12 @@ export const ARM_OPTIONS: SelectOption<ArmHotkey>[] = [
   { value: "alt alt", label: "Alt Alt" },
   { value: "off", label: "Désactivé" },
 ];
+
+/** Éditeurs ouverts par « Ouvrir le composant » (registre `core/dev/editors`). */
+export const EDITOR_OPTIONS: SelectOption<EditorId>[] = EDITORS.map((e) => ({
+  value: e.id,
+  label: e.label,
+}));
 
 export const CONFIRM_KEY_OPTIONS: SelectOption<KeyChoice>[] = [
   { value: "enter", label: "Entrée" },

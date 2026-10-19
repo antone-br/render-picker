@@ -100,6 +100,7 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
 }
 
 export { buildVscodeUri, initClickToSource } from "./core/dev/click-to-source";
+export { buildEditorUri, EDITORS, type EditorId, type EditorInfo } from "./core/dev/editors";
 export {
   pickResultFromElement,
   searchElements,

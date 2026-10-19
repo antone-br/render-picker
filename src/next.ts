@@ -1,5 +1,8 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, relative, resolve } from "node:path";
+
+import { isEditorId, parseSource } from "./core/dev/editors";
+import { launchEditor } from "./server/launch-editor";
 
 // Fichier Node uniquement (next.config + route dev). Jamais bundlé côté navigateur.
 
@@ -78,16 +81,52 @@ export function GET(): Response {
   }
 }
 
-/** Écrit le fichier de config depuis le body JSON. Dev only. */
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+}
+
+/**
+ * `{ open: { editor, source } }` → ouvre `source` (`src/…:ligne[:col]`, relatif à la
+ * racine) dans l'IDE, côté serveur (aucune config système requise, voir
+ * `server/launch-editor`). Refuse tout chemin hors du projet ou inexistant.
+ */
+async function openInEditor(open: unknown): Promise<Response> {
+  const { editor, source } = (open ?? {}) as { editor?: unknown; source?: unknown };
+  if (!isEditorId(editor) || typeof source !== "string" || !source) {
+    return json({ error: "invalid" }, 400);
+  }
+  const root = process.cwd();
+  const { file, line, col } = parseSource(source.replace(/^\/+/, ""));
+  const abs = resolve(root, file);
+  const rel = relative(root, abs);
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return json({ error: "forbidden" }, 403);
+  if (!existsSync(abs) || !statSync(abs).isFile()) return json({ error: "not found" }, 404);
+
+  const ok = await launchEditor(editor, abs, line, col);
+  return ok ? json({ ok: true }) : json({ error: "editor not found" }, 500);
+}
+
+/**
+ * Écrit le fichier de config depuis le body JSON — ou, si le body porte `open`,
+ * ouvre le fichier dans l'IDE (Alt/Ctrl+clic). Dev only.
+ */
 export async function POST(req: Request): Promise<Response> {
   if (process.env.NODE_ENV === "production") {
     return new Response(null, { status: 404 });
   }
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(await req.text());
-    writeFileSync(configFilePath(), `${JSON.stringify(parsed, null, 2)}\n`);
-    return new Response('{"ok":true}', { headers: JSON_HEADERS });
+    parsed = JSON.parse(await req.text());
   } catch {
-    return new Response('{"error":"invalid"}', { status: 400, headers: JSON_HEADERS });
+    return json({ error: "invalid" }, 400);
+  }
+  if (parsed && typeof parsed === "object" && "open" in parsed) {
+    return openInEditor((parsed as { open: unknown }).open);
+  }
+  try {
+    writeFileSync(configFilePath(), `${JSON.stringify(parsed, null, 2)}\n`);
+    return json({ ok: true });
+  } catch {
+    return json({ error: "invalid" }, 400);
   }
 }

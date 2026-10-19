@@ -2,7 +2,7 @@
 
 Dev-only toolkit for **Next.js + React 19**: click any element and get a clipboard-ready
 snippet for your AI agent — route, XPath, CSS selector, React component **and its source
-`file:line`** — plus **Alt+click to open the source in VS Code** (and **Ctrl+click to jump to
+`file:line`** — plus **Alt+click to open the source in your editor** (VS Code, Cursor, WebStorm… — 10 supported) (and **Ctrl+click to jump to
 the usage site** — where a shared component is written, not its definition).
 
 ```
@@ -39,7 +39,7 @@ export default withRenderPicker({
 });
 ```
 
-**2. `src/instrumentation-client.ts`** — DOM annotation, Ctrl+click → VS Code, console hush:
+**2. `src/instrumentation-client.ts`** — DOM annotation, Ctrl+click → your editor, console hush:
 
 ```ts
 import { initRenderPicker } from "@antone-br/render-picker/client";
@@ -73,7 +73,7 @@ export function DevRenderPicker() {
 | `Ctrl`+`F` `F` | Search elements (works even when the picker is off) |
 | `Ctrl`+`I` | Open the inspection panel on the HTML tab, at the hovered element |
 | `Esc` | Cancel |
-| `Alt`+click (picker off) | Open the element's source in VS Code |
+| `Alt`+click (picker off) | Open the element's source in your editor (see **Editor** below) |
 | `Ctrl`+click (picker off) | Jump to the usage site |
 
 ### Right-click menu — "Copier le rendu" (self-contained HTML)
@@ -118,8 +118,8 @@ identically, without the page's CSS.
 | Option | Type | Default | |
 |---|---|---|---|
 | `enabled` | `boolean` | `NODE_ENV !== "production"` | Master switch |
-| `projectRoot` | `string` | `process.env.NEXT_PUBLIC_PROJECT_ROOT` | Absolute root used for `vscode://file/…` |
-| `clickToSource` | `boolean` | `true` | Ctrl+click → VS Code |
+| `projectRoot` | `string` | `process.env.NEXT_PUBLIC_PROJECT_ROOT` | Absolute root used to build the editor URI (`vscode://file/…`, `webstorm://open?file=…`) |
+| `clickToSource` | `boolean` | `true` | Alt/Ctrl+click → your editor |
 | `annotate` | `boolean \| { delayMs }` | `true`, `2000` ms | Annotation starts after hydration to avoid attribute mismatches |
 | `hushConsole` | `boolean \| RegExp[]` | `true` | Drops "Download the React DevTools", `[HMR] connected`, `[Fast Refresh]` logs |
 
@@ -191,7 +191,8 @@ export { GET, POST } from "@antone-br/render-picker/next";
     "inspect": { "modifier": "ctrl", "key": "i", "double": false },
     "search": { "modifier": "ctrl", "key": "f", "double": true },
     "source": { "modifier": "alt", "trigger": "click" },
-    "usage": { "modifier": "ctrl", "trigger": "click" }
+    "usage": { "modifier": "ctrl", "trigger": "click" },
+    "editor": "vscode" // vscode | vscode-insiders | cursor | windsurf | vscodium | zed | webstorm | phpstorm | idea | pycharm
   },
   "panel": { "width": 420, "height": 320 }
 }
@@ -199,10 +200,40 @@ export { GET, POST } from "@antone-br/render-picker/next";
 
 Without the route, changes stay in `localStorage` (no crash). The handlers are no-ops in production.
 
+### Editor — where Alt/Ctrl+click opens the source
+
+The settings dropdown has an **Éditeur** select (saved as `commands.editor`, default `vscode`).
+
+**No system setup needed** (no URL scheme to register, no JetBrains Toolbox): with the dev route
+installed (`app/api/render-picker/route.ts`, see above), Alt/Ctrl+click asks the `next dev` server
+to launch the IDE itself — on Windows it reuses the executable of the IDE **already open**
+(`Code.exe`, `webstorm64.exe`, `phpstorm64.exe`…), on macOS JetBrains IDEs go through
+`open -na "<App>.app"`, elsewhere the IDE CLI on the `PATH` (`code`, `cursor`, `zed`, `webstorm`…).
+No shell is involved and only files inside the project can be opened.
+
+Without the route (or if the IDE isn't found), it falls back to the editor's URL scheme:
+
+| `editor` | Editor | Fallback URI |
+|---|---|---|
+| `vscode` | VS Code | `vscode://file/<abs>:<line>` |
+| `vscode-insiders` | VS Code Insiders | `vscode-insiders://file/…` |
+| `cursor` | Cursor | `cursor://file/…` |
+| `windsurf` | Windsurf | `windsurf://file/…` |
+| `vscodium` | VSCodium | `vscodium://file/…` |
+| `zed` | Zed | `zed://file/<abs>:<line>:<col>` |
+| `webstorm` | WebStorm | `webstorm://open?file=<abs>&line=<line>` |
+| `phpstorm` | PhpStorm | `phpstorm://open?file=…` |
+| `idea` | IntelliJ IDEA | `idea://open?file=…` |
+| `pycharm` | PyCharm | `pycharm://open?file=…` |
+
+The fallback URI only works if the OS knows the scheme (VS Code / Cursor installers register it;
+JetBrains needs Toolbox) — the route avoids that. An unknown value in `render-picker.config.json`
+falls back to VS Code.
+
 ### Lower-level exports (`@antone-br/render-picker/client`)
 
 `enrichResult`, `findPickedElement`, `annotate`, `annotateTree`, `componentInfo`,
-`initComponentAnnotator`, `initClickToSource`, `buildVscodeUri`, `hushConsoleNoise`,
+`initComponentAnnotator`, `initClickToSource`, `buildVscodeUri`, `buildEditorUri`, `EDITORS`, `hushConsoleNoise`,
 `resolvePosition`, `normalizeSourcePath`, `loadSettings`, `saveSettings`.
 
 ## Limitations
