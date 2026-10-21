@@ -12,7 +12,7 @@ import {
   SOLID_BG,
   TOOLTIP_SHADOW,
 } from "../../../src/core/inspector/constants/theme";
-import { formatHtml, formatResult, formatResults } from "../../../src/core/format";
+import { elementText, formatHtml, formatResult, formatResults } from "../../../src/core/format";
 import { tooltipClasses } from "../../../src/core/inspector/surfaces/tooltip";
 import { enrichResult } from "../../../src/core/source/enrich";
 import type { RenderPickerSettings } from "../../../src/core/settings";
@@ -236,6 +236,16 @@ export function ExtensionRoot({
                       : "Classes copiées ✓"
                     : "Aucune classe",
                 );
+                setContextMenu(null);
+                disarm();
+              },
+            },
+            {
+              label: "Copier le texte",
+              onClick: () => {
+                const txt = elementText(contextMenu.el);
+                copy(txt ?? "");
+                showToast(txt ? "Texte copié ✓" : "Aucun texte");
                 setContextMenu(null);
                 disarm();
               },

@@ -7,12 +7,18 @@ the usage site** — where a shared component is written, not its definition).
 
 ```
 [renderPicker]
-Route: /dashboard
+Page: /dashboard
 XPath: /html/body/main/section
 CSS: main > section
+Text: Revenue this month
 Source: src/components/dashboard-card.tsx:42
 React: DashboardCard
 ```
+
+`Text:` (below `CSS:`) is the element's text content (whitespace collapsed, truncated), omitted when empty.
+
+`React:` lists the nearest component chain (outer → inner), e.g. `List > ListItem > Button` — the
+sub-components wrapping the picked element, same-file ones included. The hover tooltip shows the same chain.
 
 The picking engine is fully self-contained (no runtime dependency): hit-test, overlay, hover
 tooltip, multi-selection, XPath/CSS generation and the arming hotkey all live in `src/core/`.

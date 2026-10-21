@@ -25,11 +25,19 @@ function reactLines(r: PickResult): string[] {
 export function formatResult(r: PickResult): string {
   return [
     OUTPUT_PREFIX,
-    `Route: ${r.route}`,
+    `Page: ${r.route}`,
     `XPath: ${r.xpath}`,
     `CSS: ${r.cssSelector}`,
+    ...(r.text ? [`Text: ${r.text}`] : []),
     ...reactLines(r),
   ].join("\n");
+}
+
+/** Texte visible de l'élément : espaces compactés, tronqué à 200. `null` si vide. */
+export function elementText(el: Element): string | null {
+  const t = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  return t.length > 200 ? `${t.slice(0, 200)}…` : t;
 }
 
 const VOID_ELEMENTS = new Set([
@@ -105,12 +113,16 @@ export function formatResults(results: PickResult[]): string {
   }
   const head = [
     `${OUTPUT_PREFIX} ${results.length} elements`,
-    `Route: ${results[0]!.route}`,
+    `Page: ${results[0]!.route}`,
   ];
   const blocks = results.map((r, i) =>
-    [`#${i + 1}`, `XPath: ${r.xpath}`, `CSS: ${r.cssSelector}`, ...reactLines(r)].join(
-      "\n",
-    ),
+    [
+      `#${i + 1}`,
+      `XPath: ${r.xpath}`,
+      `CSS: ${r.cssSelector}`,
+      ...(r.text ? [`Text: ${r.text}`] : []),
+      ...reactLines(r),
+    ].join("\n"),
   );
   return [...head, "", blocks.join("\n\n")].join("\n");
 }

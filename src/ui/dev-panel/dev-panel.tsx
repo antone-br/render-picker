@@ -32,7 +32,8 @@ export interface DevPanelProps {
 /** Panneau d'inspection flottant déplaçable + redimensionnable : Console / Network / HTML. */
 export const DevPanel: FC<DevPanelProps> = ({ onClose, size, onSizeChange }) => {
   const init = loadPanelState();
-  const [tab, setTab] = useState<Tab>(init.tab);
+  // Ouverture TOUJOURS sur l'onglet HTML (taille/position restent persistées).
+  const [tab, setTab] = useState<Tab>("html");
   const { pos, width, height, beginResize, onHeaderPointerDown } = useDragResize(
     { x: init.x, y: init.y },
     { width: size?.width ?? 420, height: size?.height ?? 320 },

@@ -18,11 +18,13 @@ type Mapping =
 type PlainMap = {
   mappings: string;
   sources: (string | null)[];
+  sourcesContent?: (string | null)[];
 };
 
 type ParsedMap = {
   mappings: (Mapping[] | null)[];
   sources: (string | null)[];
+  sourcesContent: (string | null)[];
 };
 
 const CHUNK_CACHE_KEY = "__rfComponentTraceChunkCache__";
@@ -31,11 +33,13 @@ type ParsedLikeMap =
   | ({ kind: "plain" } & {
       mappings: (Mapping[] | null)[];
       sources: (string | null)[];
+      sourcesContent: (string | null)[];
     })
   | {
       kind: "index";
       spanSources: (string | null)[][];
       spanMappings: (Mapping[] | null)[][];
+      spanContents: (string | null)[][];
       offsets: { line: number; column: number }[];
     };
 
@@ -114,13 +118,14 @@ function parsePlainMap(raw: PlainMap): ParsedMap {
     mappings.push(columns);
   }
 
-  return { mappings, sources: raw.sources ?? [] };
+  return { mappings, sources: raw.sources ?? [], sourcesContent: raw.sourcesContent ?? [] };
 }
 
 function parseChunkMap(json: unknown): ParsedLikeMap {
   const raw = json as {
     mappings?: string;
     sources?: (string | null)[];
+    sourcesContent?: (string | null)[];
     sections?: { offset: { line: number; column: number }; map: PlainMap }[];
   };
 
@@ -133,6 +138,7 @@ function parseChunkMap(json: unknown): ParsedLikeMap {
       kind: "index",
       spanSources: sections.map((s) => s.parsed.sources),
       spanMappings: sections.map((s) => s.parsed.mappings),
+      spanContents: sections.map((s) => s.parsed.sourcesContent),
       offsets: sections.map((s) => s.offset),
     };
   }
@@ -200,7 +206,7 @@ export async function resolvePosition(
   if (!sm) return null;
 
   if (sm.kind === "plain") {
-    return resolveInPlain(sm.mappings, sm.sources, line, column);
+    return resolveInPlain(sm.mappings, sm.sources, line, column, sm.sourcesContent);
   }
 
   // Index map : trouver la section contenant la ligne générée.
@@ -215,10 +221,24 @@ export async function resolvePosition(
         sm.spanSources[i] ?? [],
         line - offset.line,
         column,
+        sm.spanContents[i] ?? [],
       );
     }
   }
   return null;
+}
+
+/** Ligne de source « non-code » : vide, ou déclaration TS effacée à la compilation. */
+function isNonCodeSourceLine(content: string | null, line: number): boolean {
+  if (content == null) return false;
+  const raw = content.split("\n")[line - 1] ?? "";
+  const text = raw.trim();
+  return (
+    text === "" ||
+    /^(interface\b|type\b|import\b|export type\b|declare\b|export interface\b)/.test(
+      text,
+    )
+  );
 }
 
 function resolveInPlain(
@@ -226,14 +246,19 @@ function resolveInPlain(
   sources: (string | null)[],
   line: number,
   column: number,
+  sourcesContent: (string | null)[],
 ): ResolvedPosition | null {
   const rows = mappings[line - 1];
   if (!rows) return null;
 
   let selected: Mapping = rows[0] ?? { generatedColumn: 0 };
-  for (const m of rows) {
-    if (m.generatedColumn <= column) selected = m;
-    else break;
+  let selectedIndex = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const m = rows[i]!;
+    if (m.generatedColumn <= column) {
+      selected = m;
+      selectedIndex = i;
+    } else break;
   }
   if (!("sourceIndex" in selected)) return null;
 
@@ -241,9 +266,39 @@ function resolveInPlain(
   if (source == null) return null;
 
   const relative = normalizeSourcePath(source);
-  return {
+  const base: ResolvedPosition = {
     source: relative,
     line: selected.sourceLine + 1,
     column: selected.sourceColumn,
   };
+
+  // Trou de mapping : la position hérite d'un segment qui pointe une zone
+  // déclaration (interface/import/type) ou vide — avance dans la MÊME ligne
+  // générée vers le prochain mapping du même fichier pointant du vrai code.
+  if (
+    sourcesContent.length > 0 &&
+    isNonCodeSourceLine(
+      sourcesContent[selected.sourceIndex] ?? null,
+      base.line,
+    )
+  ) {
+    for (let i = selectedIndex + 1; i < rows.length; i++) {
+      const m = rows[i]!;
+      if (!("sourceIndex" in m)) continue;
+      if (m.sourceIndex !== selected.sourceIndex) continue;
+      const altSource = sources[m.sourceIndex];
+      if (altSource == null) continue;
+      const altLine = m.sourceLine + 1;
+      if (isNonCodeSourceLine(sourcesContent[m.sourceIndex] ?? null, altLine)) {
+        continue;
+      }
+      return {
+        source: normalizeSourcePath(altSource),
+        line: altLine,
+        column: m.sourceColumn,
+      };
+    }
+  }
+
+  return base;
 }

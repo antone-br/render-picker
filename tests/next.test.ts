@@ -54,6 +54,15 @@ describe("route dev GET/POST", () => {
     const res = await POST(new Request("http://x", { method: "POST", body: "{}" }));
     expect(res.status).toBe(404);
   });
+
+  it("POST delta vide (`{}`) : ok mais n'écrase PAS le fichier existant", async () => {
+    const existing = join(dir, "render-picker.config.json");
+    writeFileSync(existing, '{"commands":{"arm":"alt alt"}}\n');
+
+    const res = await POST(new Request("http://x", { method: "POST", body: "{}" }));
+    expect(res.status).toBe(200);
+    expect(readFileSync(existing, "utf8")).toContain("alt alt");
+  });
 });
 
 describe("withRenderPicker", () => {

@@ -11,7 +11,7 @@ import {
   subscribeInspected,
 } from "../../core/devpanel/inspected";
 import { createSearchHighlight, type SearchHighlight } from "../../core/search/highlight";
-import { formatHtml } from "../../core/format";
+import { elementText, formatHtml } from "../../core/format";
 import { serializeWithComputedStyles } from "../../core/computed-html";
 import { getXPath } from "../../core/inspector/xpath";
 import { ContextMenu } from "../context-menu";
@@ -29,7 +29,9 @@ const writeClip = (t: string) => {
 export const HtmlTree: FC = () => {
   const [, force] = useReducer((n: number) => n + 1, 0);
   const [expanded, setExpanded] = useState<Set<Element>>(() =>
-    typeof document !== "undefined" && document.body ? new Set([document.body]) : new Set(),
+    typeof document !== "undefined" && document.documentElement
+      ? new Set([document.documentElement, document.body])
+      : new Set(),
   );
   const [selected, setSelected] = useState<Element | null>(null); // sélection = clic uniquement (ligne bleue)
   const [revealed, setRevealed] = useState<Element | null>(null); // cible inspect/survol : déplie + scroll, SANS sélectionner
@@ -52,10 +54,11 @@ export const HtmlTree: FC = () => {
     };
   }, []);
 
-  // Live : rafraîchit l'arbre quand le DOM change, en ignorant nos propres mutations
-  // (rects de highlight) pour ne pas boucler. Débounce léger.
+  // Live : rafraîchit l'arbre quand le DOM change (<head> inclus : HMR, styles
+  // injectés), en ignorant nos propres mutations (rects de highlight) pour ne
+  // pas boucler. Débounce léger.
   useEffect(() => {
-    if (typeof MutationObserver === "undefined" || !document.body) return;
+    if (typeof MutationObserver === "undefined" || !document.documentElement) return;
     let timer: number | null = null;
     const obs = new MutationObserver((muts) => {
       const relevant = muts.some((m) => {
@@ -69,7 +72,7 @@ export const HtmlTree: FC = () => {
         force();
       }, 120);
     });
-    obs.observe(document.body, {
+    obs.observe(document.documentElement, {
       subtree: true,
       childList: true,
       attributes: true,
@@ -86,14 +89,15 @@ export const HtmlTree: FC = () => {
   // la sélection fige l'arbre (le survol de la page ne le déplace plus). Le
   // highlight page est déjà dessiné par l'overlay de l'inspecteur, pas de rect ici.
   useEffect(() => {
+    const root = () => document.documentElement;
     const reveal = (el: Element | null) => {
-      if (!el || !document.body || !document.body.contains(el) || isElementSkippable(el)) {
+      if (!el || !root() || !root().contains(el) || isElementSkippable(el)) {
         return;
       }
       if (selectedRef.current) return;
       setExpanded((prev) => {
         const next = new Set(prev);
-        for (const a of ancestorsUpTo(el, document.body)) next.add(a);
+        for (const a of ancestorsUpTo(el, root())) next.add(a);
         next.add(el); // déplie aussi la div ciblée : on « rentre » dedans (enfants visibles)
         return next;
       });
@@ -185,10 +189,10 @@ export const HtmlTree: FC = () => {
   // Sélection depuis un clic sur la page (mode HTML) : déplie jusqu'à l'élément,
   // le sélectionne (bleu) + le surligne, puis désarme (stoppe l'inspect-au-survol).
   const selectEl = useCallback((el: Element) => {
-    if (!document.body || !document.body.contains(el) || isElementSkippable(el)) return;
+    if (!document.documentElement || !document.documentElement.contains(el) || isElementSkippable(el)) return;
     setExpanded((prev) => {
       const next = new Set(prev);
-      for (const a of ancestorsUpTo(el, document.body!)) next.add(a);
+      for (const a of ancestorsUpTo(el, document.documentElement!)) next.add(a);
       next.add(el);
       return next;
     });
@@ -224,7 +228,7 @@ export const HtmlTree: FC = () => {
     };
   }, [selectEl]);
 
-  if (typeof document === "undefined" || !document.body) return null;
+  if (typeof document === "undefined" || !document.documentElement) return null;
 
   return (
     <div
@@ -232,7 +236,7 @@ export const HtmlTree: FC = () => {
       style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11 }}
     >
       <TreeNode
-        el={document.body}
+        el={document.documentElement}
         depth={0}
         expanded={expanded}
         toggle={toggle}
@@ -272,6 +276,14 @@ export const HtmlTree: FC = () => {
                   disabled: (menu.el.getAttribute("class") ?? "").trim() === "",
                   onClick: () => {
                     writeClip((menu.el.getAttribute("class") ?? "").trim().replace(/\s+/g, " "));
+                    setMenu(null);
+                  },
+                },
+                {
+                  label: "Copier le texte",
+                  disabled: !elementText(menu.el),
+                  onClick: () => {
+                    writeClip(elementText(menu.el) ?? "");
                     setMenu(null);
                   },
                 },

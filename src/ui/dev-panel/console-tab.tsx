@@ -36,7 +36,7 @@ export const ConsoleTab: FC<{ logs: LogEntry[] }> = ({ logs }) => {
         <input
           aria-label="Console REPL"
           value={cmd}
-          placeholder="expression JS"
+          placeholder=""
           onChange={(e) => {
             setCmd(e.target.value);
             histIndex.current = -1;

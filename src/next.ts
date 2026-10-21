@@ -123,6 +123,15 @@ export async function POST(req: Request): Promise<Response> {
   if (parsed && typeof parsed === "object" && "open" in parsed) {
     return openInEditor((parsed as { open: unknown }).open);
   }
+  // Delta vide (reset UI / réglages = défauts) : ne JAMAIS écraser le fichier de
+  // config — il contient peut-être des réglages committés voulus.
+  if (
+    parsed == null ||
+    typeof parsed !== "object" ||
+    Object.keys(parsed as object).length === 0
+  ) {
+    return json({ ok: true, skipped: true });
+  }
   try {
     writeFileSync(configFilePath(), `${JSON.stringify(parsed, null, 2)}\n`);
     return json({ ok: true });

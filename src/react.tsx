@@ -8,7 +8,7 @@ import {
   type FC,
 } from "react";
 
-import { formatHtml, formatResult, formatResults } from "./core/format";
+import { elementText, formatHtml, formatResult, formatResults } from "./core/format";
 import {
   initSettingsRefresh,
   loadSettings,
@@ -257,6 +257,17 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
                 : "Classes copiées ✓"
               : "Aucune classe",
           );
+          closeContextMenu();
+          disarm();
+        },
+      },
+      {
+        label: "Copier le texte",
+        onClick: () => {
+          if (!contextMenu) return;
+          const txt = elementText(contextMenu.el);
+          copy(txt ?? "");
+          showToast(txt ? "Texte copié ✓" : "Aucun texte");
           closeContextMenu();
           disarm();
         },

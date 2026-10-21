@@ -51,6 +51,31 @@ export function componentInfo(el: HTMLElement): AnnotateResult | null {
   return null;
 }
 
+/**
+ * Chaîne des composants React enveloppant l'élément (via `_debugOwner`, « qui rend
+ * quoi »), dédupliquée, des `max` plus proches, **ordre externe → interne**
+ * (`ListItem > Button > TextArea`). Fallback : nom unique le plus proche si pas d'owner
+ * (ex. composant serveur sans `_debugOwner`). Inclut les sous-composants du même fichier.
+ */
+export function componentChain(el: HTMLElement, max = 4): string[] {
+  const fiber = getFiber(el);
+  if (!fiber) return [];
+
+  const names: string[] = []; // interne → externe
+  let owner: Fiber | null | undefined = fiber._debugOwner;
+  while (owner && names.length < max) {
+    const name = displayNameOf(owner.type);
+    if (name && names[names.length - 1] !== name) names.push(name);
+    owner = owner._debugOwner;
+  }
+
+  if (names.length === 0) {
+    const single = fiberName(fiber);
+    return single ? [single] : [];
+  }
+  return names.reverse(); // externe → interne
+}
+
 function displayNameOf(type: unknown): string | null {
   const fn = type as { displayName?: string; name?: string } | null;
   return fn?.displayName || fn?.name || null;
@@ -168,32 +193,52 @@ function fileOf(source: string | null): string | null {
   return source ? source.replace(/:\d+(?::\d+)?$/, "") : null;
 }
 
+/** Toutes les frames `src/app` résolues du stack, dans l'ordre. */
+async function resolveStackSources(
+  stack: { stack?: string },
+): Promise<{ source: string; line: number }[]> {
+  // Webpack dev : chemin source déjà dans la frame (pas de sourcemap).
+  const direct: { source: string; line: number }[] = [];
+  for (const f of extractDirectSources(stack.stack ?? "")) {
+    if (SOURCE_RE.test(f.source)) direct.push({ source: f.source, line: f.line });
+  }
+  if (direct.length > 0) return direct;
+  // Turbopack : frame chunk → sourcemap.
+  const out: { source: string; line: number }[] = [];
+  for (const frame of stackCandidates(stack)) {
+    const resolved = await resolvePosition(frame.url, frame.line, frame.col);
+    if (resolved && SOURCE_RE.test(resolved.source)) {
+      out.push({ source: resolved.source, line: resolved.line });
+    }
+  }
+  return out;
+}
+
 /** 1re frame `src/app` résolue du stack → `"fichier:ligne"`. */
 async function resolveFirstSource(stack: {
   stack?: string;
 }): Promise<string | null> {
-  // Webpack dev : chemin source déjà dans la frame (pas de sourcemap).
-  for (const f of extractDirectSources(stack.stack ?? "")) {
-    if (SOURCE_RE.test(f.source)) return `${f.source}:${f.line}`;
-  }
-  // Turbopack : frame chunk → sourcemap.
-  for (const frame of stackCandidates(stack)) {
-    const resolved = await resolvePosition(frame.url, frame.line, frame.col);
-    if (resolved && SOURCE_RE.test(resolved.source)) {
-      return `${resolved.source}:${resolved.line}`;
-    }
-  }
-  return null;
+  const frames = await resolveStackSources(stack);
+  return frames.length > 0 ? `${frames[0]!.source}:${frames[0]!.line}` : null;
 }
 
 /**
- * Remonte la chaîne `_debugOwner` et retourne le 1er site d'usage dont le fichier
- * diffère de `sourceFile` (= là où le composant est instancié, hors de son module).
+ * Site d'usage du composant englobant. Le `_debugStack` du fiber **owner** mappe
+ * sur la DÉCLARATION du composant (entrée de fonction — ligne fausse, ex. 24) ;
+ * on dérive donc l'usage depuis le stack de **l'élément** : ses frames jsxDEV
+ * successives remontent jusqu'au fichier englobant — la 1re frame dont le
+ * fichier diffère de celui de l'élément = là où il est réellement instancié.
+ * Fallback : chaîne `_debugOwner` (ancien comportement).
  */
 async function resolveOwnerSource(
   fiber: Fiber,
   sourceFile: string | null,
 ): Promise<string | null> {
+  if (sourceFile && fiber._debugStack) {
+    for (const f of await resolveStackSources(fiber._debugStack)) {
+      if (fileOf(f.source) !== sourceFile) return `${f.source}:${f.line}`;
+    }
+  }
   let owner: Fiber | null | undefined = fiber._debugOwner;
   let depth = 0;
   while (owner && depth < 12) {

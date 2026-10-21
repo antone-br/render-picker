@@ -252,6 +252,7 @@ describe("pickResultFromElement", () => {
     expect(result.route).toBe("/dashboard");
     expect(result.tagName).toBe("button");
     expect(result.id).toBeNull();
+    expect(result.text).toBe("ok");
 
     expect(result.reactComponent).toBeNull();
     expect(result.reactSource).toBeNull();

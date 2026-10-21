@@ -1,4 +1,4 @@
-import { componentInfo } from "../../source/component-annotate";
+import { componentChain, componentInfo } from "../../source/component-annotate";
 import { assign } from "./dom";
 
 const TOOLTIP_MAX_W = 420;
@@ -48,7 +48,9 @@ export function tooltipClassSummary(el: Element): string {
  * Les classes/tag + `#id` vivent SOUS le divider (via `tooltipMetrics`). */
 export function tooltipTitle(el: Element, selection: Element[]): string {
   const parts: string[] = [];
-  const comp = componentInfo(el as HTMLElement)?.component;
+  const comp =
+    componentChain(el as HTMLElement).join(" > ") ||
+    componentInfo(el as HTMLElement)?.component;
   if (comp) parts.push(comp);
   parts.push(...titleSuffixes(el, selection));
   return parts.join(" · ");

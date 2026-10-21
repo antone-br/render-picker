@@ -5,6 +5,7 @@ import {
   type ClickTrigger,
 } from "../settings";
 import { isTreeSelectMode, requestContextMenu, requestSelect } from "../devpanel/inspected";
+import { elementText } from "../format";
 import type { InspectorCallbacks, PickResult } from "../types";
 import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
 import { createKeyCommandMatcher } from "./key-command";
@@ -225,6 +226,7 @@ class Inspector {
       route: this.callbacks.getRoute(),
       xpath: getXPath(el),
       cssSelector: getCssSelector(el),
+      text: elementText(el),
       tagName: el.tagName.toLowerCase(),
       id: el.id || null,
       reactComponent: null,

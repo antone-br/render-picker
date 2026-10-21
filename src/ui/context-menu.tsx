@@ -59,6 +59,8 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const [shift, setShift] = useState<AnchorShift | null>(null);
+  /** Animation d'entrée jouée une seule fois (re-ancrage = déplacement sans blink). */
+  const wasOpen = useRef(false);
 
   // Suivi de l'élément ancre : delta de son rect depuis l'ouverture, une fois
   // par frame (scroll capture → fenêtre ET sous-conteneurs).
@@ -86,22 +88,31 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
   }, [at]);
 
   useEffect(() => {
-    if (!at) return;
+    if (!at) {
+      wasOpen.current = false;
+      return;
+    }
     // Flag global : le geste de fermeture (clic hors) ne pick pas.
     CONTEXT_MENU_OPEN.value = true;
-    ref.current?.animate?.(
-      [
-        { opacity: 0, transform: "scale(.95)" },
-        { opacity: 1, transform: "none" },
-      ],
-      { duration: 100, easing: "ease-out" },
-    );
+    if (!wasOpen.current) {
+      wasOpen.current = true;
+      ref.current?.animate?.(
+        [
+          { opacity: 0, transform: "scale(.95)" },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 100, easing: "ease-out" },
+      );
+    }
     return () => {
       CONTEXT_MENU_OPEN.value = false;
     };
   }, [at]);
 
   // Clic hors (composedPath → shadow DOM inclus) et Échap → fermer.
+  // Clic DROIT hors : ne ferme PAS ici — le contextmenu qui suit re-ancre le
+  // menu (déplacement sans blink) ; si personne ne le preventDefault (zone
+  // vide → menu natif), on ferme après coup via `defaultPrevented`.
   useEffect(() => {
     if (!at) return;
     const onDown = (e: Event) => {
@@ -109,7 +120,21 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
       const inside = path.some(
         (n) => n instanceof Element && n.hasAttribute?.("data-rp-contextmenu"),
       );
-      if (!inside) onCloseRef.current();
+      if (inside) return;
+      if ("button" in e && (e as MouseEvent).button === 2) return;
+      onCloseRef.current();
+    };
+    const onCtx = (e: MouseEvent) => {
+      const path = e.composedPath?.() ?? [];
+      const inside = path.some(
+        (n) => n instanceof Element && n.hasAttribute?.("data-rp-contextmenu"),
+      );
+      if (inside) return;
+      // Laisse le dispatch se terminer (nos handlers preventDefault) avant de
+      // décider : menu rouvert/re-ancré = pas de fermeture, zone vide = fermer.
+      setTimeout(() => {
+        if (!e.defaultPrevented) onCloseRef.current();
+      }, 0);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -118,9 +143,11 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
       }
     };
     document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("contextmenu", onCtx, true);
     window.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("contextmenu", onCtx, true);
       window.removeEventListener("keydown", onKey, true);
     };
   }, [at]);

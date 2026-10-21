@@ -10,6 +10,7 @@ import {
 import type { RenderPickerSettings } from "../core/settings";
 import { GearIcon, PanelIcon, SearchIcon } from "./icons";
 import { SettingsMenu } from "./settings-menu/settings-menu";
+import { ToolbarTooltip } from "./toolbar-tooltip";
 
 type Commands = RenderPickerSettings["commands"];
 
@@ -105,6 +106,10 @@ export function SettingsBar({
           boxShadow: BTN_SHADOW,
         }}
       >
+        <span style={{ padding: "0 2px" }}>
+          {hasSelection ? "Entrée pour valider" : "Échap pour annuler"}
+        </span>
+        <ToolbarTooltip label="Inspecteur" shortcut="Ctrl+I">
         <button
           type="button"
           data-rp-panel=""
@@ -120,9 +125,8 @@ export function SettingsBar({
         >
           <PanelIcon color={MUTED} />
         </button>
-        <span style={{ padding: "0 2px" }}>
-          {hasSelection ? "Entrée pour valider" : "Échap pour annuler"}
-        </span>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Rechercher" shortcut="Ctrl+F">
         <button
           type="button"
           data-rp-search=""
@@ -140,6 +144,8 @@ export function SettingsBar({
         >
           <SearchIcon color={MUTED} />
         </button>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Paramètres">
         <button
           type="button"
           data-rp-gear=""
@@ -156,6 +162,7 @@ export function SettingsBar({
         >
           <GearIcon color={MUTED} />
         </button>
+      </ToolbarTooltip>
       </div>
     </div>
   );

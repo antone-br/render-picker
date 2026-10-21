@@ -88,4 +88,47 @@ describe("resolvePosition", () => {
     mockFetch({ [chunk]: "code" });
     expect(await resolvePosition(chunk, 1, 0)).toBeNull();
   });
+
+  it("trou de mapping : ligne déclaration/interface → prochain mapping code du même fichier", async () => {
+    // Généré (1 ligne) : segment 0 → interface (ligne 7, non-code), segment 50 → jsx (ligne 19).
+    // VLQ : [0,0]=src0:6:0 ; [50,+12]=src0:18:0 → deltas col +50, line +12.
+    const chunk = "http://localhost:3000/_next/static/chunks/d._.js";
+    mockFetch({
+      [chunk]: "code\n//# sourceMappingURL=d._.js.map",
+      "http://localhost:3000/_next/static/chunks/d._.js.map": {
+        version: 3,
+        sources: ["webpack:///src/features/home/components/expertise-cards.tsx"],
+        sourcesContent: [
+          '"use client";\n\nimport type { FC } from "react";\n\nimport { Inter } from "@/components/typography/inter";\n\ninterface ExpertiseItem {\n  name: string;\n  description: string;\n}\n\ninterface ExpertiseCardsProps {\n  items: ExpertiseItem[];\n}\n\nexport const ExpertiseCards = ({ items }) => (\n  <ul>\n    {items.map((x) => (\n      <li className="expertise-item">x</li>\n    ))}\n  </ul>\n);',
+        ],
+        mappings: "AAMA,kDAYA",
+      },
+    });
+    // Colonne 10 : hérite du segment interface (ligne 7) → saute vers le
+    // prochain mapping du même fichier (ligne 19).
+    expect(await resolvePosition(chunk, 1, 10)).toEqual({
+      source: "src/features/home/components/expertise-cards.tsx",
+      line: 19,
+      column: 0,
+    });
+    // Colonne 0 : sur le segment interface lui-même → non-code → saute aussi.
+    expect(await resolvePosition(chunk, 1, 0)).toEqual({
+      source: "src/features/home/components/expertise-cards.tsx",
+      line: 19,
+      column: 0,
+    });
+  });
+
+  it("pas de sourcesContent → comportement standard (héritage brut)", async () => {
+    const chunk = "http://localhost:3000/_next/static/chunks/e._.js";
+    mockFetch({
+      [chunk]: "code\n//# sourceMappingURL=e._.js.map",
+      "http://localhost:3000/_next/static/chunks/e._.js.map": MAP,
+    });
+    expect(await resolvePosition(chunk, 2, 0)).toEqual({
+      source: "src/app/page.tsx",
+      line: 2,
+      column: 0,
+    });
+  });
 });

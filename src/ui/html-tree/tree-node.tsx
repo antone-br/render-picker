@@ -132,6 +132,24 @@ export const TreeNode: FC<TreeNodeProps> = ({
             selectedRowRef={selectedRowRef}
           />
         ))}
+
+      {hasChildren && isOpen && (
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            paddingLeft: 2 + depth * INDENT,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span style={{ width: 12, flex: "0 0 12px" }} />
+          <span style={{ whiteSpace: "nowrap" }}>
+            <span style={{ color: MUTED }}>&lt;/</span>
+            <span style={{ color: TAG }}>{nodeLabel(el).tag}</span>
+            <span style={{ color: MUTED }}>&gt;</span>
+          </span>
+        </div>
+      )}
     </>
   );
 };

@@ -1,3 +1,4 @@
+import { componentChain } from "./component-annotate";
 import type { PickResult } from "../types";
 
 /**
@@ -44,8 +45,12 @@ export function enrichResult<T extends PickResult>(
   const el = findPickedElement(result, doc);
   const annotated = el?.closest("[data-source]");
   const source = annotated?.getAttribute("data-source") ?? null;
+  // Chaîne de composants (externe → interne) ; fallback nom unique de `data-component`.
+  const chain = el instanceof HTMLElement ? componentChain(el) : [];
   const component =
-    el?.closest("[data-component]")?.getAttribute("data-component") ?? null;
+    chain.length > 0
+      ? chain.join(" > ")
+      : el?.closest("[data-component]")?.getAttribute("data-component") ?? null;
 
   return {
     ...result,

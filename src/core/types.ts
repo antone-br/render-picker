@@ -18,6 +18,8 @@ export interface PickResult {
   xpath: string;
   /** Sélecteur CSS de l'élément. */
   cssSelector: string;
+  /** Texte de l'élément (espaces compactés, tronqué), ou `null` si vide. */
+  text: string | null;
   /** Nom du tag en minuscules. */
   tagName: string;
   /** `id` de l'élément, ou `null`. */

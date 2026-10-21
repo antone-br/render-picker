@@ -12,13 +12,24 @@ const MAP: Record<string, { source: string; line: number; column: number }> = {
     line: 56,
     column: 1,
   },
+  // Frame « déclaration » : le _debugStack du fiber owner mappe sur l'entrée
+  // de fonction du composant (ligne fausse), pas sur le JSX d'usage.
+  "https://x/_next/static/chunks/decl._.js": {
+    source: "src/components/ui/display/button.tsx",
+    line: 24,
+    column: 1,
+  },
 };
 
 vi.mock("../../src/core/source/source-map-resolver", () => ({
   resolvePosition: async (url: string) => MAP[url] ?? null,
 }));
 
-import { annotate, extractDirectSources } from "../../src/core/source/component-annotate";
+import {
+  annotate,
+  componentChain,
+  extractDirectSources,
+} from "../../src/core/source/component-annotate";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -109,6 +120,43 @@ describe("annotate — data-source / data-owner-source", () => {
     });
   });
 
+  it("usage depuis le stack de l'ÉLÉMENT (frames jsxDEV) — pas la déclaration de l'owner", async () => {
+    // Élément créé dans button.tsx (jsx:178) ; son stack contient ensuite la
+    // frame « déclaration » du composant (même fichier, ligne 24) puis le
+    // jsxDEV englobant (card.tsx:56) = le vrai site d'usage. Le fiber owner,
+    // lui, ne mappe que sur la déclaration (button.tsx:24).
+    const el = document.createElement("button");
+    const host = {
+      type: "button",
+      return: null,
+      _debugOwner: {
+        type: function Section() {},
+        return: null,
+        _debugOwner: null,
+        _debugStack: { stack: frame("https://x/_next/static/chunks/decl._.js") },
+      },
+      _debugStack: {
+        stack: [
+          frame("https://x/_next/static/chunks/button._.js"),
+          frame("https://x/_next/static/chunks/decl._.js"),
+          frame("https://x/_next/static/chunks/feature._.js"),
+        ].join("\n"),
+      },
+    };
+    (el as unknown as Record<string, unknown>)["__reactFiber$test"] = host;
+    document.body.appendChild(el);
+    annotate(el);
+
+    await vi.waitFor(() => {
+      expect(el.getAttribute("data-owner-source")).toBe(
+        "src/features/comments/card.tsx:56",
+      );
+    });
+    expect(el.getAttribute("data-source")).toBe(
+      "src/components/ui/display/button.tsx:178",
+    );
+  });
+
   it("Webpack dev : data-source depuis la frame (sans sourcemap)", async () => {
     // Pas de chunk `._.js` → le resolver sourcemap (mocké) ne sert pas ;
     // le chemin source vient directement de la frame webpack-internal.
@@ -169,5 +217,56 @@ describe("extractDirectSources (frames Webpack dev)", () => {
       ].join("\n"),
     );
     expect(out.map((f) => f.source)).toEqual(["src/a.tsx", "src/b.tsx"]);
+  });
+});
+
+describe("componentChain", () => {
+  /** Élément avec une fibre host + chaîne `_debugOwner` nommée (interne → externe). */
+  function elWithOwners(names: string[]): HTMLElement {
+    const el = document.createElement("div");
+    // owners du plus proche au plus lointain.
+    let owner: unknown = null;
+    for (const name of [...names].reverse()) {
+      const fn = { [name]: function () {} }[name]; // fonction nommée dynamiquement
+      owner = { type: fn, _debugOwner: owner };
+    }
+    const host = { type: "div", return: null, _debugOwner: owner };
+    (el as unknown as Record<string, unknown>)["__reactFiber$test"] = host;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  it("chaîne externe → interne depuis _debugOwner", () => {
+    // owners proches→lointains : TextArea, Button, ListItem.
+    const el = elWithOwners(["TextArea", "Button", "ListItem"]);
+    expect(componentChain(el)).toEqual(["ListItem", "Button", "TextArea"]);
+  });
+
+  it("déduplique les owners consécutifs identiques", () => {
+    const el = elWithOwners(["Button", "Button", "ListItem"]);
+    expect(componentChain(el)).toEqual(["ListItem", "Button"]);
+  });
+
+  it("plafonne au max (plus proches)", () => {
+    const el = elWithOwners(["D", "C", "B", "A", "Root"]);
+    expect(componentChain(el, 3)).toEqual(["B", "C", "D"]);
+  });
+
+  it("fallback nom unique si pas d'owner", () => {
+    const el = document.createElement("div");
+    const host = {
+      type: function Solo() {},
+      return: null,
+      _debugOwner: null,
+    };
+    (el as unknown as Record<string, unknown>)["__reactFiber$test"] = host;
+    document.body.appendChild(el);
+    expect(componentChain(el)).toEqual(["Solo"]);
+  });
+
+  it("[] si pas de fibre", () => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    expect(componentChain(el)).toEqual([]);
   });
 });

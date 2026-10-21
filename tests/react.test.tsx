@@ -36,6 +36,7 @@ const result: PickResult = {
   route: "/",
   xpath: "/html/body/main",
   cssSelector: "main",
+  text: null,
   tagName: "main",
   id: null,
   reactComponent: "Page",
@@ -57,7 +58,7 @@ describe("formatResult / formatResults", () => {
     expect(formatResult(result)).toBe(
       [
         "[renderPicker]",
-        "Route: /",
+        "Page: /",
         "XPath: /html/body/main",
         "CSS: main",
         "Source: src/app/page.tsx:10",
@@ -82,13 +83,47 @@ describe("formatResult / formatResults", () => {
     expect(text.trim().endsWith("React: Page")).toBe(true);
   });
 
-  it("multi : en-tête + Route partagée + un bloc par élément", () => {
+  it("multi : en-tête + Page partagée + un bloc par élément", () => {
     const text = formatResults([result, { ...result, xpath: "/html/body/nav" }]);
-    expect(text.startsWith("[renderPicker] 2 elements\nRoute: /")).toBe(true);
+    expect(text.startsWith("[renderPicker] 2 elements\nPage: /")).toBe(true);
     expect(text).toContain("#1");
     expect(text).toContain("#2");
     expect(text).toContain("XPath: /html/body/nav");
     expect(text).not.toContain("Origin");
+  });
+
+  it("ligne Text juste sous CSS quand le texte est présent", () => {
+    const text = formatResult({ ...result, text: "Bonjour" });
+    expect(text).toContain("\nText: Bonjour\n");
+    // Ordre : CSS puis Text.
+    expect(text.indexOf("Text:")).toBeGreaterThan(text.indexOf("CSS:"));
+    expect(text.indexOf("Text:")).toBeLessThan(text.indexOf("React:"));
+  });
+
+  it("pas de ligne Text si vide", () => {
+    expect(formatResult({ ...result, text: null })).not.toContain("Text:");
+  });
+});
+
+describe("elementText", () => {
+  it("compacte les espaces et trim", async () => {
+    const { elementText } = await import("../src/core/format");
+    document.body.innerHTML = `<div>  Bonjour\n  le   monde  </div>`;
+    expect(elementText(document.querySelector("div")!)).toBe("Bonjour le monde");
+  });
+
+  it("null si vide", async () => {
+    const { elementText } = await import("../src/core/format");
+    document.body.innerHTML = `<div>   </div>`;
+    expect(elementText(document.querySelector("div")!)).toBeNull();
+  });
+
+  it("tronque à 200 caractères avec ellipse", async () => {
+    const { elementText } = await import("../src/core/format");
+    document.body.innerHTML = `<div>${"a".repeat(250)}</div>`;
+    const out = elementText(document.querySelector("div")!)!;
+    expect(out.length).toBe(201);
+    expect(out.endsWith("…")).toBe(true);
   });
 });
 
@@ -564,6 +599,7 @@ describe("RenderPickerButton", () => {
       "Copier le HTML",
       "Copier le rendu",
       "Copier les classes",
+      "Copier le texte",
       "Copier le XPath",
     ]);
 

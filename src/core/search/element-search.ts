@@ -1,5 +1,6 @@
 import { getCssSelector } from "../inspector/css-selector";
 import { getXPath } from "../inspector/xpath";
+import { elementText } from "../format";
 import type { PickResult } from "../types";
 
 /**
@@ -134,6 +135,7 @@ export function pickResultFromElement(
     route,
     xpath: getXPath(el),
     cssSelector: getCssSelector(el),
+    text: elementText(el),
     tagName: el.tagName.toLowerCase(),
     id: el.id || null,
     reactComponent: null,

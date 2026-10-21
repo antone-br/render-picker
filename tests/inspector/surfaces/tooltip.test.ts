@@ -23,6 +23,20 @@ describe("tooltipTitle", () => {
     expect(tooltipTitle(document.querySelector("div")!, [])).toBe("");
   });
 
+  it("affiche la chaîne de composants (fibre présente)", () => {
+    document.body.innerHTML = `<div></div>`;
+    const el = document.querySelector("div")!;
+    (el as unknown as Record<string, unknown>)["__reactFiber$test"] = {
+      type: "div",
+      return: null,
+      _debugOwner: {
+        type: function Button() {},
+        _debugOwner: { type: function ListItem() {}, _debugOwner: null },
+      },
+    };
+    expect(tooltipTitle(el, [])).toBe("ListItem > Button");
+  });
+
   it("marque · disabled", () => {
     document.body.innerHTML = `<button disabled></button>`;
     expect(tooltipTitle(document.querySelector("button")!, [])).toBe("disabled");
