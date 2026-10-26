@@ -1,6 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 
 import { initClickToSource } from "./core/dev/click-to-source";
+import { resolveProjectRoot } from "./core/dev/project-root";
 import { IGNORE_ATTR } from "./core/inspector/constants/behavior";
 import { initTplAnnotator } from "./core/source/tpl-annotate";
 import { RenderPickerButton } from "./react";
@@ -24,13 +25,6 @@ export interface StandaloneOptions {
   hotkey?: string | string[] | false;
 }
 
-function rootFromMeta(): string | undefined {
-  const fromGlobal = (window as unknown as { renderPickerRoot?: string }).renderPickerRoot;
-  if (fromGlobal) return fromGlobal;
-  const meta = document.querySelector('meta[name="render-picker-root"]');
-  return meta?.getAttribute("content") ?? undefined;
-}
-
 let mounted = false;
 
 /** Monte render-picker sur la page courante. Retourne une fonction de démontage. */
@@ -38,7 +32,7 @@ export function init(options: StandaloneOptions = {}): () => void {
   if (typeof window === "undefined" || mounted) return () => {};
   mounted = true;
 
-  const projectRoot = options.projectRoot ?? rootFromMeta();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot(window, document).root;
 
   const host = document.createElement("div");
   host.setAttribute(IGNORE_ATTR, "");
@@ -50,7 +44,9 @@ export function init(options: StandaloneOptions = {}): () => void {
   const root: Root = createRoot(mount);
   root.render(<RenderPickerButton hotkey={options.hotkey} />);
 
-  const stopClick = initClickToSource(projectRoot);
+  // Pas de serveur Node sur une page PrestaShop → on va direct au lien vscode://
+  // (pas de POST /api/render-picker → pas de 404).
+  const stopClick = initClickToSource(projectRoot, undefined, false);
   const stopAnnotator = initTplAnnotator();
 
   return () => {

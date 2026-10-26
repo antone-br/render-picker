@@ -284,4 +284,27 @@ describe("initClickToSource", () => {
 
     expect(clickSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("useRoute=false (standalone) → lien URI direct, aucun fetch", async () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    document.body.appendChild(el);
+    const fetchMock = vi.fn(() => Promise.resolve(new Response("{}", { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    let href = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        href = this.href;
+      },
+    );
+
+    stop = initClickToSource("C:/proj", undefined, false);
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { altKey: true, button: 0, bubbles: true }),
+    );
+    await flush();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(href).toBe("vscode://file/C:/proj/src/a.tsx:3");
+  });
 });

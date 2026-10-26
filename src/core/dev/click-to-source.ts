@@ -89,10 +89,14 @@ export function vscodeOpenFor(el: HTMLElement, action: "source" | "usage"): bool
  * Enregistre les listeners (clic / clic droit / double-clic) en capture selon les
  * liaisons `settings.commands.source` / `.usage`. Retourne une fonction d'arrêt.
  * `root` = racine absolue du projet (ex. `process.env.NEXT_PUBLIC_PROJECT_ROOT`).
+ * `useRoute` : tenter la route dev (`POST /api/render-picker`) avant le lien URI.
+ * Mettre `false` quand il n'y a pas de serveur Node (build standalone / PrestaShop) —
+ * on va directement au lien `vscode://…` (évite un 404 inutile).
  */
 export function initClickToSource(
   root: string | undefined | null,
   getCommands: () => RenderPickerSettings["commands"] = () => loadSettings().commands,
+  useRoute = true,
 ): () => void {
   if (!root) {
     console.warn(
@@ -168,6 +172,10 @@ export function initClickToSource(
       el.style.outline = prevOutline;
     }, 400);
 
+    if (!useRoute) {
+      followUri(uri);
+      return;
+    }
     void openViaRoute(editor, rel).then((ok) => {
       if (!ok) followUri(uri);
     });

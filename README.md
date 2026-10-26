@@ -264,6 +264,16 @@ That's it — open any front-office page, arm the picker (double-tap **Shift**),
 **Ctrl+click** opens its `.tpl` at the right line in your editor. The module auto-injects the script,
 the project root and `RenderPicker.init()`; it is fully inert when `_PS_MODE_DEV_` is off.
 
+**Docker / remote server:** the server reports its own root (e.g. a container path
+`/var/www/html`), which doesn't exist on the host where your editor runs. Set the host path once, in
+the browser console, and reload:
+
+```js
+localStorage.renderPickerRoot = "C:/Users/you/path/to/public_html"
+```
+
+It overrides the server-reported root (the per-file paths are identical, only the root prefix differs).
+
 <details>
 <summary>How it works / rebuild the bundle</summary>
 

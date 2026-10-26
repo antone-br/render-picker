@@ -52,20 +52,26 @@ class RenderPicker extends Module
             return;
         }
 
-        // 1. Prefilter Smarty (marqueurs rp@file:line). force_compile : réintègre
-        //    les marqueurs à chaque requête sans vidage manuel du cache.
-        $smarty = $this->context->smarty;
-        $smarty->force_compile = true;
-        $smarty->registerFilter('pre', ['RenderPicker', 'smartyPrefilter']);
+        // 1. Prefilter Smarty (marqueurs rp@file:line). PAS de force_compile (recompiler
+        //    tous les .tpl à chaque requête = très lent sur bind-mount). Les marqueurs sont
+        //    gravés au 1er compile ; `compile_check` recompile ensuite seulement les .tpl
+        //    modifiés. → vider le cache UNE fois après activation (voir README).
+        $this->context->smarty->registerFilter('pre', ['RenderPicker', 'smartyPrefilter']);
 
         // 2. Charge le build global en fin de page (après les jsDef PrestaShop).
+        //    `?v=<mtime>` : force navigateur + cache combiné (CCC) à recharger à chaque rebuild.
+        $jsFile = _PS_MODULE_DIR_ . $this->name . '/views/js/render-picker.global.js';
+        $v = @filemtime($jsFile) ?: $this->version;
         $this->context->controller->registerJavascript(
             'renderpicker',
-            'modules/' . $this->name . '/views/js/render-picker.global.js',
+            'modules/' . $this->name . '/views/js/render-picker.global.js?v=' . $v,
             ['position' => 'bottom', 'priority' => 1000]
         );
 
         // 3. Racine projet → window.renderPickerRoot (auto-init du bundle).
+        //    _PS_ROOT_DIR_ = racine serveur. En Docker c'est le chemin CONTENEUR
+        //    (/var/www/html) ; si l'éditeur tourne sur l'hôte, surcharger côté client
+        //    par `localStorage.renderPickerRoot = "<chemin hôte>"` (voir README).
         Media::addJsDef([
             'renderPickerRoot' => rtrim(str_replace('\\', '/', _PS_ROOT_DIR_), '/'),
         ]);

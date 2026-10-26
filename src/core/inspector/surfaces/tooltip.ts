@@ -1,4 +1,5 @@
 import { componentChain, componentInfo } from "../../source/component-annotate";
+import { tplLabel } from "../../source/tpl-annotate";
 import { assign } from "./dom";
 
 const TOOLTIP_MAX_W = 420;
@@ -48,9 +49,11 @@ export function tooltipClassSummary(el: Element): string {
  * Les classes/tag + `#id` vivent SOUS le divider (via `tooltipMetrics`). */
 export function tooltipTitle(el: Element, selection: Element[]): string {
   const parts: string[] = [];
+  // Chaîne React si dispo ; sinon libellé PrestaShop (nom du module / basename .tpl).
   const comp =
     componentChain(el as HTMLElement).join(" > ") ||
-    componentInfo(el as HTMLElement)?.component;
+    componentInfo(el as HTMLElement)?.component ||
+    tplLabel(el);
   if (comp) parts.push(comp);
   parts.push(...titleSuffixes(el, selection));
   return parts.join(" · ");

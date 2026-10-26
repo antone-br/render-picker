@@ -37,6 +37,12 @@ describe("tooltipTitle", () => {
     expect(tooltipTitle(el, [])).toBe("ListItem > Button");
   });
 
+  it("PrestaShop : nom du module depuis data-source (sans fibre)", () => {
+    document.body.innerHTML =
+      '<div data-source="modules/tvcmscategoryproduct/views/templates/front/x.tpl:53"></div>';
+    expect(tooltipTitle(document.querySelector("div")!, [])).toBe("tvcmscategoryproduct");
+  });
+
   it("marque · disabled", () => {
     document.body.innerHTML = `<button disabled></button>`;
     expect(tooltipTitle(document.querySelector("button")!, [])).toBe("disabled");

@@ -29,6 +29,15 @@ Le JS bundlé (`views/js/render-picker.global.js`) est déjà fourni.
 
 Prêt : page front → armer (double-tap **Maj**) → pick → **Ctrl+clic** ouvre le `.tpl` à la bonne ligne.
 
+### Docker (éditeur sur l'hôte)
+
+Si le site tourne en conteneur (le serveur voit `/var/www/html`) mais que VS Code tourne sur l'hôte,
+pose le chemin hôte une fois dans la console du navigateur puis recharge :
+
+```js
+localStorage.renderPickerRoot = "C:/Users/you/.../public_html"
+```
+
 ### Reconstruire le bundle (optionnel)
 
 ```bash
@@ -44,4 +53,6 @@ npm run build:standalone && npm run sync:prestashop
 - Résolution **fichier + ligne** du `.tpl` ; précision ligne au niveau de la ligne d'ouverture du tag.
 - Pas de marqueur dans `<script>` / `<style>` / `<pre>` / `<textarea>` ni au milieu d'un tag :
   un tel élément hérite du marqueur précédent (rare).
-- `force_compile` est activé en dev pour intégrer les marqueurs → compilation Smarty à chaque requête.
+- Les marqueurs sont gravés au **1er compile** Smarty (pas de `force_compile` → aucune recompilation
+  à chaque requête) : **vider le cache une fois** après activation ; ensuite `compile_check` ne
+  recompile que les `.tpl` modifiés.

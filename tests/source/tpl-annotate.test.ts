@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   annotateFromComments,
   initTplAnnotator,
+  moduleNameFromSource,
   parseTplMarker,
+  tplLabel,
 } from "../../src/core/source/tpl-annotate";
 
 afterEach(() => {
@@ -67,6 +69,52 @@ describe("annotateFromComments", () => {
     expect(annotateFromComments(document.body)).toBe(1);
     expect(annotateFromComments(document.body)).toBe(0);
   });
+
+  it("seed : annote la racine + enfants d'un sous-arbre sans marqueur local", () => {
+    document.body.innerHTML = "<section><span>x</span></section>";
+    const sub = document.querySelector("section")!;
+    // Amorce (comme pour un sous-arbre ajouté précédé d'un marqueur rp@t/b.tpl:7).
+    const count = annotateFromComments(sub, "t/b.tpl:7", "b.tpl");
+    expect(sub.getAttribute("data-source")).toBe("t/b.tpl:7");
+    expect(sub.getAttribute("data-component")).toBe("b.tpl");
+    expect(document.querySelector("span")!.getAttribute("data-source")).toBe("t/b.tpl:7");
+    expect(count).toBe(2);
+  });
+});
+
+describe("moduleNameFromSource", () => {
+  it("extrait le nom du module", () => {
+    expect(moduleNameFromSource("modules/tvcmscategoryproduct/views/x.tpl")).toBe(
+      "tvcmscategoryproduct",
+    );
+  });
+  it("null hors d'un module", () => {
+    expect(moduleNameFromSource("themes/t/templates/catalog/product.tpl")).toBeNull();
+    expect(moduleNameFromSource("src/components/x.tsx")).toBeNull();
+  });
+});
+
+describe("tplLabel", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("nom du module pour un .tpl de module (ignore :ligne)", () => {
+    document.body.innerHTML =
+      '<div data-source="modules/tvcmscategoryproduct/views/templates/front/x.tpl:53"><span>y</span></div>';
+    expect(tplLabel(document.querySelector("span")!)).toBe("tvcmscategoryproduct");
+  });
+
+  it("basename pour un .tpl de thème", () => {
+    document.body.innerHTML = '<div data-source="themes/t/templates/catalog/product.tpl:12"></div>';
+    expect(tplLabel(document.querySelector("div")!)).toBe("product.tpl");
+  });
+
+  it("null pour une source non-.tpl (React) ou sans data-source", () => {
+    document.body.innerHTML = '<div data-source="src/components/button.tsx:178"></div><p></p>';
+    expect(tplLabel(document.querySelector("div")!)).toBeNull();
+    expect(tplLabel(document.querySelector("p")!)).toBeNull();
+  });
 });
 
 describe("initTplAnnotator", () => {
@@ -77,5 +125,23 @@ describe("initTplAnnotator", () => {
     expect(document.querySelector("p")!.getAttribute("data-source")).toBe("t/a.tpl:3");
     dispose();
     expect(disconnect).toHaveBeenCalled();
+  });
+
+  it("annote un sous-arbre ajouté après coup (incrémental, via marqueur précédent)", async () => {
+    document.body.innerHTML = "<!-- rp@t/a.tpl:1 --><div id=root></div>";
+    const dispose = initTplAnnotator();
+    const container = document.getElementById("root")!;
+    // Nouveau contenu dynamique, précédé de son propre marqueur.
+    container.insertAdjacentHTML("beforebegin", "<!-- rp@t/dyn.tpl:9 -->");
+    const added = document.createElement("article");
+    added.innerHTML = "<span>y</span>";
+    container.before(added);
+
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+    expect(added.getAttribute("data-source")).toBe("t/dyn.tpl:9");
+    expect(added.querySelector("span")!.getAttribute("data-source")).toBe("t/dyn.tpl:9");
+    dispose();
   });
 });
