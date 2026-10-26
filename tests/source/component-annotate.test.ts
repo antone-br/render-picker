@@ -202,6 +202,27 @@ describe("extractDirectSources (frames Webpack dev)", () => {
     expect(out).toEqual([{ source: "src/app/[locale]/layout.tsx", line: 83 }]);
   });
 
+  it("exclut les internes Next (chemin absolu src/client/…)", () => {
+    const out = extractDirectSources(
+      "    at LinkComponent (C:\\Users\\anton\\src\\client\\app-dir\\link.tsx:725:7)",
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("garde le code appli en chemin absolu (src/components/…)", () => {
+    const out = extractDirectSources(
+      "    at CardContent (C:\\Users\\anton\\Documents\\croissant\\jenna\\src\\components\\ui\\card.tsx:61:5)",
+    );
+    expect(out).toEqual([{ source: "src/components/ui/card.tsx", line: 61 }]);
+  });
+
+  it("exclut les frames node_modules en chemin absolu", () => {
+    const out = extractDirectSources(
+      "    at jsx (C:\\Users\\anton\\Documents\\croissant\\jenna\\node_modules\\next\\dist\\compiled\\react\\cjs\\react-jsx-runtime.development.js:333:1)",
+    );
+    expect(out).toEqual([]);
+  });
+
   it("ignore les frames node_modules (pas de préfixe src/ ou app/)", () => {
     const out = extractDirectSources(
       "at X (webpack-internal:///(app-pages-browser)/./node_modules/@antone-br/render-picker/dist/chunk.js:1:1)",

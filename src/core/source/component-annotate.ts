@@ -112,9 +112,19 @@ const DIRECT_SOURCE_RE =
   /(?:^|[\s(/])((?:src|app)\/.+?\.(?:tsx?|jsx?))(?:\?[^\s:)]*)?:(\d+):(\d+)/g;
 
 /**
+ * Internes framework (Next/React) : leurs sourcemaps exposent des chemins absolus
+ * contenant `src/` (ex. `C:\Users\…\src\client\app-dir\link.tsx`, `next/dist/…`).
+ * Ils NE sont PAS du code appli → à exclure, sinon `resolveOwnerSource` renvoie une
+ * frame interne au lieu du vrai site d'usage.
+ */
+const FRAMEWORK_INTERNAL_RE =
+  /(?:^|\/)(?:node_modules|next\/dist)\/|^(?:src|app)\/(?:client|server|shared)\//;
+
+/**
  * Frames Webpack dev du stack contenant **directement** le chemin source
  * (`src/….tsx:ligne`), ordre d'apparition. Pur / testable. Les frames
- * `node_modules/…` (dont render-picker) ne commencent pas par `src/`|`app/` → ignorées.
+ * `node_modules/…` et internes framework (`src/client|server|shared`, `next/dist`)
+ * sont ignorées.
  */
 export function extractDirectSources(
   stackText: string,
@@ -124,7 +134,13 @@ export function extractDirectSources(
   const re = new RegExp(DIRECT_SOURCE_RE.source, "g");
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
-    out.push({ source: m[1]!, line: Number(m[2]) });
+    const source = m[1]!;
+    // Exclut les internes : le match complet (`m[0]`, avec son préfixe de chemin)
+    // révèle un `node_modules`/`next/dist` même quand la capture commence à `src/`.
+    if (FRAMEWORK_INTERNAL_RE.test(source) || /node_modules|next\/dist/.test(m[0])) {
+      continue;
+    }
+    out.push({ source, line: Number(m[2]) });
   }
   return out;
 }

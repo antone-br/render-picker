@@ -43,12 +43,40 @@ function npmActive(): boolean {
 
 async function main(): Promise<void> {
   if (window.top !== window) return; // pas dans les iframes
-  if (npmActive()) return; // package npm déjà présent → extension inactive
   // Idempotent : auto-chargé (match) + injecté à la demande (icône) → un seul montage.
   if ((window as unknown as Record<string, boolean>)[FLAG]) return;
   (window as unknown as Record<string, boolean>)[FLAG] = true;
 
-  injectMainWorld();
+  let mounted: { root: Root; host: HTMLElement } | null = null;
+  let disposed = false;
+
+  const teardown = (): void => {
+    disposed = true;
+    if (mounted) {
+      mounted.root.unmount();
+      mounted.host.remove();
+      mounted = null;
+    }
+  };
+
+  // Observer AVANT tout → aucune fenêtre de course : si le package npm pose le
+  // marqueur à n'importe quel moment (y compris pendant nos `await`), on se retire.
+  // Couvre le cas `client:only` / hydratation tardive (Astro, Next RSC, etc.).
+  const observer = new MutationObserver(() => {
+    if (npmActive()) {
+      observer.disconnect();
+      teardown();
+    }
+  });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: [NPM_MARKER_ATTR],
+  });
+
+  if (npmActive()) {
+    observer.disconnect();
+    return; // package npm déjà présent → extension inactive
+  }
 
   // Relais des captures console/network (MAIN world → store du monde isolé).
   window.addEventListener("message", (e) => {
@@ -59,24 +87,25 @@ async function main(): Promise<void> {
   });
 
   await initStorage();
+  // Marqueur apparu pendant l'`await` (avant que `mounted` existe) → ne pas monter.
+  if (disposed || npmActive()) {
+    observer.disconnect();
+    return;
+  }
+
+  injectMainWorld();
 
   let toggle: (() => void) | null = null;
-  const { root, host } = mountUi((fn) => {
+  mounted = mountUi((fn) => {
     toggle = fn;
   });
 
-  // Course : si le package npm s'initialise après nous (ex. bouton monté après
-  // l'hydratation), se démonter proprement dès que le marqueur apparaît.
-  const observer = new MutationObserver(() => {
-    if (!npmActive()) return;
+  // Dernière vérif : marqueur posé pendant le mount → démonter aussitôt.
+  if (npmActive()) {
     observer.disconnect();
-    root.unmount();
-    host.remove();
-  });
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: [NPM_MARKER_ATTR],
-  });
+    teardown();
+    return;
+  }
 
   // Clic sur l'icône de la barre d'outils → toggle du picker.
   chrome.runtime.onMessage.addListener((msg) => {
