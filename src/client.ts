@@ -2,20 +2,33 @@ import { startCapture } from "./core/devpanel/capture";
 import { NPM_MARKER_ATTR } from "./core/inspector/constants/behavior";
 import { initClickToSource } from "./core/dev/click-to-source";
 import { initComponentAnnotator } from "./core/source/component-annotate";
+import { initTplAnnotator } from "./core/source/tpl-annotate";
 import { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
 import { initSettingsRefresh } from "./core/settings";
 
 export interface RenderPickerOptions {
   /** Active l'outillage. Défaut : `process.env.NODE_ENV !== "production"`. */
   enabled?: boolean;
-  /** Racine absolue du projet. Défaut : `process.env.NEXT_PUBLIC_PROJECT_ROOT`. */
+  /**
+   * Racine absolue du projet. Défaut : `process.env.NEXT_PUBLIC_PROJECT_ROOT`,
+   * sinon le contenu de `<meta name="render-picker-root">` (pages sans bundler,
+   * ex. PrestaShop).
+   */
   projectRoot?: string | null;
+  /**
+   * Source de la résolution `data-source` :
+   * - `"react"` (défaut) : fibers React (`initComponentAnnotator`, sourcemaps) ;
+   * - `"prestashop"` : commentaires Smarty `rp@file:line` (`initTplAnnotator`,
+   *   sans attente d'hydratation).
+   */
+  source?: "react" | "prestashop";
   /** Alt+clic → VS Code. Défaut : true. */
   clickToSource?: boolean;
   /**
    * Annotation `data-component` / `data-source`. Défaut : true, après 2000 ms —
    * injecter des attributs avant la fin de l'hydratation provoque
-   * "tree hydrated but some attributes didn't match".
+   * "tree hydrated but some attributes didn't match". Ignoré si `source: "prestashop"`
+   * (annotation immédiate, pas d'hydratation React).
    */
   annotate?: boolean | { delayMs?: number };
   /** Filtre console dev. `true` = règles par défaut, ou liste de RegExp. Défaut : true. */
@@ -36,10 +49,15 @@ function defaultEnabled(): boolean {
 
 function defaultProjectRoot(): string | undefined {
   try {
-    return process.env.NEXT_PUBLIC_PROJECT_ROOT;
+    if (process.env.NEXT_PUBLIC_PROJECT_ROOT) return process.env.NEXT_PUBLIC_PROJECT_ROOT;
   } catch {
-    return undefined;
+    // pas de `process` (navigateur sans bundler) → repli sur le <meta>
   }
+  if (typeof document !== "undefined") {
+    const meta = document.querySelector('meta[name="render-picker-root"]');
+    return meta?.getAttribute("content") ?? undefined;
+  }
+  return undefined;
 }
 
 /**
@@ -50,6 +68,7 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
   const {
     enabled = defaultEnabled(),
     projectRoot = defaultProjectRoot(),
+    source = "react",
     clickToSource = true,
     annotate = true,
     hushConsole = true,
@@ -80,18 +99,24 @@ export function initRenderPicker(options: RenderPickerOptions = {}): () => void 
   if (clickToSource) cleanups.push(initClickToSource(projectRoot));
 
   if (annotate) {
-    const delayMs =
-      typeof annotate === "object" && annotate.delayMs !== undefined
-        ? annotate.delayMs
-        : DEFAULT_ANNOTATE_DELAY_MS;
-    let stopAnnotator: (() => void) | null = null;
-    const timer = setTimeout(() => {
-      stopAnnotator = initComponentAnnotator();
-    }, delayMs);
-    cleanups.push(() => {
-      clearTimeout(timer);
-      stopAnnotator?.();
-    });
+    if (source === "prestashop") {
+      // Commentaires Smarty déjà dans le HTML serveur → annotation immédiate,
+      // pas d'hydratation React à attendre.
+      cleanups.push(initTplAnnotator());
+    } else {
+      const delayMs =
+        typeof annotate === "object" && annotate.delayMs !== undefined
+          ? annotate.delayMs
+          : DEFAULT_ANNOTATE_DELAY_MS;
+      let stopAnnotator: (() => void) | null = null;
+      const timer = setTimeout(() => {
+        stopAnnotator = initComponentAnnotator();
+      }, delayMs);
+      cleanups.push(() => {
+        clearTimeout(timer);
+        stopAnnotator?.();
+      });
+    }
   }
 
   return () => {
@@ -113,6 +138,11 @@ export {
   initComponentAnnotator,
   type AnnotateResult,
 } from "./core/source/component-annotate";
+export {
+  annotateFromComments,
+  initTplAnnotator,
+  parseTplMarker,
+} from "./core/source/tpl-annotate";
 export { DEFAULT_HUSH_RULES, hushConsoleNoise } from "./core/dev/console-hush";
 export { enrichResult, findPickedElement } from "./core/source/enrich";
 export { createInspector } from "./core/inspector/inspector";

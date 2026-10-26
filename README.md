@@ -1,9 +1,13 @@
 # render-picker
 
-Dev-only toolkit for **Next.js + React 19**: click any element and get a clipboard-ready
-snippet for your AI agent — route, XPath, CSS selector, React component **and its source
-`file:line`** — plus **Alt+click to open the source in your editor** (VS Code, Cursor, WebStorm… — 10 supported) (and **Ctrl+click to jump to
-the usage site** — where a shared component is written, not its definition).
+Dev-only toolkit for **Next.js + React 19** — and **PrestaShop / Smarty (`.tpl`)**: click any element
+and get a clipboard-ready snippet for your AI agent — route, XPath, CSS selector, React component (or
+`.tpl` template) **and its source `file:line`** — plus **Alt+click to open the source in your editor**
+(VS Code, Cursor, WebStorm… — 10 supported) (and **Ctrl+click to jump to the usage site** — where a
+shared component is written, not its definition).
+
+> **PrestaShop** pages resolve the source to the Smarty `.tpl:line` — see
+> [PrestaShop / Smarty](#prestashop--smarty-tpl) below.
 
 ```
 [renderPicker]
@@ -124,9 +128,10 @@ identically, without the page's CSS.
 | Option | Type | Default | |
 |---|---|---|---|
 | `enabled` | `boolean` | `NODE_ENV !== "production"` | Master switch |
-| `projectRoot` | `string` | `process.env.NEXT_PUBLIC_PROJECT_ROOT` | Absolute root used to build the editor URI (`vscode://file/…`, `webstorm://open?file=…`) |
+| `projectRoot` | `string` | `process.env.NEXT_PUBLIC_PROJECT_ROOT`, then `<meta name="render-picker-root">` | Absolute root used to build the editor URI (`vscode://file/…`, `webstorm://open?file=…`) |
+| `source` | `"react" \| "prestashop"` | `"react"` | `"prestashop"` resolves `data-source` from Smarty `rp@file:line` comments instead of React fibers |
 | `clickToSource` | `boolean` | `true` | Alt/Ctrl+click → your editor |
-| `annotate` | `boolean \| { delayMs }` | `true`, `2000` ms | Annotation starts after hydration to avoid attribute mismatches |
+| `annotate` | `boolean \| { delayMs }` | `true`, `2000` ms | Annotation starts after hydration to avoid attribute mismatches (ignored for `source: "prestashop"`) |
 | `hushConsole` | `boolean \| RegExp[]` | `true` | Drops "Download the React DevTools", `[HMR] connected`, `[Fast Refresh]` logs |
 
 Returns a function that removes every listener, observer and console patch.
@@ -241,6 +246,31 @@ falls back to VS Code.
 `enrichResult`, `findPickedElement`, `annotate`, `annotateTree`, `componentInfo`,
 `initComponentAnnotator`, `initClickToSource`, `buildVscodeUri`, `buildEditorUri`, `EDITORS`, `hushConsoleNoise`,
 `resolvePosition`, `normalizeSourcePath`, `loadSettings`, `saveSettings`.
+
+## PrestaShop / Smarty (`.tpl`)
+
+A ready-to-use dev module ships in [`integrations/prestashop/renderpicker/`](integrations/prestashop/renderpicker/)
+(bundled JS included — **nothing to build**). Install in 3 steps:
+
+1. **Copy** the `renderpicker/` folder into your shop's `modules/`:
+   ```
+   integrations/prestashop/renderpicker/  →  <your-shop>/modules/renderpicker/
+   ```
+2. **Enable** it: back-office → *Modules* → search "render-picker" → *Install*.
+3. **Turn on dev mode**: `_PS_MODE_DEV_ = true;` in `config/defines.inc.php`, then clear the cache
+   (back-office → *Advanced Parameters → Performance → Clear cache*).
+
+That's it — open any front-office page, arm the picker (double-tap **Shift**), pick an element, and
+**Ctrl+click** opens its `.tpl` at the right line in your editor. The module auto-injects the script,
+the project root and `RenderPicker.init()`; it is fully inert when `_PS_MODE_DEV_` is off.
+
+<details>
+<summary>How it works / rebuild the bundle</summary>
+
+The module registers a Smarty prefilter that emits per-element markers (`<!-- rp@themes/.../x.tpl:42 -->`),
+read client-side to set `data-source`. Ctrl+click opens `vscode://file/<root>/<relpath>:<line>` (no server
+needed). To rebuild the bundled JS from source: `npm run build:standalone && npm run sync:prestashop`.
+</details>
 
 ## Limitations
 

@@ -43,7 +43,12 @@ extension/
   src/entries/        ← background, content, main-world, options
   src/ui/             ← root, options-page
 tests/                ← miroir de src/core (voir test-structure.md)
+integrations/         ← outillage dev hors paquet npm (ex. prestashop/renderpicker : module Smarty)
 ```
+
+> `src/standalone.tsx` = entrée du build global `<script>` (React bundlé, `scripts/build-standalone.mjs`
+> → `dist/render-picker.global.js`) pour les pages sans bundler (PrestaShop). `integrations/` n'est
+> **pas** publié sur npm (`package.json#files` inchangé).
 
 ---
 

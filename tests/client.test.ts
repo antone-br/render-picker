@@ -95,4 +95,45 @@ describe("initRenderPicker", () => {
     expect(observe).toHaveBeenCalledTimes(1);
     dispose();
   });
+
+  it("source:prestashop : annote immédiatement depuis les marqueurs Smarty (sans délai)", () => {
+    document.body.innerHTML = "<!-- rp@themes/t/x.tpl:9 --><div>x</div>";
+    const dispose = initRenderPicker({
+      enabled: true,
+      source: "prestashop",
+      clickToSource: false,
+      hushConsole: false,
+    });
+    expect(document.querySelector("div")!.getAttribute("data-source")).toBe("themes/t/x.tpl:9");
+    dispose();
+  });
+
+  it("projectRoot repli sur <meta name=render-picker-root> (pages sans bundler)", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("no route"))));
+    const meta = document.createElement("meta");
+    meta.setAttribute("name", "render-picker-root");
+    meta.setAttribute("content", "C:/site");
+    document.head.appendChild(meta);
+    document.body.innerHTML = `<div data-source="themes/t/x.tpl:9"><span>x</span></div>`;
+    const clicks: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        clicks.push(this.href);
+      },
+    );
+    const dispose = initRenderPicker({
+      enabled: true,
+      source: "prestashop",
+      annotate: false,
+      hushConsole: false,
+    });
+    document
+      .querySelector("span")!
+      .dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, ctrlKey: true, button: 0 }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(clicks).toEqual(["vscode://file/C:/site/themes/t/x.tpl:9"]);
+    dispose();
+    meta.remove();
+    vi.unstubAllGlobals();
+  });
 });
