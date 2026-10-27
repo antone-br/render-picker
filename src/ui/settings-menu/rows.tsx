@@ -87,6 +87,34 @@ export const KeyGestureRow: FC<
   );
 };
 
+/** Ligne « case à cocher » (toggle booléen simple). */
+export const ToggleRow: FC<{
+  label: string;
+  checked: boolean;
+  defaultChecked: boolean;
+  icon?: ReactNode;
+  onChange: (next: boolean) => void;
+}> = ({ label, checked, defaultChecked, icon, onChange }) => (
+  <div style={rowStyle}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+      {icon}
+      {label}
+    </span>
+    <input
+      type="checkbox"
+      aria-label={label}
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      style={{
+        width: 14,
+        height: 14,
+        cursor: "pointer",
+        accentColor: checked !== defaultChecked ? "#3b82f6" : undefined,
+      }}
+    />
+  </div>
+);
+
 /** Ligne « modificateur + type de clic » (copier / multi / source / usage). */
 export const GestureRow: FC<{ label: string; cmdKey: GestureKey; icon?: ReactNode } & Common> = ({
   label,

@@ -20,11 +20,14 @@ if (!defined('_PS_VERSION_')) {
 
 class RenderPicker extends Module
 {
+    /** Nom du thème actif — sert à rediriger les .tpl de module vers l'override du thème. */
+    private static $themeName = '';
+
     public function __construct()
     {
         $this->name = 'renderpicker';
         $this->tab = 'administration';
-        $this->version = '0.1.0';
+        $this->version = '0.2.0';
         $this->author = 'Antone Barbaud';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -39,7 +42,8 @@ class RenderPicker extends Module
     public function install()
     {
         return parent::install()
-            && $this->registerHook('actionFrontControllerSetMedia');
+            && $this->registerHook('actionFrontControllerSetMedia')
+            && $this->registerHook('displayFooter');
     }
 
     /**
@@ -48,7 +52,9 @@ class RenderPicker extends Module
      */
     public function hookActionFrontControllerSetMedia($params)
     {
-        if (!_PS_MODE_DEV_) {
+        // Pas _PS_MODE_DEV_ : instable sur ce setup (SmartyDevTemplate + templates de
+        // module -> 500). Interrupteur dedie, defini par docker/config/defines.local.php.
+        if (!defined('_RENDER_PICKER_ENABLED_') || !_RENDER_PICKER_ENABLED_) {
             return;
         }
 
@@ -56,25 +62,40 @@ class RenderPicker extends Module
         //    tous les .tpl à chaque requête = très lent sur bind-mount). Les marqueurs sont
         //    gravés au 1er compile ; `compile_check` recompile ensuite seulement les .tpl
         //    modifiés. → vider le cache UNE fois après activation (voir README).
+        self::$themeName = (string) $this->context->shop->theme_name;
         $this->context->smarty->registerFilter('pre', ['RenderPicker', 'smartyPrefilter']);
 
-        // 2. Charge le build global en fin de page (après les jsDef PrestaShop).
-        //    `?v=<mtime>` : force navigateur + cache combiné (CCC) à recharger à chaque rebuild.
+        // 2. Racine projet → window.renderPickerRoot (auto-init du bundle).
+        //    LOCAL DEV (Docker) : _PS_ROOT_DIR_ = chemin DANS le conteneur (/var/www/html),
+        //    mais l'editeur tourne sur l'HOTE -> vscode://file/... doit pointer sur le vrai
+        //    chemin hote (bind mount 1:1, chemin relatif identique des deux cotes). Ce
+        //    chemin varie par machine/dev -> passe en variable d'env Docker
+        //    (HOST_PUBLIC_HTML_PATH, voir docker/.env + docker-compose.yml), jamais en dur
+        //    ici. Hors Docker (env var absente) : _PS_ROOT_DIR_ est deja le bon chemin.
+        $hostRoot = getenv('HOST_PUBLIC_HTML_PATH');
+        $root = $hostRoot !== false
+            ? rtrim(str_replace('\\', '/', $hostRoot), '/')
+            : rtrim(str_replace('\\', '/', _PS_ROOT_DIR_), '/');
+        Media::addJsDef([
+            'renderPickerRoot' => $root,
+        ]);
+    }
+
+    /**
+     * Injecte le <script> du bundle directement dans le footer (dev only).
+     * `registerJavascript` (queue "bottom") ne sortait pas dans ce theme -> balise
+     * directe, plus fiable.
+     */
+    public function hookDisplayFooter($params)
+    {
+        if (!defined('_RENDER_PICKER_ENABLED_') || !_RENDER_PICKER_ENABLED_) {
+            return '';
+        }
         $jsFile = _PS_MODULE_DIR_ . $this->name . '/views/js/render-picker.global.js';
         $v = @filemtime($jsFile) ?: $this->version;
-        $this->context->controller->registerJavascript(
-            'renderpicker',
-            'modules/' . $this->name . '/views/js/render-picker.global.js?v=' . $v,
-            ['position' => 'bottom', 'priority' => 1000]
-        );
+        $src = __PS_BASE_URI__ . 'modules/' . $this->name . '/views/js/render-picker.global.js?v=' . $v;
 
-        // 3. Racine projet → window.renderPickerRoot (auto-init du bundle).
-        //    _PS_ROOT_DIR_ = racine serveur. En Docker c'est le chemin CONTENEUR
-        //    (/var/www/html) ; si l'éditeur tourne sur l'hôte, surcharger côté client
-        //    par `localStorage.renderPickerRoot = "<chemin hôte>"` (voir README).
-        Media::addJsDef([
-            'renderPickerRoot' => rtrim(str_replace('\\', '/', _PS_ROOT_DIR_), '/'),
-        ]);
+        return '<script src="' . htmlspecialchars($src, ENT_QUOTES) . '"></script>';
     }
 
     /**
@@ -89,10 +110,31 @@ class RenderPicker extends Module
     public static function smartyPrefilter($source, $template)
     {
         $root = rtrim(str_replace('\\', '/', _PS_ROOT_DIR_), '/');
-        $abs = str_replace('\\', '/', (string) $template->source->filepath);
-        $rel = (strpos($abs, $root) === 0)
-            ? ltrim(substr($abs, strlen($root)), '/')
-            : $abs;
+
+        // Resource Smarty `module:<nom>/<relpath>` (`SmartyResourceModuleCore`, custom
+        // resource) : `source->filepath` n'est PAS un chemin disque — Smarty le réduit à
+        // un identifiant tronqué/sanitizé pour nommer le fichier compilé
+        // (`Smarty_Resource_Custom::populate()` : type + 25 premiers caractères
+        // alphanumériques du nom, slashs/underscores retirés → "module:pscontactinfonav.tpl").
+        // `source->name` reste fiable (nom de resource non altéré, ex. "ps_contactinfo/nav.tpl").
+        if ($template->source->type === 'module') {
+            $rel = 'modules/' . str_replace('\\', '/', (string) $template->source->name);
+        } else {
+            $abs = str_replace('\\', '/', (string) $template->source->filepath);
+            $rel = (strpos($abs, $root) === 0)
+                ? ltrim(substr($abs, strlen($root)), '/')
+                : $abs;
+        }
+
+        // Un .tpl rendu depuis `modules/<m>/…` mais dont le thème a une copie override
+        // (`themes/<theme>/modules/<m>/…`) → pointer vers la copie du thème (c'est là
+        // qu'on édite). Seulement si le fichier override existe réellement.
+        if (self::$themeName !== '' && strpos($rel, 'modules/') === 0) {
+            $themeRel = 'themes/' . self::$themeName . '/' . $rel;
+            if (is_file($root . '/' . $themeRel)) {
+                $rel = $themeRel;
+            }
+        }
 
         $lines = preg_split('/\r\n|\n|\r/', $source);
         $out = [];

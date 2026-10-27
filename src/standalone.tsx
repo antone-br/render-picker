@@ -42,7 +42,7 @@ export function init(options: StandaloneOptions = {}): () => void {
   const mount = document.createElement("div");
   shadow.appendChild(mount);
   const root: Root = createRoot(mount);
-  root.render(<RenderPickerButton hotkey={options.hotkey} />);
+  root.render(<RenderPickerButton hotkey={options.hotkey} useRoute={false} />);
 
   // Pas de serveur Node sur une page PrestaShop → on va direct au lien vscode://
   // (pas de POST /api/render-picker → pas de 404).

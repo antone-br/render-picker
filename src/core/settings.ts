@@ -76,6 +76,8 @@ export interface RenderPickerSettings {
   };
   /** Panneau d'inspection : taille (px) persistée via le fichier de config. */
   panel: { width: number; height: number };
+  /** Rectangles permanents sur les modules PrestaShop (nom + durée, Ctrl+clic). Défaut : `false`. */
+  showModuleOverlay: boolean;
 }
 
 export const DEFAULT_SETTINGS: RenderPickerSettings = {
@@ -93,6 +95,7 @@ export const DEFAULT_SETTINGS: RenderPickerSettings = {
     editor: DEFAULT_EDITOR,
   },
   panel: { width: 420, height: 320 },
+  showModuleOverlay: false,
 };
 
 /** État des modificateurs d'un event souris/clavier (sous-ensemble de MouseEvent). */
@@ -151,6 +154,7 @@ const ENDPOINT = ROUTE_ENDPOINT;
 export type SettingsPatch = {
   commands?: Partial<RenderPickerSettings["commands"]>;
   panel?: Partial<RenderPickerSettings["panel"]>;
+  showModuleOverlay?: boolean;
 };
 
 /** Paramètres fournis par le fichier racine (ou `null` si absent). */
@@ -226,6 +230,9 @@ export function settingsDelta(
   ) {
     delta.panel = { width: settings.panel.width, height: settings.panel.height };
   }
+  if (settings.showModuleOverlay !== base.showModuleOverlay) {
+    delta.showModuleOverlay = settings.showModuleOverlay;
+  }
   return delta;
 }
 
@@ -293,7 +300,7 @@ function warnNoRoute(detail: string): void {
  * binding est effectif sans attendre le refocus. Prévient en console si la route
  * est absente/échoue.
  */
-export function saveSettings(settings: RenderPickerSettings): void {
+export function saveSettings(settings: RenderPickerSettings, useRoute = true): void {
   if (typeof window === "undefined") return;
   const delta = settingsDelta(settings);
   try {
@@ -305,7 +312,7 @@ export function saveSettings(settings: RenderPickerSettings): void {
   } catch {
     // quota / mode privé — ignore
   }
-  if (typeof fetch !== "undefined") {
+  if (useRoute && typeof fetch !== "undefined") {
     fetch(ENDPOINT, {
       method: "POST",
       headers: { "content-type": "application/json" },

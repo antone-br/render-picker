@@ -25,6 +25,10 @@ import { getXPath } from "./core/inspector/xpath";
 import { serializeWithComputedStyles } from "./core/computed-html";
 import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
+  initModuleOverlaySurface,
+  setModuleOverlayContextMenuHandler,
+} from "./core/inspector/surfaces/module-overlays";
+import {
   PANEL_BORDER,
   SOLID_BG,
   TOOLTIP_SHADOW,
@@ -62,6 +66,12 @@ export interface RenderPickerButtonProps {
   onPick?: (result: PickResult, formatted: string) => void;
   /** Confirmation sélection multiple (Entrée). Défaut : copie + toast. */
   onPickMany?: (results: PickResult[], formatted: string) => void;
+  /**
+   * Route dev `/api/render-picker` disponible (app Next avec `app/api/render-picker/route.ts`).
+   * `false` sans serveur Node (build standalone / PrestaShop) — évite le bruit 404 en
+   * console (poll GET + `saveSettings` tentent sinon la route à chaque sync). Défaut : `true`.
+   */
+  useRoute?: boolean;
 }
 
 /**
@@ -76,6 +86,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   hotkey,
   multi,
   color = ACCENT,
+  useRoute = true,
 }) => {
   const [toast, setToast] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -85,6 +96,9 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commands, setCommands] = useState(() => loadSettings().commands);
+  const [showModuleOverlay, setShowModuleOverlay] = useState(
+    () => loadSettings().showModuleOverlay,
+  );
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
 
@@ -110,13 +124,29 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   // Capture console + network pour le panneau d'inspection (si init non appelé).
   useEffect(() => startCapture(), []);
 
-  // Config.json relu sur le disque au focus + re-sync de l'état des commandes
-  // (édit manuel du fichier pris en compte sans recharger la page).
+  // Ctrl+clic-droit (n'importe où sur la page) : bascule direct le toggle "rectangles
+  // modules" sans passer par l'armement du picker + menu réglages.
   useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setShowModuleOverlay((v) => !v);
+    };
+    window.addEventListener("contextmenu", onContextMenu, true);
+    return () => window.removeEventListener("contextmenu", onContextMenu, true);
+  }, []);
+
+  // Config.json relu sur le disque au focus + re-sync de l'état des commandes
+  // (édit manuel du fichier pris en compte sans recharger la page). Sans route
+  // (standalone/PrestaShop) : rien à relire, le GET ne ferait que 404.
+  useEffect(() => {
+    if (!useRoute) return;
     const stop = initSettingsRefresh();
     const sync = async () => {
       await refreshSettings();
-      setCommands(loadSettings().commands);
+      const settings = loadSettings();
+      setCommands(settings.commands);
+      setShowModuleOverlay(settings.showModuleOverlay);
     };
     const onFocus = () => void sync();
     const onVisibility = () => {
@@ -129,7 +159,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [useRoute]);
 
   const handlePick = useCallback(
     (result: PickResult) => {
@@ -311,8 +341,35 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     }
     if (json === lastSavedRef.current) return;
     lastSavedRef.current = json;
-    saveSettings({ ...loadSettings(), commands });
-  }, [commands]);
+    saveSettings({ ...loadSettings(), commands }, useRoute);
+  }, [commands, useRoute]);
+
+  // Persistance du toggle "rectangles modules PrestaShop" — même anti-boucle.
+  const lastSavedOverlayRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (lastSavedOverlayRef.current === null) {
+      lastSavedOverlayRef.current = showModuleOverlay;
+      return;
+    }
+    if (lastSavedOverlayRef.current === showModuleOverlay) return;
+    lastSavedOverlayRef.current = showModuleOverlay;
+    saveSettings({ ...loadSettings(), showModuleOverlay }, useRoute);
+  }, [showModuleOverlay, useRoute]);
+
+  // Overlay permanent "modules PrestaShop" : indépendant de l'armement du picker,
+  // piloté uniquement par le toggle persisté. Clic droit sur un rectangle → même menu
+  // contextuel (copier HTML/rendu/classes/XPath) que le picker normal.
+  useEffect(() => {
+    if (!showModuleOverlay) return;
+    setModuleOverlayContextMenuHandler((el, pos) => {
+      if (el instanceof HTMLElement) setContextMenu({ el, x: pos.x, y: pos.y });
+    });
+    const stop = initModuleOverlaySurface();
+    return () => {
+      setModuleOverlayContextMenuHandler(null);
+      stop();
+    };
+  }, [showModuleOverlay]);
 
   const borderColor = isActive ? color : "rgba(255,255,255,0.18)";
   const buttonStyle: CSSProperties = {
@@ -359,6 +416,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           onCloseSettings={() => setSettingsOpen(false)}
           commands={commands}
           onChangeCommands={setCommands}
+          showModuleOverlay={showModuleOverlay}
+          onChangeShowModuleOverlay={setShowModuleOverlay}
           searchOpen={searchOpen}
           onToggleSearch={() => setSearchOpen((o) => !o)}
           onTogglePanel={() => {
@@ -387,7 +446,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       {panelOpen && (
         <DevPanel
           size={loadSettings().panel}
-          onSizeChange={(panel) => saveSettings({ ...loadSettings(), panel })}
+          onSizeChange={(panel) => saveSettings({ ...loadSettings(), panel }, useRoute)}
           onClose={() => {
             setPanelOpen(false);
             savePanelState({ open: false });

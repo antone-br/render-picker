@@ -1,0 +1,192 @@
+/**
+ * Overlay permanent "modules PrestaShop" — scan des marqueurs dynamiques
+ * `<!-- rp-module:nom:duréeMs:relpath:ligne --> … <!-- /rp-module -->` injectés par
+ * l'override `Module::fetch()` (voir `integrations/prestashop/renderpicker/`).
+ * Contrairement aux marqueurs `rp@` (statiques, gravés au compile), ceux-ci sont
+ * dynamiques (durée qui varie à chaque requête) et encadrent le HTML complet d'un
+ * module racine. Sans React, testable sans DOM réel via jsdom.
+ */
+
+import { moduleNameFromSource, parseTplMarker } from "./tpl-annotate";
+
+export interface ModuleOverlayEntry {
+  name: string;
+  durationMs: number;
+  /** `relpath:ligne` — réutilisable tel quel comme `data-source`. */
+  source: string;
+  rect: { left: number; top: number; width: number; height: number };
+  /** Éléments de premier niveau propres au module (hors sous-arbres d'un autre module
+   * inclus en Smarty inline) — cible du menu contextuel (copier HTML/rendu/…), pas
+   * l'élément exact sous le curseur (souvent un simple `<p>`/`<span>` interne). */
+  elements: Element[];
+}
+
+const START_RE = /^rp-module:([^:]+):([\d.]+):(.+)$/;
+
+/** `rp-module:Nom:12.4:themes/x/foo.tpl:3` → `{ name, durationMs, source }`. Pur. */
+export function parseModuleStart(
+  text: string,
+): { name: string; durationMs: number; source: string } | null {
+  const m = START_RE.exec(text.trim());
+  if (!m) return null;
+  return { name: m[1]!, durationMs: Number(m[2]), source: m[3]! };
+}
+
+/** Vrai si le commentaire ferme un bloc `rp-module`. Pur. */
+export function isModuleEnd(text: string): boolean {
+  return text.trim() === "/rp-module";
+}
+
+/**
+ * Vrai si le marqueur `rp@` **immédiatement précédent** de `el` en ordre document (celui
+ * qui déterminerait son `data-source` dans `tpl-annotate.ts`) résout à un module différent
+ * de `ownName` — signe que `el` est lui-même un frère inséré par un autre module (ex.
+ * `{hook h='…'}` Smarty inline rendant un bloc entier à côté du contenu propre). Ne regarde
+ * QUE le marqueur propre à `el`, pas son sous-arbre entier : un module qui inclut juste un
+ * lien d'un autre module *au milieu* de son propre contenu (le marqueur étranger est alors
+ * imbriqué plus profondément, pas immédiatement précédent) reste considéré comme propre —
+ * sinon tout son rectangle disparaîtrait pour un détail mineur.
+ */
+function isForeignModule(el: Element, ownName: string): boolean {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+  walker.currentNode = el;
+  let node: Node | null = walker.previousNode();
+  while (node) {
+    const marker = parseTplMarker((node as Comment).data);
+    if (marker) {
+      const mod = moduleNameFromSource(marker.source);
+      return mod !== null && mod !== ownName;
+    }
+    node = walker.previousNode();
+  }
+  return false;
+}
+
+/**
+ * Rectangle englobant (coordonnées **viewport**, pas document) d'une liste d'éléments.
+ * Viewport plutôt que document+scroll : certains modules (barre sticky `position:fixed`)
+ * ne bougent pas au scroll — un rectangle en coordonnées document s'en détacherait. Le
+ * rendu (`module-overlays.ts`) utilise `position:fixed` et recalcule au scroll.
+ */
+function unionRect(elements: Element[]): ModuleOverlayEntry["rect"] | null {
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const el of elements) {
+    const r = el.getBoundingClientRect();
+    // Largeur OU hauteur nulle = aucune zone visible (ex. placeholder vide d'une
+    // variante WOW.js inutilisée) — ne doit pas tirer le rectangle vers lui.
+    if (r.width === 0 || r.height === 0) continue;
+    left = Math.min(left, r.left);
+    top = Math.min(top, r.top);
+    right = Math.max(right, r.right);
+    bottom = Math.max(bottom, r.bottom);
+  }
+  if (!Number.isFinite(left)) return null;
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+/**
+ * Remonte tant que le parent n'a **que** `el` comme enfant élément (ex. un `<div>` du
+ * thème qui n'enveloppe rien d'autre que l'appel au hook du module — cas
+ * `#contact_info_sag` autour de `ps_contactinfo`). Le rectangle colle alors au conteneur
+ * visuel réel plutôt qu'à la seule racine stricte du module. Sûr : un parent qui a
+ * plusieurs enfants (cas `tvcmscustomsetting`, plusieurs frères dont certains d'un autre
+ * module) arrête immédiatement la remontée — aucun risque d'engloutir un frère étranger.
+ */
+function climbExclusiveWrapper(el: Element): Element {
+  let current = el;
+  for (;;) {
+    const parent = current.parentElement;
+    if (!parent || parent === document.body || parent.children.length !== 1) break;
+    current = parent;
+  }
+  return current;
+}
+
+/**
+ * Parcourt `root` (ordre document) à la recherche des paires `rp-module`/`/rp-module`
+ * et retourne une entrée par module racine trouvé (rectangle englobant des éléments
+ * encadrés). Les paires imbriquées ne devraient pas exister (l'override PHP ne wrappe
+ * qu'à profondeur 0) ; si elles apparaissent quand même, elles sont traitées comme des
+ * entrées indépendantes plutôt que de planter.
+ */
+export function scanModuleOverlays(root: Node = document.body): ModuleOverlayEntry[] {
+  const entries: ModuleOverlayEntry[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    const start = parseModuleStart((node as Comment).data);
+    if (start) {
+      const elements: Element[] = [];
+      let sib: Node | null = node.nextSibling;
+      while (sib && !(sib.nodeType === Node.COMMENT_NODE && isModuleEnd((sib as Comment).data))) {
+        if (sib.nodeType === Node.ELEMENT_NODE) elements.push(sib as Element);
+        sib = sib.nextSibling;
+      }
+      const owned = elements.filter((el) => !isForeignModule(el, start.name)).map(climbExclusiveWrapper);
+      const rect = unionRect(owned);
+      if (rect) {
+        entries.push({
+          name: start.name,
+          durationMs: start.durationMs,
+          source: start.source,
+          rect,
+          elements: owned,
+        });
+      }
+    }
+    node = walker.nextNode();
+  }
+  return entries;
+}
+
+/** Délais (ms) des rescans différés après montage — rattrape les animations d'entrée
+ * (WOW.js `slideInRight`…) qui déplacent un élément après le premier scan. */
+const SETTLE_DELAYS_MS = [400, 1200];
+
+/** Délai (ms) du rescan différé après un clic — laisse le temps à une transition CSS
+ * (accordéon Bootstrap `collapse`…) déclenchée par ce clic de se terminer. */
+const CLICK_SETTLE_DELAY_MS = 400;
+
+/**
+ * Scan au montage (immédiat + différé pour rattraper les animations d'entrée), puis à
+ * chaque scroll/resize/clic (rAF-throttlé — coordonnées viewport, les modules
+ * `position:fixed` ne bougent pas au scroll mais les autres si). `click` : un clic est un
+ * événement **discret**, borné par l'utilisateur (contrairement à `class`/`style` observés
+ * en continu via `MutationObserver` — jeté : un carousel auto-play, ex. owl-carousel, anime
+ * son `style` **en boucle sans jamais s'arrêter**, ce qui rescannait/relogait à l'infini) —
+ * couvre les accordéons Bootstrap (`data-toggle="collapse"`) qui changent la taille d'un
+ * module sans ajout de nœud ; un rescan différé (`CLICK_SETTLE_DELAY_MS`) rattrape la taille
+ * finale une fois la transition CSS terminée. Retourne une fonction d'arrêt.
+ */
+export function initModuleOverlayScan(onChange: (entries: ModuleOverlayEntry[]) => void): () => void {
+  let frame: number | null = null;
+  const rescan = () => {
+    frame = null;
+    onChange(scanModuleOverlays());
+  };
+  const schedule = () => {
+    if (frame === null) frame = requestAnimationFrame(rescan);
+  };
+
+  const timers: ReturnType<typeof setTimeout>[] = SETTLE_DELAYS_MS.map((ms) => setTimeout(schedule, ms));
+  const onClick = () => {
+    schedule();
+    timers.push(setTimeout(schedule, CLICK_SETTLE_DELAY_MS));
+  };
+
+  schedule();
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", schedule);
+  window.addEventListener("click", onClick, true);
+
+  return () => {
+    for (const t of timers) clearTimeout(t);
+    window.removeEventListener("scroll", schedule);
+    window.removeEventListener("resize", schedule);
+    window.removeEventListener("click", onClick, true);
+    if (frame !== null) cancelAnimationFrame(frame);
+  };
+}

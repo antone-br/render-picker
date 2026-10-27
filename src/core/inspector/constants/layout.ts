@@ -18,3 +18,11 @@ export const GAP_DASH = "rgba(127,32,210,0.8)";
 
 /** Remplissage de la marge au survol (#B08355, solide). */
 export const MARGIN_FILL = "#B08355";
+
+/**
+ * Overlay permanent "modules PrestaShop" (toggle paramètres) — teinte ambre,
+ * distincte de `ACCENT` (survol picker) pour ne pas les confondre visuellement.
+ */
+export const MODULE_OVERLAY_BORDER = "1px solid rgba(217,119,6,0.9)";
+export const MODULE_OVERLAY_BG = "rgba(217,119,6,0.08)";
+export const MODULE_OVERLAY_LABEL_BG = "rgba(217,119,6,0.95)";

@@ -13,7 +13,7 @@ import {
 import { CopyIcon, CrosshairIcon, MultiIcon, VsCodeIcon } from "../icons";
 import { Select } from "../select";
 import { useOutsideClose } from "../use-outside-close";
-import { GestureRow, KeyGestureRow, KeyRow, rowStyle } from "./rows";
+import { GestureRow, KeyGestureRow, KeyRow, rowStyle, ToggleRow } from "./rows";
 
 type Commands = RenderPickerSettings["commands"];
 
@@ -24,6 +24,9 @@ export interface SettingsMenuProps {
   onClose: () => void;
   /** Afficher les commandes VS Code (source/usage). Défaut : `true`. */
   showVsCode?: boolean;
+  /** Rectangles permanents sur les modules PrestaShop (nom + durée, Ctrl+clic). */
+  showModuleOverlay: boolean;
+  onChangeShowModuleOverlay: (next: boolean) => void;
 }
 
 /**
@@ -36,6 +39,8 @@ export const SettingsMenu: FC<SettingsMenuProps> = ({
   onChangeCommands,
   onClose,
   showVsCode = true,
+  showModuleOverlay,
+  onChangeShowModuleOverlay,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -180,6 +185,15 @@ export const SettingsMenu: FC<SettingsMenuProps> = ({
         <KeyRow label="Annuler / désarmer" cmdKey="cancel" options={CANCEL_KEY_OPTIONS} commands={commands} onChange={onChangeCommands} />
         <KeyGestureRow label="Rechercher" cmdKey="search" keyOptions={SEARCH_KEY_OPTIONS} commands={commands} onChange={onChangeCommands} />
         <KeyGestureRow label="Ouvrir l'inspecteur" cmdKey="inspect" keyOptions={INSPECT_OPTIONS} commands={commands} onChange={onChangeCommands} />
+
+        <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 8px" }} />
+
+        <ToggleRow
+          label="Rectangles modules PrestaShop"
+          checked={showModuleOverlay}
+          defaultChecked={DEFAULT_SETTINGS.showModuleOverlay}
+          onChange={onChangeShowModuleOverlay}
+        />
       </div>
     </div>
   );

@@ -36,6 +36,9 @@ export interface SettingsBarProps {
   onCloseSettings: () => void;
   commands: Commands;
   onChangeCommands: (next: Commands) => void;
+  /** Rectangles permanents sur les modules PrestaShop (nom + durée, Ctrl+clic). */
+  showModuleOverlay: boolean;
+  onChangeShowModuleOverlay: (next: boolean) => void;
   /** Ouvre/ferme le panneau d'inspection (bouton à gauche). */
   onTogglePanel: () => void;
   /** Ouvre la recherche d'éléments (bouton loupe, avant l'engrenage). */
@@ -58,6 +61,8 @@ export function SettingsBar({
   onCloseSettings,
   commands,
   onChangeCommands,
+  showModuleOverlay,
+  onChangeShowModuleOverlay,
   onTogglePanel,
   onToggleSearch,
   searchOpen,
@@ -86,6 +91,8 @@ export function SettingsBar({
           onChangeCommands={onChangeCommands}
           onClose={onCloseSettings}
           showVsCode={showVsCode}
+          showModuleOverlay={showModuleOverlay}
+          onChangeShowModuleOverlay={onChangeShowModuleOverlay}
         />
       )}
 
