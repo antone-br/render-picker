@@ -46,8 +46,10 @@ import {
   FolderIcon,
   GitBranchIcon,
   HardDriveIcon,
+  HookIcon,
   PackageIcon,
   TagIcon,
+  TrashIcon,
   TypeIcon,
 } from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
@@ -347,6 +349,34 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
             },
           ]
         : []),
+      ...(contextMenu?.modulePath?.hookName
+        ? [
+            {
+              label: "Hook",
+              icon: <HookIcon />,
+              onClick: () => {
+                if (!contextMenu.modulePath?.hookName) return;
+                copy(contextMenu.modulePath.hookName);
+                showToast("Hook copié ✓");
+                closeContextMenu();
+                disarm();
+              },
+              submenu: [
+                {
+                  label: "Copier le nom du hook",
+                  icon: <TagIcon />,
+                  onClick: () => {
+                    if (!contextMenu.modulePath?.hookName) return;
+                    copy(contextMenu.modulePath.hookName);
+                    showToast("Hook copié ✓");
+                    closeContextMenu();
+                    disarm();
+                  },
+                },
+              ],
+            },
+          ]
+        : []),
       {
         label: "Copier en HTML",
         icon: <CodeIcon />,
@@ -422,6 +452,21 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           if (!contextMenu) return;
           copy(getXPath(contextMenu.el));
           showToast("XPath copié ✓");
+          closeContextMenu();
+          disarm();
+        },
+      },
+      {
+        label: "Supprimer l'élément",
+        icon: <TrashIcon />,
+        danger: true,
+        disabled: contextMenu?.el === document.body || contextMenu?.el === document.documentElement,
+        onClick: () => {
+          if (!contextMenu) return;
+          // `.remove()` est repris par le reconciler React de l'app hôte au prochain
+          // rendu (son état reste la source de vérité, il recrée le nœud) — un style
+          // forcé que React ne gère pas (`!important`) survit, contrairement au retrait.
+          contextMenu.el.style.setProperty("display", "none", "important");
           closeContextMenu();
           disarm();
         },

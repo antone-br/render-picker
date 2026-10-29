@@ -5,6 +5,7 @@ import { resolveAdminDir } from "../../dev/admin-config";
 import { resolveProjectRoot } from "../../dev/project-root";
 import {
   findModuleForElement,
+  hookPositionsUrl,
   initModuleOverlayScan,
   moduleConfigUrl,
   moduleDirPath,
@@ -17,6 +18,9 @@ import { assign } from "./dom";
 export interface ModuleOverlayPaths {
   /** Nom technique du module (ex. `blockreassurance`). */
   name: string;
+  /** Nom du hook qui a déclenché ce rendu (`displayFooter`…) — `null` si non résolu
+   * (override `Hook.php` absent/pas encore installé, ou rendu hors `Hook::exec`). */
+  hookName: string | null;
   /** `public_html\...\modules\<nom>` — ancré au dossier racine du site (lisible, portable). */
   relative: string | null;
   /** Chemin disque hôte complet (ex. `C:\Users\...\public_html\...\modules\<nom>`). */
@@ -24,6 +28,9 @@ export interface ModuleOverlayPaths {
   /** URL back-office "configurer ce module" — `null` si le dossier admin n'est pas exposé
    * (`window.renderPickerAdminDir`, voir `renderpicker.php`). */
   configUrl: string | null;
+  /** URL back-office de la page "Positions" (tous les hooks) — `null` si `hookName` est
+   * `null` (rien à relier) ou si le dossier admin n'est pas exposé. */
+  hookPositionsUrl: string | null;
 }
 
 type ModuleOverlayContextMenuHandler = (
@@ -50,15 +57,29 @@ export function setModuleOverlayContextMenuHandler(
  * désactivé dans ce cas aussi). */
 export function resolveModulePaths(entry: ModuleOverlayEntry): ModuleOverlayPaths {
   const configUrl = moduleConfigUrl(window.location.origin, resolveAdminDir(window), entry.name);
+  const hookPositions = entry.hookName
+    ? hookPositionsUrl(window.location.origin, resolveAdminDir(window))
+    : null;
   const root = resolveProjectRoot(window, document).root;
-  if (!root) return { name: entry.name, relative: null, absolute: null, configUrl };
+  if (!root) {
+    return {
+      name: entry.name,
+      hookName: entry.hookName,
+      relative: null,
+      absolute: null,
+      configUrl,
+      hookPositionsUrl: hookPositions,
+    };
+  }
   const normalized = root.replace(/\\/g, "/");
   const rootDirName = normalized.split("/").filter(Boolean).pop();
   return {
     name: entry.name,
+    hookName: entry.hookName,
     relative: rootDirName ? moduleDirPath(entry.source, entry.name, rootDirName) : null,
     absolute: moduleDirPath(entry.source, entry.name, normalized.replace(/\//g, "\\")),
     configUrl,
+    hookPositionsUrl: hookPositions,
   };
 }
 
@@ -100,7 +121,8 @@ function render(layer: HTMLElement, entries: ModuleOverlayEntry[]): void {
     });
 
     const label = document.createElement("span");
-    label.textContent = `${entry.name} — ${entry.durationMs} ms`;
+    const nameWithHook = entry.hookName ? `${entry.name} (${entry.hookName})` : entry.name;
+    label.textContent = `${nameWithHook} — ${entry.durationMs} ms`;
     assign(label, {
       position: "absolute",
       top: "-18px",

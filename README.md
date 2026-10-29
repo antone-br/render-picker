@@ -79,7 +79,7 @@ export function DevRenderPicker() {
 | Double-tap `Shift` or click the aim icon | Arm the picker |
 | Click | Copy one element and close |
 | `Shift`+click, then `Enter` | Copy several elements at once |
-| Right-click | Context menu: copy the HTML, the rendering, the classes or the XPath |
+| Right-click | Context menu: copy the HTML, the rendering, the classes, the XPath, or hide the element (`display:none`, live only, not persisted — survives the host app's React re-renders, unlike removing the DOM node) |
 | `Ctrl`+`F` `F` | Search elements (works even when the picker is off) |
 | `Ctrl`+`I` | Open the inspection panel on the HTML tab, at the hovered element |
 | `Esc` | Cancel |

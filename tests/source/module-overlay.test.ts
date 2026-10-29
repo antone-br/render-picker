@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildModuleTree,
   findModuleForElement,
+  hookPositionsUrl,
   isModuleEnd,
   moduleConfigUrl,
   moduleDirPath,
@@ -17,7 +18,7 @@ function entry(
   name: string,
   rect: { left: number; top: number; width: number; height: number },
 ): ModuleOverlayEntry {
-  return { name, durationMs: 0, source: "t/x.tpl:1", rect, elements: [] };
+  return { name, hookName: null, durationMs: 0, source: "t/x.tpl:1", rect, elements: [] };
 }
 
 afterEach(() => {
@@ -27,9 +28,15 @@ afterEach(() => {
 
 describe("parseModuleStart", () => {
   it("extrait nom + durée + source d'un marqueur valide", () => {
-    expect(parseModuleStart(" rp-module:blockcart:12.4:themes/t/modules/blockcart/x.tpl:3 ")).toEqual(
-      { name: "blockcart", durationMs: 12.4, source: "themes/t/modules/blockcart/x.tpl:3" },
+    expect(parseModuleStart(" rp-module:blockcart::12.4:themes/t/modules/blockcart/x.tpl:3 ")).toEqual(
+      { name: "blockcart", hookName: null, durationMs: 12.4, source: "themes/t/modules/blockcart/x.tpl:3" },
     );
+  });
+
+  it("extrait le hookName quand présent", () => {
+    expect(
+      parseModuleStart("rp-module:ps_contactinfo:displayFooter:9:t/x.tpl:1"),
+    ).toEqual({ name: "ps_contactinfo", hookName: "displayFooter", durationMs: 9, source: "t/x.tpl:1" });
   });
 
   it("rejette un commentaire non-marqueur", () => {
@@ -76,6 +83,18 @@ describe("moduleConfigUrl", () => {
 
   it("adminDir absent → null", () => {
     expect(moduleConfigUrl("http://localhost:8080", undefined, "blockcart")).toBeNull();
+  });
+});
+
+describe("hookPositionsUrl", () => {
+  it("adminDir fourni → URL de la page Positions", () => {
+    expect(hookPositionsUrl("http://localhost:8080", "admin222")).toBe(
+      "http://localhost:8080/admin222/index.php?controller=AdminModulesPositions",
+    );
+  });
+
+  it("adminDir absent → null", () => {
+    expect(hookPositionsUrl("http://localhost:8080", undefined)).toBeNull();
   });
 });
 
@@ -130,7 +149,7 @@ describe("moduleTreeMarkdown", () => {
 describe("findModuleForElement", () => {
   it("retrouve l'entrée dont l'élément est la racine propre", () => {
     document.body.innerHTML =
-      '<!-- rp-module:blockcart:1:t/x.tpl:1 --><div id="root"></div><!-- /rp-module -->';
+      '<!-- rp-module:blockcart::1:t/x.tpl:1 --><div id="root"></div><!-- /rp-module -->';
     const root = document.getElementById("root")!;
     root.getBoundingClientRect = () => ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
     const entries = scanModuleOverlays(document.body);
@@ -140,7 +159,7 @@ describe("findModuleForElement", () => {
 
   it("retrouve l'entrée pour un descendant profond de la racine", () => {
     document.body.innerHTML =
-      '<!-- rp-module:blockcart:1:t/x.tpl:1 --><div id="root"><span><em id="deep">x</em></span></div><!-- /rp-module -->';
+      '<!-- rp-module:blockcart::1:t/x.tpl:1 --><div id="root"><span><em id="deep">x</em></span></div><!-- /rp-module -->';
     document.getElementById("root")!.getBoundingClientRect = () =>
       ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
     const deep = document.getElementById("deep")!;
@@ -151,7 +170,7 @@ describe("findModuleForElement", () => {
 
   it("élément hors de tout module → null", () => {
     document.body.innerHTML =
-      '<!-- rp-module:blockcart:1:t/x.tpl:1 --><div id="root"></div><!-- /rp-module --><div id="outside"></div>';
+      '<!-- rp-module:blockcart::1:t/x.tpl:1 --><div id="root"></div><!-- /rp-module --><div id="outside"></div>';
     document.getElementById("root")!.getBoundingClientRect = () =>
       ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
     const outside = document.getElementById("outside")!;
@@ -164,7 +183,7 @@ describe("findModuleForElement", () => {
 describe("scanModuleOverlays", () => {
   it("une entrée par paire start/end, rectangle englobant des éléments encadrés", () => {
     document.body.innerHTML =
-      '<!-- rp-module:blockcart:12.4:themes/t/modules/blockcart/x.tpl:3 -->' +
+      '<!-- rp-module:blockcart::12.4:themes/t/modules/blockcart/x.tpl:3 -->' +
       "<div id=a></div><div id=b></div>" +
       "<!-- /rp-module -->";
     const a = document.getElementById("a")!;
@@ -176,6 +195,7 @@ describe("scanModuleOverlays", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]).toEqual({
       name: "blockcart",
+      hookName: null,
       durationMs: 12.4,
       source: "themes/t/modules/blockcart/x.tpl:3",
       rect: { left: 0, top: 0, width: 100, height: 20 },
@@ -183,16 +203,25 @@ describe("scanModuleOverlays", () => {
     });
   });
 
+  it("propage le hookName du marqueur dans l'entrée", () => {
+    document.body.innerHTML =
+      '<!-- rp-module:ps_contactinfo:displayFooter:9:t/x.tpl:1 --><div id=h></div><!-- /rp-module -->';
+    document.getElementById("h")!.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
+
+    expect(scanModuleOverlays(document.body)[0]!.hookName).toBe("displayFooter");
+  });
+
   it("ignore un module sans élément encadré (rectangle vide → pas d'entrée)", () => {
     document.body.innerHTML =
-      "<!-- rp-module:empty:0.1:t/x.tpl:1 --><!-- /rp-module -->";
+      "<!-- rp-module:empty::0.1:t/x.tpl:1 --><!-- /rp-module -->";
     expect(scanModuleOverlays(document.body)).toHaveLength(0);
   });
 
   it("deux modules indépendants → deux entrées distinctes", () => {
     document.body.innerHTML =
-      '<!-- rp-module:a:1:t/a.tpl:1 --><div id=x></div><!-- /rp-module -->' +
-      '<!-- rp-module:b:2:t/b.tpl:1 --><div id=y></div><!-- /rp-module -->';
+      '<!-- rp-module:a::1:t/a.tpl:1 --><div id=x></div><!-- /rp-module -->' +
+      '<!-- rp-module:b::2:t/b.tpl:1 --><div id=y></div><!-- /rp-module -->';
     document.getElementById("x")!.getBoundingClientRect = () =>
       ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
     document.getElementById("y")!.getBoundingClientRect = () =>
@@ -207,7 +236,7 @@ describe("scanModuleOverlays", () => {
     // propre bloc en tant que FRÈRE (pas imbriqué dedans) — c'est ainsi que le prefilter
     // Smarty insère toujours ses marqueurs (juste avant le tag qu'il annote).
     document.body.innerHTML =
-      '<!-- rp-module:tvcmscustomsetting:9:modules/tvcmscustomsetting/x.tpl:1 -->' +
+      '<!-- rp-module:tvcmscustomsetting::9:modules/tvcmscustomsetting/x.tpl:1 -->' +
       '<div id="own"></div>' +
       '<!-- rp@modules/tvcmswishlist/y.tpl:5 -->' +
       '<div id="foreign"><span>w</span></div>' +
@@ -225,7 +254,7 @@ describe("scanModuleOverlays", () => {
   it("garde un élément racine dont le marqueur propre PRÉCÈDE, même si un autre module est "
     + "inclus plus profondément à l'intérieur (ex. ps_customeraccountlinks + lien wishlist)", () => {
     document.body.innerHTML =
-      '<!-- rp-module:ps_customeraccountlinks:0.1:modules/ps_customeraccountlinks/x.tpl:1 -->' +
+      '<!-- rp-module:ps_customeraccountlinks::0.1:modules/ps_customeraccountlinks/x.tpl:1 -->' +
       '<!-- rp@modules/ps_customeraccountlinks/x.tpl:26 -->' +
       '<div id="root">' +
       "  compte" +
@@ -246,7 +275,7 @@ describe("scanModuleOverlays", () => {
     vi.stubGlobal("scrollY", 300);
     vi.stubGlobal("scrollX", 50);
     document.body.innerHTML =
-      '<!-- rp-module:sticky:1:t/x.tpl:1 --><div id=s></div><!-- /rp-module -->';
+      '<!-- rp-module:sticky::1:t/x.tpl:1 --><div id=s></div><!-- /rp-module -->';
     document.getElementById("s")!.getBoundingClientRect = () =>
       ({ left: 10, top: 20, right: 30, bottom: 40, width: 20, height: 20 }) as DOMRect;
 
@@ -256,7 +285,7 @@ describe("scanModuleOverlays", () => {
 
   it("ignore un frère largeur 0 (placeholder vide) — pas d'étirement vers lui", () => {
     document.body.innerHTML =
-      '<!-- rp-module:tvcmscustomsetting:9:t/x.tpl:1 -->' +
+      '<!-- rp-module:tvcmscustomsetting::9:t/x.tpl:1 -->' +
       '<div id="empty-left"></div>' +
       '<div id="visible-right"></div>' +
       "<!-- /rp-module -->";
@@ -271,7 +300,7 @@ describe("scanModuleOverlays", () => {
 
   it("expose les éléments propres (hors frères d'un autre module) pour le menu contextuel", () => {
     document.body.innerHTML =
-      '<!-- rp-module:hiblog:11.2:modules/hiblog/views/templates/hook/search.tpl:15 -->' +
+      '<!-- rp-module:hiblog::11.2:modules/hiblog/views/templates/hook/search.tpl:15 -->' +
       '<form id="own"><p>Rechercher</p></form>' +
       '<!-- rp@modules/other/y.tpl:1 -->' +
       '<div id="foreign"><span>x</span></div>' +
@@ -291,7 +320,7 @@ describe("scanModuleOverlays", () => {
     // racine stricte du module (.tvfooter-contact-link-wrapper).
     document.body.innerHTML =
       '<div id="contact_info_sag">' +
-      '<!-- rp-module:ps_contactinfo:9:t/x.tpl:1 -->' +
+      '<!-- rp-module:ps_contactinfo::9:t/x.tpl:1 -->' +
       '<div id="inner"></div>' +
       "<!-- /rp-module -->" +
       "</div>";
@@ -308,7 +337,7 @@ describe("scanModuleOverlays", () => {
   it("ne remonte pas si le parent a d'autres enfants (évite d'engloutir un frère étranger)", () => {
     document.body.innerHTML =
       '<div id="wrap">' +
-      '<!-- rp-module:a:1:t/a.tpl:1 -->' +
+      '<!-- rp-module:a::1:t/a.tpl:1 -->' +
       '<div id="inner"></div>' +
       "<!-- /rp-module -->" +
       '<div id="sibling-outside-module"></div>' +

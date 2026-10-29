@@ -41,9 +41,11 @@ export interface ContextMenuState {
    * absent pour un clic droit normal du picker, auquel cas la ligne "Modules" n'apparaît pas. */
   modulePath?: {
     name: string;
+    hookName: string | null;
     relative: string | null;
     absolute: string | null;
     configUrl: string | null;
+    hookPositionsUrl: string | null;
   } | null;
   /** Markdown listant tous les modules de la page (arbre par confinement géométrique) —
    * même garde que `modulePath` (overlay modules uniquement). */

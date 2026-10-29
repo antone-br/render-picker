@@ -27,7 +27,7 @@ class RenderPicker extends Module
     {
         $this->name = 'renderpicker';
         $this->tab = 'administration';
-        $this->version = '0.2.0';
+        $this->version = '0.3.0';
         $this->author = 'Antone Barbaud';
         $this->need_instance = 0;
         $this->bootstrap = true;

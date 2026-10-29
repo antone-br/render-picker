@@ -19,6 +19,10 @@
  * Racine uniquement (pas de rectangle pour un widget qu'un module inclut lui-même
  * dans son propre `.tpl`) : compteur de profondeur statique partagé entre fetch() et
  * display(), wrap seulement à profondeur 0.
+ *
+ * Nom du hook dans le marqueur : lu via `Hook::rpCurrentHookName()` (override
+ * `Hook.php`, pile empilée par son `exec()` surchargé) — `fetch()`/`display()` seuls ne
+ * le reçoivent jamais, contrairement à `exec()` qui le connaît en entrée.
  */
 
 if (!defined('_PS_VERSION_')) {
@@ -101,7 +105,12 @@ class Module extends ModuleCore
         }
 
         $name = str_replace(['-->', '<!--'], '', $this->name);
-        return '<!-- rp-module:' . $name . ':' . $durationMs . ':' . $source . ' -->'
+        $hookName = class_exists('Hook') && method_exists('Hook', 'rpCurrentHookName')
+            ? (string) Hook::rpCurrentHookName()
+            : '';
+        $hookName = str_replace([':', '-->', '<!--'], '', $hookName);
+
+        return '<!-- rp-module:' . $name . ':' . $hookName . ':' . $durationMs . ':' . $source . ' -->'
             . $html
             . '<!-- /rp-module -->';
     }

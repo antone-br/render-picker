@@ -294,6 +294,19 @@ export const HtmlTree: FC = () => {
                     setMenu(null);
                   },
                 },
+                {
+                  label: "Supprimer l'élément",
+                  danger: true,
+                  disabled: menu.el === document.body || menu.el === document.documentElement,
+                  onClick: () => {
+                    // `.remove()` est repris par le reconciler React de l'app hôte au
+                    // prochain rendu — un style forcé qu'il ne gère pas survit.
+                    (menu.el as HTMLElement).style.setProperty("display", "none", "important");
+                    setMenu(null);
+                    setSelected((s) => (s === menu.el ? null : s));
+                    setRevealed((r) => (r === menu.el ? null : r));
+                  },
+                },
               ]
             : []
         }

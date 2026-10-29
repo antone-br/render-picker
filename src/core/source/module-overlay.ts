@@ -1,7 +1,7 @@
 /**
  * Overlay permanent "modules PrestaShop" — scan des marqueurs dynamiques
- * `<!-- rp-module:nom:duréeMs:relpath:ligne --> … <!-- /rp-module -->` injectés par
- * l'override `Module::fetch()` (voir `integrations/prestashop/renderpicker/`).
+ * `<!-- rp-module:nom:hookName:duréeMs:relpath:ligne --> … <!-- /rp-module -->` injectés
+ * par l'override `Module::fetch()` (voir `integrations/prestashop/renderpicker/`).
  * Contrairement aux marqueurs `rp@` (statiques, gravés au compile), ceux-ci sont
  * dynamiques (durée qui varie à chaque requête) et encadrent le HTML complet d'un
  * module racine. Sans React, testable sans DOM réel via jsdom.
@@ -11,6 +11,10 @@ import { moduleNameFromSource, parseTplMarker } from "./tpl-annotate";
 
 export interface ModuleOverlayEntry {
   name: string;
+  /** Nom du hook qui a déclenché ce rendu (`displayFooter`…) — `null` si le rendu n'est
+   * pas passé par `Hook::exec()` (override `Hook.php` absent/pas encore installé, ou
+   * appel direct `->fetch()` hors hook). */
+  hookName: string | null;
   durationMs: number;
   /** `relpath:ligne` — réutilisable tel quel comme `data-source`. */
   source: string;
@@ -21,15 +25,16 @@ export interface ModuleOverlayEntry {
   elements: Element[];
 }
 
-const START_RE = /^rp-module:([^:]+):([\d.]+):(.+)$/;
+const START_RE = /^rp-module:([^:]+):([^:]*):([\d.]+):(.+)$/;
 
-/** `rp-module:Nom:12.4:themes/x/foo.tpl:3` → `{ name, durationMs, source }`. Pur. */
+/** `rp-module:Nom:hookName:12.4:themes/x/foo.tpl:3` → `{ name, hookName, durationMs,
+ * source }` (`hookName` vide dans le marqueur → `null`). Pur. */
 export function parseModuleStart(
   text: string,
-): { name: string; durationMs: number; source: string } | null {
+): { name: string; hookName: string | null; durationMs: number; source: string } | null {
   const m = START_RE.exec(text.trim());
   if (!m) return null;
-  return { name: m[1]!, durationMs: Number(m[2]), source: m[3]! };
+  return { name: m[1]!, hookName: m[2] ? m[2] : null, durationMs: Number(m[3]), source: m[4]! };
 }
 
 /** Vrai si le commentaire ferme un bloc `rp-module`. Pur. */
@@ -69,6 +74,17 @@ export function moduleConfigUrl(
 ): string | null {
   if (!adminDir) return null;
   const params = new URLSearchParams({ controller: "AdminModules", configure: moduleName });
+  return `${origin.replace(/\/$/, "")}/${adminDir}/index.php?${params.toString()}`;
+}
+
+/** URL back-office de la page "Positions" (`AdminModulesPositions`) — liste tous les
+ * hooks du site, pas de deep-link fiable vers un hook précis (pas de paramètre
+ * standard, et ça diffère selon le thème admin) : on lie la page générale, le nom du
+ * hook est copiable séparément pour la recherche manuelle dessus. Pur, même raisonnement
+ * sans token que `moduleConfigUrl`. */
+export function hookPositionsUrl(origin: string, adminDir: string | undefined): string | null {
+  if (!adminDir) return null;
+  const params = new URLSearchParams({ controller: "AdminModulesPositions" });
   return `${origin.replace(/\/$/, "")}/${adminDir}/index.php?${params.toString()}`;
 }
 
@@ -227,6 +243,7 @@ export function scanModuleOverlays(root: Node = document.body): ModuleOverlayEnt
       if (rect) {
         entries.push({
           name: start.name,
+          hookName: start.hookName,
           durationMs: start.durationMs,
           source: start.source,
           rect,

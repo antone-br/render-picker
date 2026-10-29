@@ -135,10 +135,30 @@ export const TreeNode: FC<TreeNodeProps> = ({
 
       {hasChildren && isOpen && (
         <div
+          data-rp-tree-row=""
+          onMouseEnter={(e) => {
+            onHover(el);
+            if (selected !== el) e.currentTarget.style.background = HOVER_BG;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = selected === el ? SELECTED_BG : "transparent";
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(el);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onContextMenu(e, el);
+          }}
           style={{
             display: "flex",
             gap: 4,
             paddingLeft: 2 + depth * INDENT,
+            cursor: "pointer",
+            borderRadius: 3,
+            background: selected === el ? SELECTED_BG : "transparent",
             whiteSpace: "nowrap",
           }}
         >

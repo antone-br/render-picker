@@ -310,6 +310,23 @@ indépendante du module cliqué : **copier l'arbre de tous les modules de la pag
 
 - Nom/chemins : `moduleDirPath` (`src/core/source/module-overlay.ts`), racine résolue via
   `resolveProjectRoot` (`src/core/dev/project-root.ts`).
+- **Hook** (affiché sur le rectangle `"<nom> (<hookName>) — <durée> ms"`, et "Copier le nom
+  du hook"/"Copier le lien back-office" dans le flyout) : `Module::fetch()`/`display()`
+  (override `Module.php`) ne reçoivent **jamais** le nom du hook — seul `Hook::exec($hook_name, ...)`
+  le connaît, juste avant d'appeler la méthode `hookXxx()` du module. Nouvel override
+  `override/classes/Hook.php` : surcharge `exec()` pour empiler le hook courant dans une
+  pile statique (`$rpHookStack`, signature identique à `HookCore::exec()` — vérifiée dans
+  le core avant d'écrire l'override, high-blast-radius sinon : TOUT hook du site passe par
+  cette méthode) ; une pile plutôt qu'une simple variable car `exec()` est ré-entrant (un
+  hook peut en déclencher un autre via `{hook}` Smarty inline). `Module.php` lit
+  `Hook::rpCurrentHookName()` dans `rpFinish()`. Marqueur étendu :
+  `rp-module:<nom>:<hookName>:<duréeMs>:<source>` (`hookName` inséré **avant** la durée,
+  jamais à la fin, pour ne pas perturber le capture greedy de `source`) — `null` si le
+  rendu ne passe pas par `Hook::exec` (override absent/pas encore installé, ou appel
+  direct `->fetch()`). Lien back-office : page *Positions* générale
+  (`hookPositionsUrl` → `AdminModulesPositions`), pas de deep-link fiable vers un hook
+  précis en PrestaShop (pas de paramètre standard, varie selon le thème admin) — le nom du
+  hook est copiable séparément pour la recherche manuelle sur cette page.
 - URL de config : `moduleConfigUrl` — dossier admin exposé par `renderpicker.php`
   (`Media::addJsDef`, `window.renderPickerAdminDir`) car **`_PS_ADMIN_DIR_` n'existe pas
   côté front** (défini uniquement par le bootstrap `admin/index.php`, jamais chargé sur

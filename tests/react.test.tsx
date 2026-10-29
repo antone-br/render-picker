@@ -601,6 +601,7 @@ describe("RenderPickerButton", () => {
       "Copier les classes",
       "Copier le texte",
       "Copier le XPath",
+      "Supprimer l'élément",
     ]);
 
     const xpathBtn = Array.from(cm!.querySelectorAll("button")).find(

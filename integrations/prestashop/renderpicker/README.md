@@ -55,19 +55,28 @@ permanence (plus besoin de piquer), un rectangle sur chaque **module racine** de
 nom + durée de rendu du hook (ms). Ctrl+clic (ou le geste configuré) sur un rectangle ouvre
 le `.tpl` correspondant dans l'éditeur, comme pour un pick normal.
 
-Nécessite l'override `override/classes/Module.php` (fourni, voir `.claude/.docs/architecture.md`
-à la racine du repo) — sans lui, le toggle ne fait rien (aucun marqueur de durée dans le HTML).
+Nécessite les overrides `override/classes/Module.php` + `override/classes/Hook.php`
+(fournis, voir `.claude/.docs/architecture.md` à la racine du repo) — sans eux, le toggle
+ne fait rien (aucun marqueur de durée dans le HTML) ; sans `Hook.php` spécifiquement, le
+rectangle affiche le module sans le nom de son hook.
 
 Clic droit sur un rectangle → menu contextuel habituel (HTML/rendu/classes/texte/XPath)
-**plus** une ligne **« Modules »** dont le survol ouvre un sous-menu :
+**plus** une ligne **« Modules »** (`<nom> (<hook>) — <durée> ms` sur le rectangle) dont
+le survol ouvre un sous-menu :
 
 | Action | Copie |
 |---|---|
 | Copier le nom du module | nom technique (ex. `blockreassurance`) |
+| Copier le nom du hook | nom du hook ayant déclenché le rendu (ex. `displayFooter`) — absent si non résolu |
+| Copier le lien back-office (Positions) | lien `AdminModulesPositions` (page générale, voir ci-dessous) |
 | Copier le chemin relatif | `public_html\...\modules\<nom>` (ou `themes\<thème>\modules\<nom>` si overridé) |
 | Copier le chemin absolu | chemin disque hôte complet |
 | Copier l'URL de configuration | lien back-office `AdminModules?configure=<nom>` (voir ci-dessous) |
 | Copier l'arbre des modules | tous les modules de la page, en Markdown (voir `.claude/.docs/structurer-arbre-modules.md`) |
+
+**Lien du hook.** PrestaShop n'a pas de deep-link fiable vers un hook précis (pas de
+paramètre standard, varie selon le thème admin) — le lien pointe vers la page *Positions*
+générale ; le nom du hook est copiable séparément pour la recherche manuelle dessus.
 
 **URL de configuration — dossier admin requis.** `_PS_ADMIN_DIR_` n'existe pas côté front
 (seul `admin/index.php` le définit) : le dossier admin (renommé pour la sécu, ex.
@@ -93,13 +102,13 @@ dans l'URL : calculé côté front il ne matcherait de toute façon pas la sessi
 **Important** : PrestaShop ne scanne `override/classes/` qu'à la **racine du site**, jamais
 dans `modules/<m>/override/`. Ce dossier n'est copié à la racine que pendant l'**installation**
 du module (`Module::installOverrides()`). Si `renderpicker` était déjà installé avant
-l'ajout de cet override (ex. mise à jour par simple `sync-prestashop.mjs`, sans
-réinstallation), le fichier reste invisible à PrestaShop → 0 rectangle, aucun marqueur
-`rp-module`. Le module embarque un script d'upgrade (`upgrade/upgrade-0.2.0.php`) qui rejoue
-`installOverrides()` automatiquement dès que back-office détecte le bump de version — visiter
-une fois la page *Modules* suffit, pas de uninstall/install manuel. Sur un site déjà sur
-`0.2.0+`, un futur ajout d'override nécessitera un nouveau bump de version + script
-d'upgrade correspondant.
+l'ajout d'un override (ex. mise à jour par simple `sync-prestashop.mjs`, sans
+réinstallation), le fichier reste invisible à PrestaShop. Le module embarque un script
+d'upgrade par ajout d'override (`upgrade/upgrade-0.2.0.php` pour `Module.php`,
+`upgrade/upgrade-0.3.0.php` pour `Hook.php`) qui rejoue `installOverrides()`
+automatiquement dès que back-office détecte le bump de version — visiter une fois la page
+*Modules* suffit, pas de uninstall/install manuel. Un futur ajout d'override nécessitera
+le même schéma : nouveau bump de version + script d'upgrade correspondant.
 
 ## Limites
 
