@@ -21,9 +21,12 @@ export interface TooltipProps {
   side?: TooltipSide;
 }
 
+type HorizontalAlign = "center" | "left" | "right";
+
 interface TooltipPosition {
   top: number;
   left: number;
+  align: HorizontalAlign;
 }
 
 interface ComputeTopPositionArgs {
@@ -33,26 +36,43 @@ interface ComputeTopPositionArgs {
   padding?: number;
 }
 
-/** Clamp horizontal dans le viewport + offset de flèche (repris de renderflow). */
+/**
+ * Position horizontale près d'un bord (gauche/droite du viewport) : centrer la bulle sur
+ * le déclencheur puis la clamper dans le viewport la réduirait visuellement (le texte
+ * disponible rétrécit → empile trop de lignes, bulle trop haute). À la place, on ancre un
+ * bord fixe de la bulle (gauche ou droite) dès que le centrage ne tient pas des deux
+ * côtés — la bulle garde sa largeur naturelle complète, seule sa position bouge.
+ */
 function computeTopPosition({
   triggerRect,
   tooltipWidth,
   viewportWidth,
   padding = 8,
-}: ComputeTopPositionArgs): { top: number; left: number; arrowOffsetPx: number } {
+}: ComputeTopPositionArgs): { top: number; left: number; align: HorizontalAlign; arrowOffsetPx: number } {
   const triggerCenterX = triggerRect.left + triggerRect.width / 2;
-  let left = triggerCenterX;
+  const half = tooltipWidth / 2;
+  const top = triggerRect.top - 12;
 
-  const tooltipLeft = left - tooltipWidth / 2;
-  if (tooltipLeft < padding) left += padding - tooltipLeft;
+  const roomLeft = triggerCenterX - padding;
+  const roomRight = viewportWidth - padding - triggerCenterX;
 
-  const tooltipRight = left + tooltipWidth / 2;
-  if (tooltipRight > viewportWidth - padding) left -= tooltipRight - (viewportWidth - padding);
+  if (roomLeft >= half && roomRight >= half) {
+    // Assez de place des deux côtés : centrage habituel (pas de bord ancré).
+    const arrowOffsetPx = Math.max(4, Math.min(tooltipWidth - 4, half));
+    return { top, left: triggerCenterX, align: "center", arrowOffsetPx };
+  }
 
-  const tooltipBodyLeft = left - tooltipWidth / 2;
-  const arrowOffsetPx = Math.max(4, Math.min(tooltipWidth - 4, triggerCenterX - tooltipBodyLeft));
+  if (roomLeft < half) {
+    // Pas assez de place à gauche : bord gauche de la bulle ancré au padding.
+    const left = padding;
+    const arrowOffsetPx = Math.max(4, Math.min(tooltipWidth - 4, triggerCenterX - left));
+    return { top, left, align: "left", arrowOffsetPx };
+  }
 
-  return { top: triggerRect.top - 12, left, arrowOffsetPx };
+  // Pas assez de place à droite : bord droit de la bulle ancré au padding.
+  const left = viewportWidth - padding - tooltipWidth;
+  const arrowOffsetPx = Math.max(4, Math.min(tooltipWidth - 4, triggerCenterX - left));
+  return { top, left, align: "right", arrowOffsetPx };
 }
 
 /** Fond carte = dégradé `white/6` composé sur fond solide (comme `bg-card` + overlay). */
@@ -61,7 +81,7 @@ const CARD_BG = `linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0)), $
 export const Tooltip: FC<TooltipProps> = ({ children, content, side = "top" }) => {
   const [mounted, setMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [position, setPosition] = useState<TooltipPosition>({ top: 0, left: 0 });
+  const [position, setPosition] = useState<TooltipPosition>({ top: 0, left: 0, align: "center" });
   const [arrowOffsetPx, setArrowOffsetPx] = useState<number | null>(null);
 
   const triggerRef = useRef<HTMLSpanElement | null>(null);
@@ -79,6 +99,7 @@ export const Tooltip: FC<TooltipProps> = ({ children, content, side = "top" }) =
       setPosition({
         top: triggerRect.top + triggerRect.height / 2,
         left: triggerRect.right + 10,
+        align: "center",
       });
       return;
     }
@@ -89,7 +110,7 @@ export const Tooltip: FC<TooltipProps> = ({ children, content, side = "top" }) =
       tooltipWidth: tooltipRect.width,
       viewportWidth: window.innerWidth,
     });
-    setPosition({ top: result.top, left: result.left });
+    setPosition({ top: result.top, left: result.left, align: result.align });
     setArrowOffsetPx(result.arrowOffsetPx);
   }, [isVisible, side]);
 
@@ -121,7 +142,7 @@ export const Tooltip: FC<TooltipProps> = ({ children, content, side = "top" }) =
               opacity: isVisible ? 1 : 0,
               transform: isRight
                 ? `translateY(-50%) translateX(${isVisible ? "0" : "-4px"})`
-                : `translateX(-50%) translateY(${isVisible ? "-100%" : "calc(-100% + 6px)"})`,
+                : `${position.align === "center" ? "translateX(-50%) " : ""}translateY(${isVisible ? "-100%" : "calc(-100% + 6px)"})`,
               transition: "opacity 150ms ease, transform 150ms ease",
             }}
           >

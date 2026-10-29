@@ -26,6 +26,7 @@ import { serializeWithComputedStyles } from "./core/computed-html";
 import { ACCENT, UI_Z } from "./core/inspector/constants/picker";
 import {
   initModuleOverlaySurface,
+  resolveModuleContextFor,
   setModuleOverlayContextMenuHandler,
 } from "./core/inspector/surfaces/module-overlays";
 import {
@@ -37,7 +38,18 @@ import type { PickResult } from "./core/types";
 import { DevPanel } from "./ui/dev-panel/dev-panel";
 import { SearchPopover } from "./ui/search/popover";
 import { ContextMenu, type ContextMenuState } from "./ui/context-menu";
-import { CrosshairIcon } from "./ui/icons";
+import {
+  CodeIcon,
+  CrosshairIcon,
+  ExternalLinkIcon,
+  EyeIcon,
+  FolderIcon,
+  GitBranchIcon,
+  HardDriveIcon,
+  PackageIcon,
+  TagIcon,
+  TypeIcon,
+} from "./ui/icons";
 import { SettingsBar } from "./ui/settings-bar";
 import { useRenderPicker } from "./ui/use-render-picker";
 
@@ -217,7 +229,14 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
     onPickMany: handlePickMany,
     onContextMenu: (el, pos) => {
       if (el instanceof HTMLElement) {
-        setContextMenu({ el, x: pos.x, y: pos.y });
+        const moduleCtx = resolveModuleContextFor(el);
+        setContextMenu({
+          el,
+          x: pos.x,
+          y: pos.y,
+          modulePath: moduleCtx?.modulePath,
+          modulesTree: moduleCtx?.modulesTree,
+        });
       }
     },
     onInspect: (el) => {
@@ -238,8 +257,99 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
 
   const contextMenuItems = useMemo(
     () => [
+      ...(contextMenu?.modulePath !== undefined
+        ? [
+            {
+              label: "Copier le contexte",
+              icon: <CrosshairIcon color="#d4d4d8" />,
+              onClick: () => {
+                if (!contextMenu) return;
+                const route = pathname ?? window.location.pathname ?? "/";
+                const enriched = enrichResult(pickResultFromElement(contextMenu.el, route));
+                copy(formatResult(enriched));
+                showToast("Copié ✓");
+                closeContextMenu();
+                disarm();
+              },
+            },
+          ]
+        : []),
+      ...(contextMenu?.modulePath !== undefined
+        ? [
+            {
+              label: "Modules",
+              icon: <PackageIcon />,
+              onClick: () => {
+                // Clic direct = raccourci : copie le nom (action la plus utilisée).
+                if (!contextMenu.modulePath) return;
+                copy(contextMenu.modulePath.name);
+                showToast("Nom copié ✓");
+                closeContextMenu();
+                disarm();
+              },
+              submenu: [
+                {
+                  label: "Copier le nom du module",
+                  icon: <TagIcon />,
+                  onClick: () => {
+                    if (!contextMenu.modulePath) return;
+                    copy(contextMenu.modulePath.name);
+                    showToast("Nom copié ✓");
+                    closeContextMenu();
+                    disarm();
+                  },
+                },
+                {
+                  label: "Copier le chemin relatif",
+                  icon: <FolderIcon />,
+                  onClick: () => {
+                    if (!contextMenu.modulePath?.relative) return;
+                    copy(contextMenu.modulePath.relative);
+                    showToast("Chemin relatif copié ✓");
+                    closeContextMenu();
+                    disarm();
+                  },
+                },
+                {
+                  label: "Copier le chemin absolu",
+                  icon: <HardDriveIcon />,
+                  onClick: () => {
+                    if (!contextMenu.modulePath?.absolute) return;
+                    copy(contextMenu.modulePath.absolute);
+                    showToast("Chemin absolu copié ✓");
+                    closeContextMenu();
+                    disarm();
+                  },
+                },
+                {
+                  label: "Copier l'URL de configuration",
+                  icon: <ExternalLinkIcon />,
+                  onClick: () => {
+                    if (!contextMenu.modulePath?.configUrl) return;
+                    copy(contextMenu.modulePath.configUrl);
+                    showToast("URL copiée ✓");
+                    closeContextMenu();
+                    disarm();
+                  },
+                },
+                {
+                  label: "Copier l'arbre des modules",
+                  icon: <GitBranchIcon />,
+                  onClick: () => {
+                    if (!contextMenu.modulesTree) return;
+                    copy(contextMenu.modulesTree);
+                    showToast("Arbre copié ✓");
+                    closeContextMenu();
+                    disarm();
+                  },
+                },
+              ],
+            },
+          ]
+        : []),
       {
         label: "Copier en HTML",
+        icon: <CodeIcon />,
         onClick: () => {
           if (!contextMenu) return;
           const sel = getSelection();
@@ -260,7 +370,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       },
       {
         label: "Copier le rendu",
-        info: "HTML autoportant : styles inline + classes/variables en commentaire. Se colle partout sans le CSS de la page.",
+        icon: <EyeIcon />,
+        info: "Permet de copier à l'identique l'UI d'un composant",
         onClick: () => {
           if (!contextMenu) return;
           copy(serializeWithComputedStyles(contextMenu.el));
@@ -271,6 +382,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       },
       {
         label: "Copier les classes",
+        icon: <TagIcon />,
         onClick: () => {
           if (!contextMenu) return;
           const sel = getSelection();
@@ -293,6 +405,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       },
       {
         label: "Copier le texte",
+        icon: <TypeIcon />,
         onClick: () => {
           if (!contextMenu) return;
           const txt = elementText(contextMenu.el);
@@ -304,6 +417,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
       },
       {
         label: "Copier le XPath",
+        icon: <GitBranchIcon />,
         onClick: () => {
           if (!contextMenu) return;
           copy(getXPath(contextMenu.el));
@@ -361,8 +475,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   // contextuel (copier HTML/rendu/classes/XPath) que le picker normal.
   useEffect(() => {
     if (!showModuleOverlay) return;
-    setModuleOverlayContextMenuHandler((el, pos) => {
-      if (el instanceof HTMLElement) setContextMenu({ el, x: pos.x, y: pos.y });
+    setModuleOverlayContextMenuHandler((el, pos, modulePath, modulesTree) => {
+      if (el instanceof HTMLElement) setContextMenu({ el, x: pos.x, y: pos.y, modulePath, modulesTree });
     });
     const stop = initModuleOverlaySurface();
     return () => {

@@ -76,8 +76,20 @@ class RenderPicker extends Module
         $root = $hostRoot !== false
             ? rtrim(str_replace('\\', '/', $hostRoot), '/')
             : rtrim(str_replace('\\', '/', _PS_ROOT_DIR_), '/');
+
+        // 3. Dossier admin (renommé pour la sécu, ex. "admin222") → segment d'URL pour le
+        //    lien "Copier l'URL de configuration" du menu overlay modules. _PS_ADMIN_DIR_
+        //    n'existe QUE dans le bootstrap admin (admin/index.php le définit localement) —
+        //    indisponible ici (hook FRONT) : passé en variable d'env Docker (PS_ADMIN_DIRNAME,
+        //    voir docker/.env + docker-compose.yml), même pattern que HOST_PUBLIC_HTML_PATH.
+        //    Pas de token : calculé en contexte FRONT (Context::employee est null hors
+        //    back-office) il ne peut de toute façon pas matcher la session admin réelle —
+        //    même interstitiel "token invalide, continuer" avec ou sans, pas la peine.
+        $adminDirName = (string) getenv('PS_ADMIN_DIRNAME');
+
         Media::addJsDef([
             'renderPickerRoot' => $root,
+            'renderPickerAdminDir' => $adminDirName,
         ]);
     }
 

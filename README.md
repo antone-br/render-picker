@@ -264,6 +264,12 @@ That's it — open any front-office page, arm the picker (double-tap **Shift**),
 **Ctrl+click** opens its `.tpl` at the right line in your editor. The module auto-injects the script,
 the project root and `RenderPicker.init()`; it is fully inert when `_PS_MODE_DEV_` is off.
 
+Settings menu also has a **"Rectangles modules PrestaShop"** toggle: permanent rectangles over each
+root module (name + render duration), right-click → **Modules** submenu to copy its name, relative/
+absolute folder path, back-office config URL, or the whole page's module tree as Markdown. Details
+(incl. the extra `PS_ADMIN_DIRNAME` env var for the config-URL link) in
+[`integrations/prestashop/renderpicker/README.md`](integrations/prestashop/renderpicker/README.md#rectangles-permanents-modules-prestashop).
+
 **Docker / remote server:** the server reports its own root (e.g. a container path
 `/var/www/html`), which doesn't exist on the host where your editor runs. Set the host path once, in
 the browser console, and reload:

@@ -1,10 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildModuleTree,
+  findModuleForElement,
   isModuleEnd,
+  moduleConfigUrl,
+  moduleDirPath,
+  moduleTreeMarkdown,
   parseModuleStart,
   scanModuleOverlays,
+  type ModuleOverlayEntry,
 } from "../../src/core/source/module-overlay";
+
+/** Fixture minimale — seuls `name` et `rect` comptent pour l'arbre/confinement. */
+function entry(
+  name: string,
+  rect: { left: number; top: number; width: number; height: number },
+): ModuleOverlayEntry {
+  return { name, durationMs: 0, source: "t/x.tpl:1", rect, elements: [] };
+}
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -28,6 +42,122 @@ describe("isModuleEnd", () => {
   it("reconnaît le commentaire de fermeture", () => {
     expect(isModuleEnd(" /rp-module ")).toBe(true);
     expect(isModuleEnd("rp-module:x:1:y:1")).toBe(false);
+  });
+});
+
+describe("moduleDirPath", () => {
+  it("module standard", () => {
+    expect(
+      moduleDirPath("modules/advancedemailguard/views/x.tpl:3", "advancedemailguard", "public_html"),
+    ).toBe("public_html\\modules\\advancedemailguard");
+  });
+
+  it("module overridé par le thème", () => {
+    expect(
+      moduleDirPath(
+        "themes/cour-et-jardin-theme/modules/blockreassurance/templates/x.tpl:5",
+        "blockreassurance",
+        "public_html",
+      ),
+    ).toBe("public_html\\themes\\cour-et-jardin-theme\\modules\\blockreassurance");
+  });
+
+  it("source sans modules/<nom> → null", () => {
+    expect(moduleDirPath("themes/t/x.tpl:1", "blockreassurance", "public_html")).toBeNull();
+  });
+});
+
+describe("moduleConfigUrl", () => {
+  it("adminDir fourni → URL complète", () => {
+    expect(moduleConfigUrl("http://localhost:8080", "admin222", "tvcmscustomsetting")).toBe(
+      "http://localhost:8080/admin222/index.php?controller=AdminModules&configure=tvcmscustomsetting",
+    );
+  });
+
+  it("adminDir absent → null", () => {
+    expect(moduleConfigUrl("http://localhost:8080", undefined, "blockcart")).toBeNull();
+  });
+});
+
+describe("buildModuleTree", () => {
+  it("rectangles disjoints → tous racines, ordre document", () => {
+    const entries = [
+      entry("a", { left: 0, top: 0, width: 10, height: 10 }),
+      entry("b", { left: 0, top: 20, width: 10, height: 10 }),
+    ];
+    expect(buildModuleTree(entries)).toEqual([
+      { name: "a", children: [] },
+      { name: "b", children: [] },
+    ]);
+  });
+
+  it("rectangle englobant → enfant nesté sous le parent le plus serré", () => {
+    const outer = entry("outer", { left: 0, top: 0, width: 100, height: 100 });
+    const inner = entry("inner", { left: 10, top: 10, width: 50, height: 50 });
+    const innermost = entry("innermost", { left: 15, top: 15, width: 10, height: 10 });
+    expect(buildModuleTree([outer, inner, innermost])).toEqual([
+      {
+        name: "outer",
+        children: [{ name: "inner", children: [{ name: "innermost", children: [] }] }],
+      },
+    ]);
+  });
+
+  it("rectangles identiques → pas de parent (évite boucle)", () => {
+    const a = entry("a", { left: 0, top: 0, width: 10, height: 10 });
+    const b = entry("b", { left: 0, top: 0, width: 10, height: 10 });
+    expect(buildModuleTree([a, b])).toEqual([
+      { name: "a", children: [] },
+      { name: "b", children: [] },
+    ]);
+  });
+});
+
+describe("moduleTreeMarkdown", () => {
+  it("rend l'arbre en liste à puces indentée", () => {
+    const outer = entry("outer", { left: 0, top: 0, width: 100, height: 100 });
+    const inner = entry("inner", { left: 10, top: 10, width: 50, height: 50 });
+    expect(moduleTreeMarkdown([outer, inner], "/")).toBe(
+      "# Modules — /\n\n- outer\n  - inner",
+    );
+  });
+
+  it("aucun module → ligne vide explicite", () => {
+    expect(moduleTreeMarkdown([], "/panier")).toBe("# Modules — /panier\n\n_(aucun module détecté)_");
+  });
+});
+
+describe("findModuleForElement", () => {
+  it("retrouve l'entrée dont l'élément est la racine propre", () => {
+    document.body.innerHTML =
+      '<!-- rp-module:blockcart:1:t/x.tpl:1 --><div id="root"></div><!-- /rp-module -->';
+    const root = document.getElementById("root")!;
+    root.getBoundingClientRect = () => ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
+    const entries = scanModuleOverlays(document.body);
+
+    expect(findModuleForElement(entries, root)).toBe(entries[0]);
+  });
+
+  it("retrouve l'entrée pour un descendant profond de la racine", () => {
+    document.body.innerHTML =
+      '<!-- rp-module:blockcart:1:t/x.tpl:1 --><div id="root"><span><em id="deep">x</em></span></div><!-- /rp-module -->';
+    document.getElementById("root")!.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
+    const deep = document.getElementById("deep")!;
+    const entries = scanModuleOverlays(document.body);
+
+    expect(findModuleForElement(entries, deep)).toBe(entries[0]);
+  });
+
+  it("élément hors de tout module → null", () => {
+    document.body.innerHTML =
+      '<!-- rp-module:blockcart:1:t/x.tpl:1 --><div id="root"></div><!-- /rp-module --><div id="outside"></div>';
+    document.getElementById("root")!.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 10, bottom: 10, width: 10, height: 10 }) as DOMRect;
+    const outside = document.getElementById("outside")!;
+    const entries = scanModuleOverlays(document.body);
+
+    expect(findModuleForElement(entries, outside)).toBeNull();
   });
 });
 

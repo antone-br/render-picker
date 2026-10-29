@@ -1,17 +1,82 @@
 import { IGNORE_ATTR } from "../constants/behavior";
 import { MODULE_OVERLAY_BG, MODULE_OVERLAY_BORDER, MODULE_OVERLAY_LABEL_BG } from "../constants/layout";
 import { OVERLAY_Z } from "../constants/picker";
-import { initModuleOverlayScan, type ModuleOverlayEntry } from "../../source/module-overlay";
+import { resolveAdminDir } from "../../dev/admin-config";
+import { resolveProjectRoot } from "../../dev/project-root";
+import {
+  findModuleForElement,
+  initModuleOverlayScan,
+  moduleConfigUrl,
+  moduleDirPath,
+  moduleTreeMarkdown,
+  scanModuleOverlays,
+  type ModuleOverlayEntry,
+} from "../../source/module-overlay";
 import { assign } from "./dom";
 
+export interface ModuleOverlayPaths {
+  /** Nom technique du module (ex. `blockreassurance`). */
+  name: string;
+  /** `public_html\...\modules\<nom>` — ancré au dossier racine du site (lisible, portable). */
+  relative: string | null;
+  /** Chemin disque hôte complet (ex. `C:\Users\...\public_html\...\modules\<nom>`). */
+  absolute: string | null;
+  /** URL back-office "configurer ce module" — `null` si le dossier admin n'est pas exposé
+   * (`window.renderPickerAdminDir`, voir `renderpicker.php`). */
+  configUrl: string | null;
+}
+
+type ModuleOverlayContextMenuHandler = (
+  el: Element,
+  pos: { x: number; y: number },
+  modulePath: ModuleOverlayPaths,
+  /** Markdown listant tous les modules de la page (arbre par confinement géométrique) —
+   * pour "Copier l'arbre des modules", indépendant du module cliqué. */
+  treeMarkdown: string,
+) => void;
+
 /** Clic droit dans un rectangle module — branché par la couche React (menu contextuel). */
-let contextMenuHandler: ((el: Element, pos: { x: number; y: number }) => void) | null = null;
+let contextMenuHandler: ModuleOverlayContextMenuHandler | null = null;
 
 /** Enregistre le callback ouvrant le menu contextuel (HTML/rendu/classes/XPath). */
 export function setModuleOverlayContextMenuHandler(
-  handler: ((el: Element, pos: { x: number; y: number }) => void) | null,
+  handler: ModuleOverlayContextMenuHandler | null,
 ): void {
   contextMenuHandler = handler;
+}
+
+/** Dossier du module pour "Copier le chemin du module" (relatif `public_html\...` + absolu
+ * chemin disque hôte complet) — `null` si la racine projet n'est pas résolue (Ctrl+clic
+ * désactivé dans ce cas aussi). */
+export function resolveModulePaths(entry: ModuleOverlayEntry): ModuleOverlayPaths {
+  const configUrl = moduleConfigUrl(window.location.origin, resolveAdminDir(window), entry.name);
+  const root = resolveProjectRoot(window, document).root;
+  if (!root) return { name: entry.name, relative: null, absolute: null, configUrl };
+  const normalized = root.replace(/\\/g, "/");
+  const rootDirName = normalized.split("/").filter(Boolean).pop();
+  return {
+    name: entry.name,
+    relative: rootDirName ? moduleDirPath(entry.source, entry.name, rootDirName) : null,
+    absolute: moduleDirPath(entry.source, entry.name, normalized.replace(/\//g, "\\")),
+    configUrl,
+  };
+}
+
+/** Résout les infos "Modules" (nom/chemins/URL config + arbre complet de la page) pour un
+ * élément quelconque — scan `rp-module` à la demande (`scanModuleOverlays`), indépendant
+ * du montage de la couche visuelle (`initModuleOverlaySurface` / `showModuleOverlay`) :
+ * permet au menu contextuel du picker **normal** (armé par double-Shift) d'afficher
+ * "Modules" même overlay désactivé. `null` si l'élément n'appartient à aucun module détecté. */
+export function resolveModuleContextFor(
+  el: Element,
+): { modulePath: ModuleOverlayPaths; modulesTree: string } | null {
+  const entries = scanModuleOverlays(document.body);
+  const entry = findModuleForElement(entries, el);
+  if (!entry) return null;
+  return {
+    modulePath: resolveModulePaths(entry),
+    modulesTree: moduleTreeMarkdown(entries, window.location.pathname),
+  };
 }
 
 /** Dessine un rectangle (+ label nom/durée) par entrée, `data-source` posé pour Ctrl+clic.
@@ -97,7 +162,14 @@ export function initModuleOverlaySurface(): () => void {
     if (!entry) return;
     e.preventDefault();
     const target = entry.elements[0];
-    if (target) contextMenuHandler?.(target, { x: e.clientX, y: e.clientY });
+    if (target) {
+      contextMenuHandler?.(
+        target,
+        { x: e.clientX, y: e.clientY },
+        resolveModulePaths(entry),
+        moduleTreeMarkdown(current, window.location.pathname),
+      );
+    }
   };
   window.addEventListener("contextmenu", onContextMenu, true);
 

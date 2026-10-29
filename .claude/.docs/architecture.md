@@ -300,6 +300,44 @@ changement touchant le prefilter.
   logique de clic dédiée — `initClickToSource` (déjà actif globalement, voir `standalone.tsx`)
   gère tout élément `[data-source]` via `closest()`, rectangle inclus.
 
+## Menu "Modules" (clic droit sur un rectangle overlay)
+
+Clic droit sur un rectangle ouvre le menu contextuel habituel (Copier HTML/rendu/
+classes/texte/XPath) **plus** une ligne "Modules" dont le survol ouvre un flyout avec,
+pour le module cliqué : nom, chemin relatif (`public_html\...`), chemin absolu (disque
+hôte complet), URL back-office de configuration (`AdminModules`), et une dernière action
+indépendante du module cliqué : **copier l'arbre de tous les modules de la page**.
+
+- Nom/chemins : `moduleDirPath` (`src/core/source/module-overlay.ts`), racine résolue via
+  `resolveProjectRoot` (`src/core/dev/project-root.ts`).
+- URL de config : `moduleConfigUrl` — dossier admin exposé par `renderpicker.php`
+  (`Media::addJsDef`, `window.renderPickerAdminDir`) car **`_PS_ADMIN_DIR_` n'existe pas
+  côté front** (défini uniquement par le bootstrap `admin/index.php`, jamais chargé sur
+  une requête front) ; passé en variable d'env Docker (`PS_ADMIN_DIRNAME`, voir
+  `docker/.env` du site, même pattern que `HOST_PUBLIC_HTML_PATH`). Pas de token : calculé
+  en contexte front (`Context::employee` est `null` hors back-office), il ne peut
+  structurellement pas matcher la session admin réelle — PrestaShop affiche le même
+  interstitiel "token invalide, continuer" avec ou sans, inutile de le porter jusque-là.
+- Arbre des modules : `buildModuleTree` + `moduleTreeMarkdown` (`module-overlay.ts`), pur.
+  Les marqueurs `rp-module` n'exposent **aucune hiérarchie** — juste une liste plate en
+  ordre document (ordre du scan `scanModuleOverlays`). L'arbre est reconstruit par
+  **confinement géométrique des rectangles** : un module est l'enfant du plus petit autre
+  module dont le rectangle le contient entièrement (confinement le plus serré = parent
+  direct, pas le plus englobant ; rectangles identiques → pas de parent, anti-boucle).
+  Rendu en liste Markdown à puces, 2 espaces d'indentation par niveau :
+
+  ```markdown
+  # Modules — /
+
+  - ps_mainmenu
+  - tvfooter
+    - ps_contactinfo
+    - blockreassurance
+  ```
+
+  Pensé pour être collé tel quel dans un `.md` — documenter visuellement la structure
+  modules d'une page sans avoir à screenshot/lister à la main.
+
 ## Limites connues
 
 - Précision **ligne d'ouverture du tag** uniquement, pas colonne.

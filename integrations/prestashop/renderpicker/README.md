@@ -58,6 +58,38 @@ le `.tpl` correspondant dans l'éditeur, comme pour un pick normal.
 Nécessite l'override `override/classes/Module.php` (fourni, voir `.claude/.docs/architecture.md`
 à la racine du repo) — sans lui, le toggle ne fait rien (aucun marqueur de durée dans le HTML).
 
+Clic droit sur un rectangle → menu contextuel habituel (HTML/rendu/classes/texte/XPath)
+**plus** une ligne **« Modules »** dont le survol ouvre un sous-menu :
+
+| Action | Copie |
+|---|---|
+| Copier le nom du module | nom technique (ex. `blockreassurance`) |
+| Copier le chemin relatif | `public_html\...\modules\<nom>` (ou `themes\<thème>\modules\<nom>` si overridé) |
+| Copier le chemin absolu | chemin disque hôte complet |
+| Copier l'URL de configuration | lien back-office `AdminModules?configure=<nom>` (voir ci-dessous) |
+| Copier l'arbre des modules | tous les modules de la page, en Markdown (voir `.claude/.docs/structurer-arbre-modules.md`) |
+
+**URL de configuration — dossier admin requis.** `_PS_ADMIN_DIR_` n'existe pas côté front
+(seul `admin/index.php` le définit) : le dossier admin (renommé pour la sécu, ex.
+`admin222`) doit être passé en variable d'env Docker, même pattern que
+`HOST_PUBLIC_HTML_PATH` :
+
+```env
+# docker/.env du site
+PS_ADMIN_DIRNAME=admin222
+```
+
+```yaml
+# docker/docker-compose.yml du site, service web
+environment:
+  PS_ADMIN_DIRNAME: ${PS_ADMIN_DIRNAME}
+```
+
+Sans cette variable, l'action "Copier l'URL de configuration" n'apparaît pas. Pas de token
+dans l'URL : calculé côté front il ne matcherait de toute façon pas la session admin réelle
+(`Context::employee` est `null` hors back-office) — PrestaShop affiche un interstitiel
+"token invalide, cliquer ici pour continuer" au premier clic, normal.
+
 **Important** : PrestaShop ne scanne `override/classes/` qu'à la **racine du site**, jamais
 dans `modules/<m>/override/`. Ce dossier n'est copié à la racine que pendant l'**installation**
 du module (`Module::installOverrides()`). Si `renderpicker` était déjà installé avant

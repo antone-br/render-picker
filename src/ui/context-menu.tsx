@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FC, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FC, type ReactNode } from "react";
 
 import { CONTEXT_MENU_OPEN } from "../core/inspector/constants/behavior";
 import { UI_Z } from "../core/inspector/constants/picker";
@@ -8,8 +8,14 @@ import {
   HOVER_BG,
   MUTED,
 } from "../core/inspector/constants/theme";
-import { InfoIcon } from "./icons";
+import { ChevronIcon, InfoIcon } from "./icons";
 import { Tooltip } from "./tooltip";
+
+export interface ContextMenuSubItem {
+  label: string;
+  icon?: ReactNode;
+  onClick: () => void;
+}
 
 export interface ContextMenuItem {
   /** Label FR affiché. */
@@ -19,6 +25,8 @@ export interface ContextMenuItem {
   icon?: ReactNode;
   /** Contenu du tooltip affiché par l'icône info (ⓘ) en fin de ligne. */
   info?: ReactNode;
+  /** Sous-menu affiché au survol (flyout à droite) — ex. choix relatif/absolu. */
+  submenu?: ContextMenuSubItem[];
   danger?: boolean;
   /** Ligne inerte (grisée) : pas de clic ni de survol. */
   disabled?: boolean;
@@ -29,6 +37,17 @@ export interface ContextMenuState {
   el: HTMLElement;
   x: number;
   y: number;
+  /** Nom + chemins + URL de config du module (overlay permanent PrestaShop uniquement) —
+   * absent pour un clic droit normal du picker, auquel cas la ligne "Modules" n'apparaît pas. */
+  modulePath?: {
+    name: string;
+    relative: string | null;
+    absolute: string | null;
+    configUrl: string | null;
+  } | null;
+  /** Markdown listant tous les modules de la page (arbre par confinement géométrique) —
+   * même garde que `modulePath` (overlay modules uniquement). */
+  modulesTree?: string;
 }
 
 export interface ContextMenuProps {
@@ -39,6 +58,11 @@ export interface ContextMenuProps {
 }
 
 const PANEL_W = 200;
+const SUBMENU_W = 210;
+const SUBMENU_GAP = 4;
+/** Délai avant fermeture du flyout après sortie de la ligne/flyout — laisse le temps de
+ * traverser l'espace entre les deux sans le fermer (pas de chevauchement visuel). */
+const SUBMENU_CLOSE_DELAY_MS = 200;
 
 /** Déplacement de l'élément ancre depuis l'ouverture du menu `at`. */
 interface AnchorShift {
@@ -61,6 +85,36 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
   const [shift, setShift] = useState<AnchorShift | null>(null);
   /** Animation d'entrée jouée une seule fois (re-ancrage = déplacement sans blink). */
   const wasOpen = useRef(false);
+  /** Ligne dont le sous-menu (flyout) est actuellement affiché au survol. */
+  const [submenuIndex, setSubmenuIndex] = useState<number | null>(null);
+  const submenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Hauteur réelle du panneau — mesurée après rendu (nombre de lignes variable selon
+   * `items`), pour décider d'ouvrir vers le bas ou vers le haut. Estimation par défaut
+   * avant 1re mesure (pas de flash : `useLayoutEffect` corrige avant le paint). */
+  const [panelHeight, setPanelHeight] = useState(240);
+
+  useLayoutEffect(() => {
+    if (!at || !ref.current) return;
+    setPanelHeight(ref.current.getBoundingClientRect().height);
+  }, [at, items]);
+
+  const openSubmenu = (i: number) => {
+    if (submenuCloseTimer.current) clearTimeout(submenuCloseTimer.current);
+    setSubmenuIndex(i);
+  };
+  const scheduleCloseSubmenu = (i: number) => {
+    if (submenuCloseTimer.current) clearTimeout(submenuCloseTimer.current);
+    submenuCloseTimer.current = setTimeout(() => {
+      setSubmenuIndex((cur) => (cur === i ? null : cur));
+    }, SUBMENU_CLOSE_DELAY_MS);
+  };
+
+  useEffect(() => {
+    setSubmenuIndex(null);
+    return () => {
+      if (submenuCloseTimer.current) clearTimeout(submenuCloseTimer.current);
+    };
+  }, [at]);
 
   // Suivi de l'élément ancre : delta de son rect depuis l'ouverture, une fois
   // par frame (scroll capture → fenêtre ET sous-conteneurs).
@@ -160,7 +214,19 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
   // suit l'élément, même s'il sort de l'écran avec lui.
   const { dx, dy } = shift?.at === at ? shift : { dx: 0, dy: 0 };
   const left = Math.max(8, Math.min(at.x, vw - PANEL_W - 8)) + dx;
-  const top = Math.max(8, Math.min(at.y, vh - 120)) + dy;
+  // Ouvre vers le bas par défaut ; si ça ne tient pas (clic trop bas), bascule vers le
+  // haut plutôt que de rester plaqué/rogné en bas du viewport.
+  let topBase: number;
+  if (at.y + panelHeight <= vh - 8) {
+    topBase = at.y;
+  } else if (at.y - panelHeight >= 8) {
+    topBase = at.y - panelHeight;
+  } else {
+    topBase = Math.max(8, vh - panelHeight - 8);
+  }
+  const top = topBase + dy;
+  // Flyout à droite par défaut ; bascule à gauche s'il déborderait du viewport.
+  const submenuOnLeft = left + PANEL_W + SUBMENU_GAP + SUBMENU_W > vw - 8;
 
   return (
     <div
@@ -184,57 +250,132 @@ export const ContextMenu: FC<ContextMenuProps> = ({ at, onClose, items }) => {
       }}
     >
       {items.map((item, i) => (
-        <button
+        <div
           key={i}
-          type="button"
-          disabled={item.disabled}
-          onClick={() => {
-            if (!item.disabled) item.onClick();
+          style={{ position: "relative" }}
+          onMouseEnter={() => {
+            if (item.submenu && !item.disabled) openSubmenu(i);
           }}
-          onMouseEnter={(e) => {
-            if (!item.disabled) e.currentTarget.style.background = HOVER_BG;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-          }}
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            width: "100%",
-            padding: "5px 8px",
-            borderRadius: 6,
-            cursor: item.disabled ? "default" : "pointer",
-            color: item.danger ? "#f87171" : "#fff",
-            background: "transparent",
-            border: "none",
-            textAlign: "left",
-            fontFamily: "system-ui, sans-serif",
-            opacity: item.disabled ? 0.4 : 1,
+          onMouseLeave={() => {
+            if (item.submenu) scheduleCloseSubmenu(i);
           }}
         >
-          {item.icon && <span style={{ flexShrink: 0, display: "block" }}>{item.icon}</span>}
-          <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <span style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap" }}>
-              {item.label}
+          <button
+            type="button"
+            disabled={item.disabled}
+            onClick={() => {
+              if (!item.disabled) item.onClick();
+            }}
+            onMouseEnter={(e) => {
+              if (!item.disabled) e.currentTarget.style.background = HOVER_BG;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              width: "100%",
+              padding: "5px 8px",
+              borderRadius: 6,
+              cursor: item.disabled ? "default" : "pointer",
+              color: item.danger ? "#f87171" : "#fff",
+              background: "transparent",
+              border: "none",
+              textAlign: "left",
+              fontFamily: "system-ui, sans-serif",
+              opacity: item.disabled ? 0.4 : 1,
+            }}
+          >
+            {item.icon && <span style={{ flexShrink: 0, display: "block" }}>{item.icon}</span>}
+            <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap" }}>
+                {item.label}
+              </span>
+              {item.description && (
+                <span style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>{item.description}</span>
+              )}
             </span>
-            {item.description && (
-              <span style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>{item.description}</span>
+            {item.info && (
+              <span
+                style={{ marginLeft: "auto", alignSelf: "center", display: "flex" }}
+                // L'ⓘ n'est qu'informatif : ne pas déclencher le onClick de la ligne.
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Tooltip content={item.info}>
+                  <InfoIcon />
+                </Tooltip>
+              </span>
             )}
-          </span>
-          {item.info && (
-            <span
-              style={{ marginLeft: "auto", alignSelf: "center", display: "flex" }}
-              // L'ⓘ n'est qu'informatif : ne pas déclencher le onClick de la ligne.
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
+            {item.submenu && (
+              <span style={{ marginLeft: "auto", alignSelf: "center", display: "flex" }}>
+                <ChevronIcon dir={submenuOnLeft ? "left" : "right"} color={MUTED} />
+              </span>
+            )}
+          </button>
+
+          {item.submenu && submenuIndex === i && (
+            <div
+              data-pathpicker-ignore=""
+              data-rp-contextmenu=""
+              onMouseEnter={() => openSubmenu(i)}
+              onMouseLeave={() => scheduleCloseSubmenu(i)}
+              style={{
+                position: "absolute",
+                // Compense le padding (4px) de ce panneau : aligne le 1er item du flyout
+                // avec la ligne déclenchante plutôt que 4px plus bas.
+                top: -4,
+                ...(submenuOnLeft
+                  ? { right: `calc(100% + ${SUBMENU_GAP}px)` }
+                  : { left: `calc(100% + ${SUBMENU_GAP}px)` }),
+                width: SUBMENU_W,
+                background: ELEVATED_BG,
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 8,
+                boxShadow: CARD_SHADOW,
+                padding: 4,
+                display: "flex",
+                flexDirection: "column",
+              }}
             >
-              <Tooltip content={item.info}>
-                <InfoIcon />
-              </Tooltip>
-            </span>
+              {item.submenu.map((sub, j) => (
+                <button
+                  key={j}
+                  type="button"
+                  onClick={() => sub.onClick()}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = HOVER_BG;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "5px 8px",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    color: "#fff",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    fontFamily: "system-ui, sans-serif",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {sub.icon && <span style={{ flexShrink: 0, display: "block" }}>{sub.icon}</span>}
+                  {sub.label}
+                </button>
+              ))}
+            </div>
           )}
-        </button>
+        </div>
       ))}
     </div>
   );
