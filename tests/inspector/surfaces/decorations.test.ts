@@ -25,21 +25,25 @@ describe("renderDecorations", () => {
       paddingLeft: "10px",
     } as CSSStyleDeclaration);
 
-    renderDecorations(layer, el, el.getBoundingClientRect(), {
-      padding: true,
-      gap: false,
-      margin: false,
-    });
+    renderDecorations(
+      layer,
+      el,
+      el.getBoundingClientRect(),
+      { padding: true, gap: false, margin: false },
+      getComputedStyle(el),
+    );
     expect(layer.children.length).toBe(1);
     const ring = layer.firstElementChild as HTMLElement;
     expect(ring.style.borderTopWidth).toBe("10px");
     expect(ring.style.borderRadius).toBe("3px");
 
-    renderDecorations(layer, el, el.getBoundingClientRect(), {
-      padding: false,
-      gap: false,
-      margin: false,
-    });
+    renderDecorations(
+      layer,
+      el,
+      el.getBoundingClientRect(),
+      { padding: false, gap: false, margin: false },
+      getComputedStyle(el),
+    );
     expect(layer.children.length).toBe(0);
   });
 
@@ -63,11 +67,13 @@ describe("renderDecorations", () => {
       columnGap: "12px",
     } as CSSStyleDeclaration);
 
-    renderDecorations(layer, el, el.getBoundingClientRect(), {
-      padding: false,
-      gap: true,
-      margin: false,
-    });
+    renderDecorations(
+      layer,
+      el,
+      el.getBoundingClientRect(),
+      { padding: false, gap: true, margin: false },
+      getComputedStyle(el),
+    );
 
     const children = Array.from(layer.children) as HTMLElement[];
     const strips = children.filter((c) => c.tagName.toLowerCase() !== "svg");
@@ -103,11 +109,13 @@ describe("renderDecorations", () => {
       columnGap: "0px",
     } as CSSStyleDeclaration);
 
-    renderDecorations(layer, el, el.getBoundingClientRect(), {
-      padding: false,
-      gap: true,
-      margin: false,
-    });
+    renderDecorations(
+      layer,
+      el,
+      el.getBoundingClientRect(),
+      { padding: false, gap: true, margin: false },
+      getComputedStyle(el),
+    );
     expect(layer.children.length).toBe(0);
   });
 });

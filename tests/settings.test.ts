@@ -5,6 +5,7 @@ import {
   fetchSettings,
   initSettingsRefresh,
   loadSettings,
+  modifierMatches,
   refreshSettings,
   resetSettingsRouteCache,
   saveSettings,
@@ -17,6 +18,14 @@ afterEach(() => {
   window.localStorage.clear();
   resetSettingsRouteCache();
 });
+
+describe("modifierMatches", () => {
+  it('"off" ne matche jamais, quel que soit l\'état des modificateurs', () => {
+    expect(modifierMatches("off", { ctrlKey: true, altKey: false, metaKey: false, shiftKey: false })).toBe(false);
+    expect(modifierMatches("off", { ctrlKey: false, altKey: false, metaKey: false, shiftKey: false })).toBe(false);
+  });
+});
+
 
 describe("settingsDelta", () => {
   it("vide quand tout vaut les défauts", () => {

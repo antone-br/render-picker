@@ -68,13 +68,13 @@ export function tooltipClasses(el: Element, selection: Element[]): string {
 
 /** Métriques layout en px : classes/tag + `#id` (sous le divider), puis `padding: …` /
  * `gap: …` / `margin: …` (que si non nuls). */
-export function tooltipMetrics(el: Element): string {
+/** Variante pure (pas d'appel `getComputedStyle` propre) — réutilisée par `updateTooltip`
+ * qui a déjà calculé `cs` pour `el` (évite un 2e recalcul de style sur la même cible). */
+export function tooltipMetricsFromStyle(el: Element, cs: CSSStyleDeclaration): string {
   const lines: string[] = [];
   const cls = tooltipClassSummary(el);
   if (cls) lines.push(cls + (el.id ? ` · #${el.id}` : ""));
   else if (el.id) lines.push(`#${el.id}`);
-
-  const cs = getComputedStyle(el);
 
   const padding = boxValue(
     px(cs.paddingTop),
@@ -101,6 +101,12 @@ export function tooltipMetrics(el: Element): string {
   return lines.join("\n");
 }
 
+/** `tooltipMetricsFromStyle` + son propre `getComputedStyle` — pour un appel autonome
+ * (tests, appelants qui n'ont pas déjà `cs` sous la main). */
+export function tooltipMetrics(el: Element): string {
+  return tooltipMetricsFromStyle(el, getComputedStyle(el));
+}
+
 export function updateTooltip(
   tooltip: HTMLElement,
   label: HTMLElement,
@@ -110,10 +116,11 @@ export function updateTooltip(
   el: Element,
   selection: Element[],
   rect: DOMRect,
+  cs: CSSStyleDeclaration,
   titleOf: (el: Element, selection: Element[]) => string = tooltipTitle,
 ): void {
   const title = titleOf(el, selection);
-  const metricsText = tooltipMetrics(el);
+  const metricsText = tooltipMetricsFromStyle(el, cs);
   label.textContent = title;
   label.style.display = title ? "block" : "none";
   metrics.textContent = metricsText;

@@ -56,6 +56,21 @@ export function ancestorsUpTo(el: Element, root: Element): Element[] {
 }
 
 /**
+ * Vrai si tous les ancêtres de `el` (jusqu'à la racine) sont dépliés — donc si la ligne de
+ * `el` est réellement affichée dans l'arbre. Utilisé pour ignorer les mutations DOM d'un
+ * sous-arbre replié/invisible (ex. un carrousel qui anime en continu hors écran) : pas la
+ * peine de re-render tout l'arbre pour un changement que personne ne voit. Pur.
+ */
+export function isVisibleInTree(el: Element, expanded: Set<Element>): boolean {
+  let cur = el.parentElement;
+  while (cur) {
+    if (!expanded.has(cur)) return false;
+    cur = cur.parentElement;
+  }
+  return true;
+}
+
+/**
  * Texte inline d'une feuille : si l'élément n'a aucun enfant **élément** et porte
  * du texte, renvoie ce texte (trimé, borné). Sinon `null`. Pur.
  */

@@ -37,9 +37,11 @@ type ModuleOverlayContextMenuHandler = (
   el: Element,
   pos: { x: number; y: number },
   modulePath: ModuleOverlayPaths,
-  /** Markdown listant tous les modules de la page (arbre par confinement géométrique) —
-   * pour "Copier l'arbre des modules", indépendant du module cliqué. */
-  treeMarkdown: string,
+  /** Calcule à la demande le Markdown listant tous les modules de la page (arbre par
+   * confinement géométrique) — pour "Copier l'arbre des modules", indépendant du module
+   * cliqué. Paresseux : `buildModuleTree` est O(n²) sur le nombre de modules, pas la peine
+   * de le payer à chaque clic droit si l'action n'est jamais utilisée. */
+  getModulesTree: () => string,
 ) => void;
 
 /** Clic droit dans un rectangle module — branché par la couche React (menu contextuel). */
@@ -83,20 +85,25 @@ export function resolveModulePaths(entry: ModuleOverlayEntry): ModuleOverlayPath
   };
 }
 
+/** Entrées du dernier scan de la couche overlay montée (`initModuleOverlaySurface`), ou
+ * `null` si aucune couche n'est montée — partagées avec `resolveModuleContextFor` pour lui
+ * éviter un rescan complet du document quand l'overlay tourne déjà. */
+let mountedEntries: ModuleOverlayEntry[] | null = null;
+
 /** Résout les infos "Modules" (nom/chemins/URL config + arbre complet de la page) pour un
- * élément quelconque — scan `rp-module` à la demande (`scanModuleOverlays`), indépendant
- * du montage de la couche visuelle (`initModuleOverlaySurface` / `showModuleOverlay`) :
- * permet au menu contextuel du picker **normal** (armé par double-Shift) d'afficher
- * "Modules" même overlay désactivé. `null` si l'élément n'appartient à aucun module détecté. */
+ * élément quelconque — réutilise le scan de la couche overlay si montée (`mountedEntries`),
+ * sinon scanne à la demande (`scanModuleOverlays`) : permet au menu contextuel du picker
+ * **normal** (armé par double-Shift) d'afficher "Modules" même overlay désactivé. `null` si
+ * l'élément n'appartient à aucun module détecté. */
 export function resolveModuleContextFor(
   el: Element,
-): { modulePath: ModuleOverlayPaths; modulesTree: string } | null {
-  const entries = scanModuleOverlays(document.body);
+): { modulePath: ModuleOverlayPaths; getModulesTree: () => string } | null {
+  const entries = mountedEntries ?? scanModuleOverlays(document.body);
   const entry = findModuleForElement(entries, el);
   if (!entry) return null;
   return {
     modulePath: resolveModulePaths(entry),
-    modulesTree: moduleTreeMarkdown(entries, window.location.pathname),
+    getModulesTree: () => moduleTreeMarkdown(entries, window.location.pathname),
   };
 }
 
@@ -185,11 +192,14 @@ export function initModuleOverlaySurface(): () => void {
     e.preventDefault();
     const target = entry.elements[0];
     if (target) {
+      // Capturé ici (pas l'arrow ci-dessous qui ferme sur `current`) : un rescan entre le
+      // clic droit et le clic sur "Copier l'arbre" ne doit pas changer les entrées utilisées.
+      const entriesAtClick = current;
       contextMenuHandler?.(
         target,
         { x: e.clientX, y: e.clientY },
         resolveModulePaths(entry),
-        moduleTreeMarkdown(current, window.location.pathname),
+        () => moduleTreeMarkdown(entriesAtClick, window.location.pathname),
       );
     }
   };
@@ -201,6 +211,7 @@ export function initModuleOverlaySurface(): () => void {
       console.warn(`[render-picker] module ${entry.name} — ${entry.durationMs} ms — ${entry.source}`);
     }
     current = entries;
+    mountedEntries = entries;
     render(layer, entries);
   });
 
@@ -209,5 +220,6 @@ export function initModuleOverlaySurface(): () => void {
     window.removeEventListener("contextmenu", onContextMenu, true);
     stopScan();
     layer.remove();
+    mountedEntries = null;
   };
 }

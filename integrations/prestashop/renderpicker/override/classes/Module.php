@@ -23,6 +23,11 @@
  * Nom du hook dans le marqueur : lu via `Hook::rpCurrentHookName()` (override
  * `Hook.php`, pile empilée par son `exec()` surchargé) — `fetch()`/`display()` seuls ne
  * le reçoivent jamais, contrairement à `exec()` qui le connaît en entrée.
+ *
+ * `error_log()` de debug (2 par module racine rendu) gatés derrière `_RENDER_PICKER_DEBUG_LOG_`
+ * (off par défaut, même pattern que `_RENDER_PICKER_ENABLED_`) : sur un site à ~137 modules
+ * ça fait des centaines d'écritures log synchrones par page si laissé actif — coût perf
+ * mesuré (voir discussion), utile seulement au debug ponctuel de render-picker lui-même.
  */
 
 if (!defined('_PS_VERSION_')) {
@@ -75,12 +80,16 @@ class Module extends ModuleCore
     /** Logique commune fetch()/display() : log, résolution source, wrap racine. */
     private function rpFinish($template, $isRoot, $start, $html)
     {
-        error_log(sprintf(
-            '[render-picker] rendu module=%s root=%s template=%s',
-            $this->name,
-            $isRoot ? 'yes' : 'no',
-            is_string($template) ? $template : gettype($template)
-        ));
+        $debugLog = defined('_RENDER_PICKER_DEBUG_LOG_') && _RENDER_PICKER_DEBUG_LOG_;
+
+        if ($debugLog) {
+            error_log(sprintf(
+                '[render-picker] rendu module=%s root=%s template=%s',
+                $this->name,
+                $isRoot ? 'yes' : 'no',
+                is_string($template) ? $template : gettype($template)
+            ));
+        }
 
         if (!$isRoot || !is_string($html)) {
             return $html;
@@ -93,12 +102,14 @@ class Module extends ModuleCore
         // beaucoup de petits widgets n'ont aucun tag en tête de ligne).
         $source = self::rpFirstMarker($html) ?? self::rpFallbackSource($template, $this->name);
 
-        error_log(sprintf(
-            '[render-picker] module=%s duration=%sms source=%s',
-            $this->name,
-            $durationMs,
-            $source ?? '(aucune source résolue)'
-        ));
+        if ($debugLog) {
+            error_log(sprintf(
+                '[render-picker] module=%s duration=%sms source=%s',
+                $this->name,
+                $durationMs,
+                $source ?? '(aucune source résolue)'
+            ));
+        }
 
         if ($source === null) {
             return $html;

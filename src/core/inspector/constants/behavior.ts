@@ -33,6 +33,10 @@ export const PRESS_EVENTS = [
 /** Menu contextuel ouvert : le clic qui le ferme ne doit pas pick (fermeture seule). */
 export const CONTEXT_MENU_OPEN = { value: false };
 
+/** Picker armé (entre `activate()` et `deactivate()`) — lu par `click-to-source.ts` pour
+ * n'ouvrir l'éditeur via `commands.usage` (Ctrl+clic par défaut) que picker armé. */
+export const PICKER_ARMED = { value: false };
+
 const hasPointer = typeof window !== "undefined" && "PointerEvent" in window;
 
 /** Type d'event « down » de référence (pointer si dispo, sinon souris). */

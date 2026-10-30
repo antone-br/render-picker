@@ -15,6 +15,7 @@ export const MODIFIER_OPTIONS: SelectOption<ClickModifier>[] = [
   { value: "alt", label: "Alt" },
   { value: "meta", label: "Cmd" },
   { value: "shift", label: "Maj" },
+  { value: "off", label: "Désactivé" },
 ];
 
 export const TRIGGER_OPTIONS: SelectOption<ClickTrigger>[] = [

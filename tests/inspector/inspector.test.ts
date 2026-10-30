@@ -92,6 +92,51 @@ describe("createInspector — interactions", () => {
     expect(result.id).toBe("b");
   });
 
+  it("hover redescend dans un enfant imbriqué d'un gros conteneur (régression mega-menu)", () => {
+    document.body.innerHTML = `<main><div id="panel"><a id="link">Piscine</a></div></main>`;
+    const panel = document.getElementById("panel")!;
+    const link = document.getElementById("link")!;
+    // Gros conteneur (type panneau mega-menu) : son bounding rect engloberait le lien —
+    // le fast-path ne doit PAS se fier à ça, seulement à `elementFromPoint`.
+    panel.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 1600, bottom: 400, width: 1600, height: 400 }) as DOMRect;
+    link.getBoundingClientRect = () =>
+      ({ left: 10, top: 10, right: 60, bottom: 20, width: 50, height: 10 }) as DOMRect;
+
+    const onHover = vi.fn<(el: Element) => void>();
+    const insp = createInspector({ onPick: () => {}, onCancel: () => {}, getRoute: () => "/", onHover });
+    insp.activate();
+
+    // 1er survol : elementFromPoint renvoie le panneau → devient lastTarget.
+    stubElementFromPoint(panel);
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 800, clientY: 200 }));
+    vi.advanceTimersByTime(16);
+    expect(onHover).toHaveBeenLastCalledWith(panel);
+
+    // 2e survol : la souris est maintenant sur le lien (toujours dans le bounding rect du
+    // panneau) — elementFromPoint renvoie le lien, le fast-path doit basculer dessus.
+    stubElementFromPoint(link);
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 30, clientY: 15 }));
+    vi.advanceTimersByTime(16);
+    expect(onHover).toHaveBeenLastCalledWith(link);
+
+    insp.deactivate(); // pas de pick dans ce test → pas de déactivation automatique
+  });
+
+  it("Ctrl+clic (picker armé) → pick quand même (Ctrl réservé aux raccourcis picker désarmé)", () => {
+    document.body.innerHTML = `<main><button id="b">x</button></main>`;
+    const btn = document.getElementById("b")!;
+    stubElementFromPoint(btn);
+
+    const onPick = vi.fn<(r: PickResult) => void>();
+    const insp = createInspector({ onPick, onCancel: () => {}, getRoute: () => "/test" });
+    insp.activate();
+
+    pressDown({ clientX: 5, clientY: 5, button: 0, ctrlKey: true });
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+  });
+
   it("mode recherche : clic → pas de pick (exclusif) ; sortie du mode → pick OK", () => {
     document.body.innerHTML = `<main><button id="b">x</button></main>`;
     const btn = document.getElementById("b")!;
@@ -283,8 +328,10 @@ describe("createInspector — interactions", () => {
     });
     insp.activate();
 
-    // Survol → décorations padding dessinées.
+    // Survol → décorations padding dessinées (mousemove coalescé par rAF : avancer les
+    // fake timers d'une frame pour que le traitement différé s'exécute).
     window.dispatchEvent(new MouseEvent("mousemove", { clientX: 5, clientY: 5 }));
+    vi.advanceTimersByTime(16);
     const decor = document.body.querySelector("[data-pathpicker-ignore]")!
       .firstElementChild!; // decorLayer (1er enfant du container)
     expect(decor.children.length).toBe(1); // 1 div padding (bordure = padding)
@@ -345,6 +392,7 @@ describe("createInspector — commande clavier inspect", () => {
     insp.activate();
 
     window.dispatchEvent(new MouseEvent("mousemove", { clientX: 5, clientY: 5, bubbles: true }));
+    vi.advanceTimersByTime(16);
     dispatchKey({ key: "i", ctrlKey: true }, 0);
 
     expect(onInspect).toHaveBeenCalledTimes(1);

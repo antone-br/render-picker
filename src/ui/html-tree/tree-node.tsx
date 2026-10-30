@@ -2,12 +2,13 @@ import type { FC, MouseEvent as ReactMouseEvent, RefObject } from "react";
 
 import { SELECTED_BG } from "../../core/inspector/constants/picker";
 import { MUTED } from "../../core/inspector/constants/theme";
-import { inlineText, nodeLabel, visibleChildren } from "../../core/devpanel/dom-tree";
+import { inlineText, nodeLabel, visibleChildren, type NodeLabel } from "../../core/devpanel/dom-tree";
 import { ATTR_NAME, ATTR_VAL, HOVER_BG, INDENT, TAG, TEXT } from "./tree-colors";
 
-/** Label coloré `<tag id="…" class="…">` d'un élément. */
-const NodeTag: FC<{ el: Element }> = ({ el }) => {
-  const { tag, id, classes } = nodeLabel(el);
+/** Label coloré `<tag id="…" class="…">` d'un élément — `label` calculé une fois par
+ * `TreeNode` (ligne ouvrante + fermante en ont besoin, pas la peine de reparser `class`
+ * deux fois pour le même `el`). */
+const NodeTag: FC<{ label: NodeLabel }> = ({ label: { tag, id, classes } }) => {
   return (
     <span style={{ whiteSpace: "nowrap" }}>
       <span style={{ color: MUTED }}>&lt;</span>
@@ -64,6 +65,7 @@ export const TreeNode: FC<TreeNodeProps> = ({
   const hasChildren = children.length > 0;
   const isOpen = expanded.has(el);
   const text = hasChildren ? null : inlineText(el);
+  const label = nodeLabel(el); // calculé une fois, réutilisé par la ligne fermante
 
   return (
     <>
@@ -110,7 +112,7 @@ export const TreeNode: FC<TreeNodeProps> = ({
         ) : (
           <span style={{ width: 12, flex: "0 0 12px" }} />
         )}
-        <NodeTag el={el} />
+        <NodeTag label={label} />
         {text && <span style={{ color: TEXT, marginLeft: 4 }}>{text}</span>}
         {hasChildren && !isOpen && <span style={{ color: MUTED }}>…</span>}
       </div>
@@ -165,7 +167,7 @@ export const TreeNode: FC<TreeNodeProps> = ({
           <span style={{ width: 12, flex: "0 0 12px" }} />
           <span style={{ whiteSpace: "nowrap" }}>
             <span style={{ color: MUTED }}>&lt;/</span>
-            <span style={{ color: TAG }}>{nodeLabel(el).tag}</span>
+            <span style={{ color: TAG }}>{label.tag}</span>
             <span style={{ color: MUTED }}>&gt;</span>
           </span>
         </div>

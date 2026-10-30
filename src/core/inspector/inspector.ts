@@ -7,7 +7,7 @@ import {
 import { isTreeSelectMode, requestContextMenu, requestSelect } from "../devpanel/inspected";
 import { elementText } from "../format";
 import type { InspectorCallbacks, PickResult } from "../types";
-import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
+import { DOWN_TYPE, CONTEXT_MENU_OPEN, IGNORE_ATTR, PICKER_ARMED, PRESS_EVENTS, SWALLOW_MS } from "./constants/behavior";
 import { createKeyCommandMatcher } from "./key-command";
 import { PICKING_CSS } from "./constants/picker";
 import { getCssSelector } from "./css-selector";
@@ -45,6 +45,11 @@ class Inspector {
   private hoverRect: Pick<DOMRect, "top" | "left" | "width" | "height"> | null = null;
   /** rAF en attente du repositionnement du survol (scroll/resize coalescés par frame). */
   private frame = 0;
+  /** rAF en attente du traitement mousemove (coalescé par frame, indépendant de `frame`
+   * ci-dessus — déclenchement différent, peuvent être en vol simultanément). */
+  private moveFrame = 0;
+  /** Dernière position mousemove reçue, traitée une fois par frame. */
+  private pendingMove: { x: number; y: number } | null = null;
   /** Mode recherche actif : pas de rect de survol (les rects de recherche prennent le relais). */
   private searchMode = false;
   /** Matcher de la commande clavier « inspect » (modificateur + touche, simple/double-tap). */
@@ -62,6 +67,7 @@ class Inspector {
   activate(): void {
     if (this.active || typeof document === "undefined") return;
     this.active = true;
+    PICKER_ARMED.value = true;
 
     this.styleEl = document.createElement("style");
     this.styleEl.setAttribute(IGNORE_ATTR, "");
@@ -90,6 +96,7 @@ class Inspector {
   deactivate(): void {
     if (!this.active) return;
     this.active = false;
+    PICKER_ARMED.value = false;
     this.lastTarget = null;
     this.hoverRect = null;
     this.selection = [];
@@ -110,6 +117,11 @@ class Inspector {
       cancelAnimationFrame(this.frame);
     }
     this.frame = 0;
+    if (this.moveFrame && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this.moveFrame);
+    }
+    this.moveFrame = 0;
+    this.pendingMove = null;
     this.observer?.disconnect();
     this.observer = null;
     this.styleEl?.remove();
@@ -131,6 +143,9 @@ class Inspector {
   private showHover(el: Element, rect: DOMRect, animate = true): void {
     if (!this.surfaces) return;
     positionOverlay(this.surfaces.overlay, rect, animate);
+    // Un seul `getComputedStyle(el)` partagé entre tooltip et décorations (padding/gap/
+    // margin) plutôt que chacune le recalcule pour la même cible.
+    const cs = getComputedStyle(el);
     updateTooltip(
       this.surfaces.tooltip,
       this.surfaces.tooltipLabel,
@@ -140,19 +155,22 @@ class Inspector {
       el,
       this.selection,
       rect,
+      cs,
       this.callbacks.getTitle,
     );
-    this.renderDecor(el, rect);
+    this.renderDecor(el, rect, cs);
     this.hovering = true;
     this.hoverRect = { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
   }
 
-  /** Dessine (ou efface) les décorations layout selon `getOverlays`. */
-  private renderDecor(el: Element, rect: DOMRect): void {
+  /** Dessine (ou efface) les décorations layout selon `getOverlays`. `cs` : réutilisé s'il
+   * vient d'être calculé par l'appelant (`showHover`), sinon recalculé (`refreshDecorations`,
+   * toggle sans survol). */
+  private renderDecor(el: Element, rect: DOMRect, cs?: CSSStyleDeclaration): void {
     if (!this.surfaces) return;
     const overlays = this.callbacks.getOverlays?.();
     if (overlays && (overlays.padding || overlays.gap || overlays.margin)) {
-      renderDecorations(this.surfaces.decorLayer, el, rect, overlays);
+      renderDecorations(this.surfaces.decorLayer, el, rect, overlays, cs ?? getComputedStyle(el));
     } else {
       clearDecorations(this.surfaces.decorLayer);
     }
@@ -270,7 +288,25 @@ class Inspector {
     if (on) this.hideHover();
   }
 
+  /** Coalesce le traitement mousemove à une fois par frame (jusqu'à 60-120 events/s
+   * natifs sinon, chacun forçant un hit-test complet — voir `processMouseMove`). */
   private onMouseMove = (e: MouseEvent): void => {
+    this.pendingMove = { x: e.clientX, y: e.clientY };
+    if (typeof requestAnimationFrame !== "function") {
+      this.processMouseMove();
+      return;
+    }
+    if (this.moveFrame) return;
+    this.moveFrame = requestAnimationFrame(() => {
+      this.moveFrame = 0;
+      this.processMouseMove();
+    });
+  };
+
+  private processMouseMove(): void {
+    const pending = this.pendingMove;
+    if (!pending) return;
+    const { x, y } = pending;
     if (this.searchMode) {
       this.lastTarget = null;
       this.hideHover();
@@ -279,7 +315,20 @@ class Inspector {
     // Menu contextuel ouvert : survol figé sur l'élément du menu (le curseur
     // peut aller sur le menu sans perdre le rect ; le scroll le recolle).
     if (CONTEXT_MENU_OPEN.value) return;
-    const target = resolveTarget(e.clientX, e.clientY);
+    // Fast-path : le curseur reste très majoritairement SUR le même élément entre deux
+    // frames (micro-mouvements) — réutiliser `lastTarget` sans relancer le hit-test complet
+    // (`resolveTarget` : descente pointer-events:none avec getComputedStyle par enfant,
+    // coûteux). `document.elementFromPoint` seul (pas `containsPoint`/bounding rect) :
+    // un gros conteneur (ex. panneau de mega-menu, 1600px de large, dizaines de liens
+    // imbriqués) a un bounding rect qui engloberait aussi tous ses enfants — `containsPoint`
+    // y restait "vrai" en permanence dès que `lastTarget` devenait ce conteneur, empêchant
+    // de jamais redescendre survoler un lien interne (régression constatée en usage réel).
+    // `elementFromPoint` reflète le VRAI élément le plus profond sous le curseur, pas juste
+    // son rectangle englobant — un seul appel natif, toujours moins cher que `resolveTarget`.
+    const target =
+      this.lastTarget && this.lastTarget.isConnected && document.elementFromPoint(x, y) === this.lastTarget
+        ? this.lastTarget
+        : resolveTarget(x, y);
     if (!target || shouldIgnore(target)) {
       this.lastTarget = null;
       this.hideHover();
@@ -298,7 +347,7 @@ class Inspector {
     // Observé APRÈS l'affichage : la notification initiale du ResizeObserver
     // retrouve le rect mémorisé (`hoverRect`) → no-op, la glisse continue.
     this.syncObserver();
-  };
+  }
 
   private commands(): typeof DEFAULT_SETTINGS.commands {
     return this.callbacks.getCommands?.() ?? DEFAULT_SETTINGS.commands;
@@ -336,8 +385,17 @@ class Inspector {
 
     const cmds = this.commands();
     const isMulti = this.multi && gestureMatches(cmds.multi, me, kind);
-    const isCopy = gestureMatches(cmds.copy, me, kind);
     const isCopyHtml = gestureMatches(cmds.copyHtml, me, kind);
+    // Config par défaut (`copy: { modifier: "none", trigger: "click" }`) : ignore les
+    // modificateurs incidents (Ctrl/Alt/Meta) plutôt que d'exiger STRICTEMENT aucun
+    // modificateur — Ctrl/Alt sont réservés aux raccourcis "picker désarmé"
+    // (`commands.source`/`commands.usage`, voir `click-to-source.ts`), pas pertinents une
+    // fois le picker armé : un clic gauche doit picker, point. Un remappage explicite de
+    // `copy` (modifier/trigger différents du défaut) reste respecté à la lettre.
+    const isCopy =
+      cmds.copy.modifier === "none" && cmds.copy.trigger === "click"
+        ? kind === "click" && !isMulti && !isCopyHtml
+        : gestureMatches(cmds.copy, me, kind);
 
     // Geste « multi » démarre la sélection ; ensuite le geste « copier » continue
     // d'ajouter / retirer (accumulation). Le geste « valider » (clavier) confirme.

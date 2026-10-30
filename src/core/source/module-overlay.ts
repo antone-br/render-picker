@@ -150,6 +150,48 @@ export function moduleTreeMarkdown(entries: ModuleOverlayEntry[], route: string)
   return lines.join("\n");
 }
 
+/** Marqueur `rp@` collecté une fois par scan (`collectRpMarkers`), en ordre document. */
+interface RpMarker {
+  node: Comment;
+  moduleName: string | null;
+}
+
+/** Parcourt `root` une seule fois (tous les commentaires `rp@`, en ordre document) —
+ * réutilisé par `isForeignModule` pour TOUS les éléments d'un scan au lieu qu'elle relance
+ * un `TreeWalker` complet par élément (coût O(éléments × commentaires) sinon). */
+function collectRpMarkers(root: Node): RpMarker[] {
+  const markers: RpMarker[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    const marker = parseTplMarker((node as Comment).data);
+    if (marker) markers.push({ node: node as Comment, moduleName: moduleNameFromSource(marker.source) });
+    node = walker.nextNode();
+  }
+  return markers;
+}
+
+/** Index du dernier marqueur de `markers` (triés en ordre document) précédant
+ * strictement `el` — recherche binaire via `compareDocumentPosition` (un marqueur
+ * imbriqué À L'INTÉRIEUR de `el` n'est PAS considéré précédent, voir `isForeignModule`).
+ * `-1` si aucun. */
+function lastMarkerBefore(markers: RpMarker[], el: Element): number {
+  let lo = 0;
+  let hi = markers.length - 1;
+  let result = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const pos = markers[mid]!.node.compareDocumentPosition(el);
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) {
+      result = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return result;
+}
+
 /**
  * Vrai si le marqueur `rp@` **immédiatement précédent** de `el` en ordre document (celui
  * qui déterminerait son `data-source` dans `tpl-annotate.ts`) résout à un module différent
@@ -158,21 +200,14 @@ export function moduleTreeMarkdown(entries: ModuleOverlayEntry[], route: string)
  * QUE le marqueur propre à `el`, pas son sous-arbre entier : un module qui inclut juste un
  * lien d'un autre module *au milieu* de son propre contenu (le marqueur étranger est alors
  * imbriqué plus profondément, pas immédiatement précédent) reste considéré comme propre —
- * sinon tout son rectangle disparaîtrait pour un détail mineur.
+ * sinon tout son rectangle disparaîtrait pour un détail mineur. `markers` : voir
+ * `collectRpMarkers`, calculé une fois par scan et partagé entre tous les éléments.
  */
-function isForeignModule(el: Element, ownName: string): boolean {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
-  walker.currentNode = el;
-  let node: Node | null = walker.previousNode();
-  while (node) {
-    const marker = parseTplMarker((node as Comment).data);
-    if (marker) {
-      const mod = moduleNameFromSource(marker.source);
-      return mod !== null && mod !== ownName;
-    }
-    node = walker.previousNode();
-  }
-  return false;
+function isForeignModule(markers: RpMarker[], el: Element, ownName: string): boolean {
+  const idx = lastMarkerBefore(markers, el);
+  if (idx === -1) return false;
+  const mod = markers[idx]!.moduleName;
+  return mod !== null && mod !== ownName;
 }
 
 /**
@@ -227,6 +262,7 @@ function climbExclusiveWrapper(el: Element): Element {
  */
 export function scanModuleOverlays(root: Node = document.body): ModuleOverlayEntry[] {
   const entries: ModuleOverlayEntry[] = [];
+  const markers = collectRpMarkers(root);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
   let node: Node | null = walker.nextNode();
   while (node) {
@@ -238,7 +274,7 @@ export function scanModuleOverlays(root: Node = document.body): ModuleOverlayEnt
         if (sib.nodeType === Node.ELEMENT_NODE) elements.push(sib as Element);
         sib = sib.nextSibling;
       }
-      const owned = elements.filter((el) => !isForeignModule(el, start.name)).map(climbExclusiveWrapper);
+      const owned = elements.filter((el) => !isForeignModule(markers, el, start.name)).map(climbExclusiveWrapper);
       const rect = unionRect(owned);
       if (rect) {
         entries.push({

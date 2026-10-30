@@ -1,3 +1,4 @@
+import { PICKER_ARMED } from "../inspector/constants/behavior";
 import { loadSettings, modifierMatches, ROUTE_ENDPOINT } from "../settings";
 import type { ClickTrigger, RenderPickerSettings } from "../settings";
 import { buildEditorUri, type EditorId } from "./editors";
@@ -118,13 +119,18 @@ export function initClickToSource(
     window.addEventListener(type, swallow, { capture: true });
   }
 
-  /** Quelle action (source/usage) matche ce geste, ou `null`. Usage prioritaire. */
+  /** Quelle action (source/usage) matche ce geste, ou `null`. Usage prioritaire.
+   * `usage` (Ctrl+clic par défaut) ne déclenche QUE picker armé — sinon un Ctrl+clic
+   * anodin n'importe où sur la page ouvrirait l'éditeur sans qu'on ait rien demandé.
+   * `source` (Alt+clic par défaut) reste disponible picker armé ou non. */
   function resolveAction(
     e: MouseEvent,
     kind: ClickTrigger,
   ): "source" | "usage" | null {
     const { source, usage } = getCommands();
-    if (usage.trigger === kind && modifierMatches(usage.modifier, e)) return "usage";
+    if (PICKER_ARMED.value && usage.trigger === kind && modifierMatches(usage.modifier, e)) {
+      return "usage";
+    }
     if (source.trigger === kind && modifierMatches(source.modifier, e)) return "source";
     return null;
   }

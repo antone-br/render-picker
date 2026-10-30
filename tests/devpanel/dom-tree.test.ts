@@ -4,6 +4,7 @@ import {
   ancestorsUpTo,
   inlineText,
   isElementSkippable,
+  isVisibleInTree,
   nodeLabel,
   visibleChildren,
 } from "../../src/core/devpanel/dom-tree";
@@ -56,6 +57,31 @@ describe("ancestorsUpTo", () => {
     const deep = document.getElementById("deep")!;
     const chain = ancestorsUpTo(deep, document.body);
     expect(chain.map((e) => e.tagName.toLowerCase())).toEqual(["section", "main", "body"]);
+  });
+});
+
+describe("isVisibleInTree", () => {
+  it("vrai si tous les ancêtres sont dépliés", () => {
+    document.body.innerHTML = "<main><section><article id=\"deep\"></article></section></main>";
+    const deep = document.getElementById("deep")!;
+    const main = document.querySelector("main")!;
+    const section = document.querySelector("section")!;
+    const expanded = new Set([document.documentElement, document.body, main, section]);
+    expect(isVisibleInTree(deep, expanded)).toBe(true);
+  });
+
+  it("faux si un ancêtre intermédiaire est replié", () => {
+    document.body.innerHTML = "<main><section><article id=\"deep\"></article></section></main>";
+    const deep = document.getElementById("deep")!;
+    // "section" absent de `expanded` → sous-arbre replié, pas affiché.
+    const expanded = new Set([document.documentElement, document.body, document.querySelector("main")!]);
+    expect(isVisibleInTree(deep, expanded)).toBe(false);
+  });
+
+  it("vrai pour un élément directement sous body (body + html dépliés)", () => {
+    document.body.innerHTML = "<main id=\"m\"></main>";
+    const expanded = new Set([document.documentElement, document.body]);
+    expect(isVisibleInTree(document.getElementById("m")!, expanded)).toBe(true);
   });
 });
 

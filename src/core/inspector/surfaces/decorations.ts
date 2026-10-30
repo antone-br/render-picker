@@ -81,9 +81,9 @@ export function renderDecorations(
   el: Element,
   rect: DOMRect,
   { padding, gap, margin }: LayoutOverlays,
+  cs: CSSStyleDeclaration,
 ): void {
   clearDecorations(layer);
-  const cs = getComputedStyle(el);
 
   if (margin) {
     const mt = parseFloat(cs.marginTop) || 0;

@@ -84,7 +84,7 @@ export function DevRenderPicker() {
 | `Ctrl`+`I` | Open the inspection panel on the HTML tab, at the hovered element |
 | `Esc` | Cancel |
 | `Alt`+click (picker off) | Open the element's source in your editor (see **Editor** below) |
-| `Ctrl`+click (picker off) | Jump to the usage site |
+| `Ctrl`+click (picker **armed**) | Jump to the usage site |
 
 ### Right-click menu — "Copier le rendu" (self-contained HTML)
 

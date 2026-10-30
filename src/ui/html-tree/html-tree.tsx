@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type FC } from "react";
 
 import { IGNORE_ATTR } from "../../core/inspector/constants/behavior";
-import { ancestorsUpTo, isElementSkippable } from "../../core/devpanel/dom-tree";
+import { ancestorsUpTo, isElementSkippable, isVisibleInTree } from "../../core/devpanel/dom-tree";
 import {
   getInspected,
   onContextMenuRequest,
@@ -39,6 +39,11 @@ export const HtmlTree: FC = () => {
   const highlightRef = useRef<SearchHighlight | null>(null);
   const selectedRef = useRef<Element | null>(null);
   selectedRef.current = selected;
+  /** Lu par le `MutationObserver` (enregistré une fois au montage) pour ignorer les
+   * mutations d'un sous-arbre actuellement replié — évite un `force()` pour un changement
+   * que personne ne voit (carrousel/anim en boucle hors écran, etc.). */
+  const expandedRef = useRef<Set<Element>>(expanded);
+  expandedRef.current = expanded;
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
   /** Prochain scroll de la ligne focus : centré (clic page) plutôt qu'au plus près. */
   const centerNextRef = useRef(false);
@@ -55,8 +60,9 @@ export const HtmlTree: FC = () => {
   }, []);
 
   // Live : rafraîchit l'arbre quand le DOM change (<head> inclus : HMR, styles
-  // injectés), en ignorant nos propres mutations (rects de highlight) pour ne
-  // pas boucler. Débounce léger.
+  // injectés), en ignorant nos propres mutations (rects de highlight) ET les mutations
+  // d'un sous-arbre replié (pas affiché, pas la peine de re-render tout l'arbre). Débounce
+  // (250ms, pas besoin de plus réactif pour un panneau d'inspection dev).
   useEffect(() => {
     if (typeof MutationObserver === "undefined" || !document.documentElement) return;
     let timer: number | null = null;
@@ -64,13 +70,14 @@ export const HtmlTree: FC = () => {
       const relevant = muts.some((m) => {
         const t = m.target;
         const el = t instanceof Element ? t : t.parentElement;
-        return !el || el.closest(`[${IGNORE_ATTR}]`) === null;
+        if (!el || el.closest(`[${IGNORE_ATTR}]`) !== null) return false;
+        return isVisibleInTree(el, expandedRef.current);
       });
       if (!relevant || timer !== null) return;
       timer = window.setTimeout(() => {
         timer = null;
         force();
-      }, 120);
+      }, 250);
     });
     obs.observe(document.documentElement, {
       subtree: true,

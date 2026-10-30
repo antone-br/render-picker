@@ -155,11 +155,13 @@ class RenderPicker extends Module
         foreach ($lines as $i => $line) {
             $ln = $i + 1;
 
-            if (!$inRaw
-                && preg_match('/^\s*<[a-zA-Z]/', $line)
-                && !preg_match('#^\s*</#', $line)
-                && !preg_match('/^\s*<!--/', $line)
-            ) {
+            // `[a-zA-Z]` juste après `<` exclut déjà fermetures (`</`), commentaires et
+            // doctype (`<!...`) — aucun des deux ne peut matcher `<[a-zA-Z]`. Les 2 anciens
+            // `preg_match` d'exclusion étaient donc toujours vrais (code mort, jamais
+            // atteints en pratique) : supprimés, même résultat, 1 seul regex par ligne au
+            // lieu de 3 — ce prefilter tourne sur CHAQUE ligne de CHAQUE .tpl à chaque
+            // compile, le coût se cumule vite (centaines de templates).
+            if (!$inRaw && preg_match('/^\s*<[a-zA-Z]/', $line)) {
                 $out[] = '<!-- rp@' . $rel . ':' . $ln . ' -->';
             }
 

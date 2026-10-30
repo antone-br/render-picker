@@ -7,8 +7,8 @@
 
 import { DEFAULT_EDITOR, isEditorId, type EditorId } from "./dev/editors";
 
-/** Modificateur d'un geste souris remappable. */
-export type ClickModifier = "none" | "ctrl" | "alt" | "meta" | "shift";
+/** Modificateur d'un geste souris remappable (`"off"` désactive le geste entièrement). */
+export type ClickModifier = "none" | "ctrl" | "alt" | "meta" | "shift" | "off";
 
 /** Type de clic d'un geste souris remappable. */
 export type ClickTrigger = "click" | "rightclick" | "dblclick";
@@ -119,6 +119,8 @@ export function modifierMatches(mod: ClickModifier, e: ModifierState): boolean {
       return e.shiftKey;
     case "none":
       return !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+    case "off":
+      return false;
   }
 }
 

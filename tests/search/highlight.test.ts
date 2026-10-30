@@ -6,6 +6,7 @@ const RECT_SELECTOR = "[data-pathpicker-ignore] > [data-rp-search-ui]";
 
 afterEach(() => {
   document.documentElement.innerHTML = "";
+  window.localStorage.clear();
 });
 
 function makeEl(): HTMLElement {

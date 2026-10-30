@@ -199,6 +199,7 @@ export function createSearchHighlight(options: SearchHighlightOptions = {}): Sea
         el,
         [],
         el.getBoundingClientRect(),
+        getComputedStyle(el),
       );
     }
   }

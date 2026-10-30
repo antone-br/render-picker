@@ -47,9 +47,10 @@ export interface ContextMenuState {
     configUrl: string | null;
     hookPositionsUrl: string | null;
   } | null;
-  /** Markdown listant tous les modules de la page (arbre par confinement géométrique) —
-   * même garde que `modulePath` (overlay modules uniquement). */
-  modulesTree?: string;
+  /** Calcule à la demande le Markdown listant tous les modules de la page (arbre par
+   * confinement géométrique) — même garde que `modulePath` (overlay modules uniquement).
+   * Paresseux : ne coûte rien tant que "Copier l'arbre des modules" n'est pas cliqué. */
+  getModulesTree?: () => string;
 }
 
 export interface ContextMenuProps {

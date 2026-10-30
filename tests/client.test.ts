@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PICKER_ARMED } from "../src/core/inspector/constants/behavior";
 import { initRenderPicker } from "../src/client";
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  window.localStorage.clear();
+  PICKER_ARMED.value = false;
 });
 
 describe("initRenderPicker", () => {
@@ -46,6 +49,8 @@ describe("initRenderPicker", () => {
       annotate: false,
       hushConsole: false,
     });
+    // `usage` (Ctrl+clic) n'ouvre que picker armé (voir click-to-source.ts resolveAction).
+    PICKER_ARMED.value = true;
     const span = document.querySelector("span")!;
     span.dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, ctrlKey: true, button: 0 }),
@@ -127,6 +132,7 @@ describe("initRenderPicker", () => {
       annotate: false,
       hushConsole: false,
     });
+    PICKER_ARMED.value = true;
     document
       .querySelector("span")!
       .dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, ctrlKey: true, button: 0 }));

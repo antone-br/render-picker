@@ -237,7 +237,7 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
           x: pos.x,
           y: pos.y,
           modulePath: moduleCtx?.modulePath,
-          modulesTree: moduleCtx?.modulesTree,
+          getModulesTree: moduleCtx?.getModulesTree,
         });
       }
     },
@@ -338,8 +338,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
                   label: "Copier l'arbre des modules",
                   icon: <GitBranchIcon />,
                   onClick: () => {
-                    if (!contextMenu.modulesTree) return;
-                    copy(contextMenu.modulesTree);
+                    if (!contextMenu.getModulesTree) return;
+                    copy(contextMenu.getModulesTree());
                     showToast("Arbre copié ✓");
                     closeContextMenu();
                     disarm();
@@ -520,8 +520,8 @@ export const RenderPickerButton: FC<RenderPickerButtonProps> = ({
   // contextuel (copier HTML/rendu/classes/XPath) que le picker normal.
   useEffect(() => {
     if (!showModuleOverlay) return;
-    setModuleOverlayContextMenuHandler((el, pos, modulePath, modulesTree) => {
-      if (el instanceof HTMLElement) setContextMenu({ el, x: pos.x, y: pos.y, modulePath, modulesTree });
+    setModuleOverlayContextMenuHandler((el, pos, modulePath, getModulesTree) => {
+      if (el instanceof HTMLElement) setContextMenu({ el, x: pos.x, y: pos.y, modulePath, getModulesTree });
     });
     const stop = initModuleOverlaySurface();
     return () => {

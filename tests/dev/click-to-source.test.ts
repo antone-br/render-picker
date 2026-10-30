@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PICKER_ARMED } from "../../src/core/inspector/constants/behavior";
 import { buildVscodeUri, initClickToSource } from "../../src/core/dev/click-to-source";
 import { DEFAULT_SETTINGS } from "../../src/core/settings";
 
@@ -63,6 +64,7 @@ describe("initClickToSource", () => {
     window.localStorage.clear();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    PICKER_ARMED.value = false;
   });
 
   it("Alt+clic sur [data-source] → ouvre VS Code + désarme (Escape)", async () => {
@@ -107,6 +109,8 @@ describe("initClickToSource", () => {
       },
     );
 
+    // `usage` (Ctrl+clic) n'ouvre que picker armé (voir resolveAction).
+    PICKER_ARMED.value = true;
     stop = initClickToSource("C:/proj");
     el.dispatchEvent(
       new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
@@ -129,6 +133,7 @@ describe("initClickToSource", () => {
       },
     );
 
+    PICKER_ARMED.value = true;
     stop = initClickToSource("C:/proj");
     el.dispatchEvent(
       new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
@@ -136,6 +141,25 @@ describe("initClickToSource", () => {
     await flush();
 
     expect(href).toContain("src/a.tsx:3");
+  });
+
+  it("Ctrl+clic SANS picker armé → n'ouvre rien (usage réservée au picker armé)", async () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-source", "src/a.tsx:3");
+    document.body.appendChild(el);
+
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    // PICKER_ARMED.value reste false (défaut) — Ctrl+clic ne doit rien faire.
+    stop = initClickToSource("C:/proj");
+    el.dispatchEvent(
+      new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
+    );
+    await flush();
+
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 
   it("clic normal (sans Alt) → n'ouvre rien", async () => {
@@ -169,9 +193,10 @@ describe("initClickToSource", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
 
+    PICKER_ARMED.value = true;
     stop = initClickToSource("C:/proj");
 
-    // Ctrl matche le binding usage (defaut : ctrl+clic).
+    // Ctrl matche le binding usage (defaut : ctrl+clic), picker armé.
     el.dispatchEvent(
       new MouseEvent("pointerdown", { ctrlKey: true, button: 0, bubbles: true }),
     );
@@ -203,6 +228,7 @@ describe("initClickToSource", () => {
       },
     );
 
+    PICKER_ARMED.value = true;
     stop = initClickToSource("C:/proj");
     el.dispatchEvent(
       new MouseEvent("contextmenu", { altKey: true, button: 2, bubbles: true }),

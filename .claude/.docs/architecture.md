@@ -355,6 +355,37 @@ indépendante du module cliqué : **copier l'arbre de tous les modules de la pag
   Pensé pour être collé tel quel dans un `.md` — documenter visuellement la structure
   modules d'une page sans avoir à screenshot/lister à la main.
 
+## Perf — render-picker ON = dev-only, pas un proxy de la prod
+
+Mesuré sur un site réel (~137 modules) : render-picker ON ≈ 2,6s/page vs OFF (+ FPC) ≈
+0,5s — ~5×. Cause **de loin** dominante, **par design, pas un bug** : `CjFpc::isCacheable()`
+(module de cache plein-page tiers) renvoie `false` tant que render-picker est actif →
+chaque page est entièrement re-rendue au lieu d'être servie depuis le cache FPC. Normal :
+le FPC cacherait sinon des marqueurs dev (durée de rendu, `rp-module`) qui doivent varier à
+chaque requête — un cache de ce HTML serait silencieusement faux. **Ne jamais mesurer la
+perf prod avec render-picker ON** ; couper (`_RENDER_PICKER_ENABLED_` off) avant toute
+mesure ou déploiement.
+
+Second multiplicateur, seulement si Smarty tourne avec `force_compile=1` (mode dev complet,
+pas la config par défaut) : le prefilter (`smartyPrefilter`) retourne à **chaque rendu**
+au lieu d'une fois par template (compile normalement mis en cache, `compile_check` ne
+recompile que les `.tpl` modifiés). `force_compile=1` + prefilter lourd = compile storm à
+chaque requête (~8s observé). Pas un problème render-picker en soi — éviter
+`force_compile=1` en usage normal (déjà déconseillé, voir `smartyPrefilter` plus haut).
+
+Le coût du prefilter lui-même par ligne de `.tpl` a été réduit : la détection de ligne
+ouvrant un tag utilisait 3 `preg_match` (`^\s*<[a-zA-Z]`, exclusion `^\s*</`, exclusion
+`^\s*<!--`) — les 2 derniers étaient **du code mort** : un caractère après `<` ne peut pas
+être à la fois une lettre (`[a-zA-Z]`, 1er regex) ET `/` ou `!` (ce que les 2 regex suivants
+excluaient) — ils étaient donc toujours vrais, jamais réellement évaluateurs. Réduit à 1
+seul `preg_match` par ligne, même résultat.
+
+Coût des overrides `Module.php`/`Hook.php` (chronométrage + concat du marqueur + push/pop
+du nom de hook) : négligeable, O(1) par module racine/hook, pas la source du ralentissement.
+Les `error_log()` de debug (`Module.php`, `rpFinish`) sont gatés derrière
+`_RENDER_PICKER_DEBUG_LOG_` (off par défaut) — actifs par défaut, ~137 modules × 2 logs
+= 274 écritures synchrones/requête, un coût réel mais secondaire face au FPC.
+
 ## Limites connues
 
 - Précision **ligne d'ouverture du tag** uniquement, pas colonne.
