@@ -92,6 +92,29 @@ describe("createInspector — interactions", () => {
     expect(result.id).toBe("b");
   });
 
+  it("clic sur un élément SVG imbriqué garde SA propre source (pas celle du <svg> ancêtre)", () => {
+    document.body.innerHTML = `
+      <h1 data-source="hero.tsx:182">
+        <svg id="logo" data-source="hero.tsx:182">
+          <path data-source="hero.tsx:185"></path>
+        </svg>
+      </h1>`;
+    const path = document.querySelector("path")!;
+    stubElementFromPoint(path);
+
+    const onPick = vi.fn<(r: PickResult) => void>();
+    const insp = createInspector({ onPick, onCancel: () => {}, getRoute: () => "/" });
+    insp.activate();
+
+    pressDown({ clientX: 5, clientY: 5, button: 0 });
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    const result = onPick.mock.calls[0]![0];
+    // Le XPath, lui, remonte bien au <svg> (robustesse du sélecteur — voir xpath.ts).
+    expect(result.xpath).toBe('//*[@id="logo"]');
+    expect(result.reactSource).toBe("hero.tsx:185");
+  });
+
   it("hover redescend dans un enfant imbriqué d'un gros conteneur (régression mega-menu)", () => {
     document.body.innerHTML = `<main><div id="panel"><a id="link">Piscine</a></div></main>`;
     const panel = document.getElementById("panel")!;

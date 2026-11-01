@@ -12,6 +12,7 @@ import { createKeyCommandMatcher } from "./key-command";
 import { PICKING_CSS } from "./constants/picker";
 import { getCssSelector } from "./css-selector";
 import { containsPoint, resolveTarget, shouldIgnore } from "./hit-test";
+import { componentChain } from "../source/component-annotate";
 import { createSurfaces, type Surfaces } from "./surfaces/create";
 import { clearDecorations, renderDecorations } from "./surfaces/decorations";
 import { renderMarkers } from "./surfaces/markers";
@@ -240,6 +241,11 @@ class Inspector {
   // --- Résultat -------------------------------------------------------------
 
   private buildResult(el: Element): PickResult {
+    // Lus sur `el` directement (avant la collapse SVG de `getXPath` ci-dessous) : un clic
+    // sur un `<path>` imbriqué doit garder SA propre source, pas celle du `<svg>` ancêtre
+    // que `getXPath` vise pour la robustesse du sélecteur (voir `xpath.ts`).
+    const annotated = el.closest("[data-source]");
+    const chain = el instanceof HTMLElement ? componentChain(el) : [];
     return {
       route: this.callbacks.getRoute(),
       xpath: getXPath(el),
@@ -247,8 +253,11 @@ class Inspector {
       text: elementText(el),
       tagName: el.tagName.toLowerCase(),
       id: el.id || null,
-      reactComponent: null,
-      reactSource: null,
+      reactComponent:
+        chain.length > 0
+          ? chain.join(" > ")
+          : el.closest("[data-component]")?.getAttribute("data-component") ?? null,
+      reactSource: annotated?.getAttribute("data-source") ?? null,
     };
   }
 
